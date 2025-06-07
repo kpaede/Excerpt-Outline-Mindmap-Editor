@@ -2,6 +2,8 @@
 
 An Obsidian plugin for creating visual mindmaps optimized for literature excerpting. Running on pure Markdown outlines, with a drag-and-drop workflow.
 
+![](demo.gif)
+
 ---
 
 ## Early Development Notice
