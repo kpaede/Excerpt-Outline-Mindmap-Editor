@@ -1,0 +1,11 @@
+{
+	"id": "excerpt-outline-mindmap-editor",
+	"name": "Excerpt-Outline-Mindmap-Editor",
+	"version": "0.0.1",
+	"minAppVersion": "0.15.0",
+	"description": "A visual drag-n-drop mindmap editor (with markdown outline under the hood).",
+	"author": "Kornelius Paede",
+	"authorUrl": "https://dramaturgie.lol",
+	"fundingUrl": "https://obsidian.md/pricing",
+	"isDesktopOnly": true
+}
