@@ -16,7 +16,7 @@ An Obsidian plugin for creating visual mindmaps optimized for literature excerpt
 
 Excerpt-Outline-Mindmap-Editor lets you visually structure text excerpts as mindmaps using a  drag-and-drop system.
 
-The underlying data model remains a standard Markdown outline (indented list) — fully compatible with Obsidian’s editor and outline plugins such as [Lineage](https://github.com/codextex/obsidian-lineage).  
+The underlying data model remains a standard Markdown outline (indented list) — fully compatible with Obsidian’s editor and outline plugins such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).  
 There is no proprietary format and no external storage.
 
 ---
@@ -62,7 +62,7 @@ Thanks to the developers of these libraries.
 
 ## Inspiration
 
-- [Lineage plugin](https://github.com/codextex/obsidian-lineage)
+- [Lineage plugin](https://github.com/ycnmhd/obsidian-lineage)
 - [MarginNote](https://www.marginnote.com/)
 
 ---
@@ -79,7 +79,7 @@ Thanks to the developers of these libraries.
 
 ## Feedback and Contributions
 
-This project is in active development. Feedback, issues, and contributions are welcome.  
+Feedback, issues, and contributions are welcome.
 
 ---
 
