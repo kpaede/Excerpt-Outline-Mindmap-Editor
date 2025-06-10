@@ -8,6 +8,7 @@ import {
   DropdownComponent,
 } from 'obsidian';
 import type { MindmapView } from './mindmapView';
+import { FrontmatterStorage } from './frontmatter-storage';
 
 /**
  * LayoutOptionsModal zeigt alle Dagre-Parameter in einem modernen Dialog an,
@@ -69,6 +70,7 @@ export class LayoutOptionsModal extends Modal {
         dropdown.onChange((value) => {
           opts.rankDir = value as 'TB' | 'BT' | 'LR' | 'RL';
           this.view.relayout();
+          this.saveLayoutOptions();
         });
       });
 
@@ -92,6 +94,7 @@ export class LayoutOptionsModal extends Modal {
         dropdown.onChange((value) => {
           opts.align = value === 'none' ? undefined : (value as 'UL' | 'UR' | 'DL' | 'DR');
           this.view.relayout();
+          this.saveLayoutOptions();
         });
       });
 
@@ -111,6 +114,7 @@ export class LayoutOptionsModal extends Modal {
         dropdown.onChange((value) => {
           opts.acyciler = value === 'none' ? undefined : 'greedy';
           this.view.relayout();
+          this.saveLayoutOptions();
         });
       });
 
@@ -132,6 +136,7 @@ export class LayoutOptionsModal extends Modal {
         dropdown.onChange((value) => {
           opts.ranker = value as 'network-simplex' | 'tight-tree' | 'longest-path';
           this.view.relayout();
+          this.saveLayoutOptions();
         });
       });
 
@@ -162,6 +167,7 @@ export class LayoutOptionsModal extends Modal {
         setValue(newVal);
         valueEl.setText(` ${newVal}`);
         this.view.relayout();
+        this.saveLayoutOptions();
       };
     };
 
@@ -314,6 +320,7 @@ export class LayoutOptionsModal extends Modal {
         dropdown.onChange((value) => {
           opts.edgeLabelPos = value as 'l' | 'c' | 'r';
           this.view.relayout();
+          this.saveLayoutOptions();
         });
       });
 
@@ -345,6 +352,16 @@ export class LayoutOptionsModal extends Modal {
       fontSize: 'var(--font-size-sm)',
     });
     closeBtn.addEventListener('click', () => this.close());
+  }
+
+  private async saveLayoutOptions(): Promise<void> {
+    if (this.view.file && this.view.frontmatterStorage) {
+      try {
+        await this.view.frontmatterStorage.saveLayoutOptions(this.view.file, this.view.layoutOptions);
+      } catch (error) {
+        console.error('Failed to save layout options to frontmatter:', error);
+      }
+    }
   }
 
   onClose() {

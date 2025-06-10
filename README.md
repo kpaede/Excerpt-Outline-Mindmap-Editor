@@ -6,9 +6,11 @@ An Obsidian plugin for creating visual mindmaps optimized for literature excerpt
 
 ---
 
-## Early Development Notice
+##  Development Notice
 
 **Caution**: This plugin is in an early stage of development. Do not rely on it as your only method for managing important data. Bugs, data loss, and instability are still very possible.
+
+**Developers**: I might not have the time to maintain this project permanently. If you are interested, leave me a message.
 
 ---
 
@@ -31,6 +33,8 @@ There is no proprietary format and no external storage.
 - Node deletion supports:
   - Removing a single node from its parent
   - Deleting a node along with all its children
+-  undo/redo buttons
+- storing layout options in frontmatter of the respective file
 
 ---
 
@@ -38,16 +42,17 @@ There is no proprietary format and no external storage.
 
 1. Create a Markdown file: empty with an outline structure.
 2. Open the file as a mindmap:
-   - Click the three-dot menu in the top-right corner of the editor and select **“Open as mindmap”**,  
-   - or right-click the file in the file explorer and choose **“Open as mindmap”**.
+   - Click the three-dot menu in the top-right corner of the editor and select **"Open as mindmap"**,  
+   - or right-click the file in the file explorer and choose **"Open as mindmap"**.
 3. Use drag and drop to build or restructure your outline visually:
    - Drag a node onto another to make it a child
    - Beware: All children move with their parent
 4. Use the "↓" button (visible on hover) to add child nodes directly
 5. Use the "→" button (visible on hover) to add sibling nodes directly
-5. Use the "x" button (also on hover) to delete a node, with the option to keep or remove children
+6. Use the "x" button (also on hover) to delete a node, with the option to keep or remove children
+7. **Use the undo/redo buttons** in the toolbar to reverse or replay actions
 
-All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa.
+All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa. Undo/redo history is preserved between sessions using frontmatter storage.
 
 ---
 
@@ -56,22 +61,22 @@ All changes are written to the file as a clean Markdown outline — no custom sy
 - [Cytoscape.js](https://js.cytoscape.org/) – for visual graph rendering  
 - [Dagre](https://github.com/dagrejs/dagre) – for automatic hierarchical layout
 
-Thanks to the developers of these libraries.
+Thanks to the developers.
 
 ---
 
 ## Inspiration
 
-- [Lineage plugin](https://github.com/ycnmhd/obsidian-lineage)
+- [Lineage](https://github.com/ycnmhd/obsidian-lineage)
 - [MarginNote](https://www.marginnote.com/)
 
 ---
 
 ## Roadmap
 
-- Undo/redo support  
+- copy+paste
 - Keyboard navigation
-- Layout saving
+- ✅ Layout saving (frontmatter) - implemented
 - Embedding Mindmaps into Markdown
 - Export and print options  
 

@@ -21,11 +21,28 @@ import {
   deleteNode,
   moveSubtree,
   addChildText,
+  deleteNodeKeepChildren,
   DocString,
 } from './mindmap-file';
 import { VerticalToolbar } from './vertical-toolbar';
 import { draw as drawMindmap } from './draw';
 import { updateOverlays as updateOverlaysFn } from './updateOverlays';
+import { NodeOptions } from './node-options-menu';
+import { FrontmatterStorage } from './frontmatter-storage';
+import { CommandHistory } from './command-history';
+
+export interface LayoutOptions {
+  rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
+  align?: 'UL' | 'UR' | 'DL' | 'DR';
+  nodeSep?: number;
+  edgeSep?: number;
+  rankSep?: number;
+  marginx?: number;
+  marginy?: number;
+  acyciler?: 'greedy';
+  ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
+  spacingFactor?: number;
+}
 
 export class MindmapView extends TextFileView {
   public file: TFile | null = null;
@@ -33,6 +50,9 @@ export class MindmapView extends TextFileView {
   public wrapper!: HTMLDivElement;
   public firstFitDone = false;
   public toolbar?: VerticalToolbar;
+  public isUpdatingOverlays = false;
+  public frontmatterStorage: FrontmatterStorage;
+  public commandHistory: CommandHistory;
 
   /**
    * Map von OutlineNode.line → gemessene Breite/Höhe (in px).
@@ -72,8 +92,16 @@ export class MindmapView extends TextFileView {
     updateOverlaysFn(this);
   };
 
+  private nodeOptions: NodeOptions = {
+    nodeWidth: 300
+  };
+
+  private saveDebounceTimer?: number;
+
   constructor(leaf: WorkspaceLeaf, _plugin: MindmapPlugin) {
     super(leaf);
+    this.frontmatterStorage = new FrontmatterStorage(this.app);
+    this.commandHistory = new CommandHistory(this.app);
   }
 
   getViewType(): string {
@@ -233,8 +261,172 @@ export class MindmapView extends TextFileView {
     void this.incrementalUpdate();
   }
 
-  /** Incremental update that preserves existing overlays when possible */
-  private async incrementalUpdate(): Promise<void> {
+  // Enhanced applyDocIncremental with command tracking - now the primary method
+  public applyDocIncrementalWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
+    this.data = d;
+    
+    // Record command in history
+    if (command) {
+      this.commandHistory.executeCommand(command);
+    }
+    
+    // Always use incremental update - no special cases
+    void this.incrementalUpdate();
+    
+    // Force toolbar button update after command execution
+    this.forceToolbarUpdate();
+  }
+
+  private debouncedSaveCommandHistory(): void {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+    
+    this.saveDebounceTimer = window.setTimeout(() => {
+      this.saveCommandHistoryToFrontmatter().catch(error => {
+        console.warn('Failed to save command history to frontmatter:', error);
+      });
+    }, 500); // Save after 500ms of inactivity
+  }
+
+  private async saveCommandHistoryToFrontmatter(): Promise<void> {
+    if (this.file && this.frontmatterStorage) {
+      try {
+        const historyState = this.commandHistory.getHistoryState();
+        await this.frontmatterStorage.updateCommandHistory(this.file, historyState);
+      } catch (error) {
+        console.warn('Failed to save command history:', error);
+        // Clear history if saving fails consistently
+        this.commandHistory.clear();
+      }
+    }
+  }
+
+  // Make this the standard method for all operations
+  public applyDocWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
+    this.applyDocIncrementalWithCommand(d, command);
+  }
+
+  /** Incremental update that reuses existing measurements where possible */
+  public async incrementalUpdate(): Promise<void> {
+    if (!this.cy || !this.file) {
+      await this.draw();
+      return;
+    }
+
+    try {
+      // Parse new outline (now simplified for single-line content)
+      const flat: OutlineNode[] = [];
+      (function walk(arr: import('./util').OutlineNode[]) {
+        arr.forEach((n) => {
+          flat.push(n);
+          walk(n.children);
+        });
+      })(parseOutline(this.data));
+
+      // Only measure nodes that don't have cached dimensions
+      const nodesToMeasure = flat.filter(n => !this.sizeMap.has(n.line));
+      
+      if (nodesToMeasure.length > 0) {
+        const measureContainer = document.createElement('div');
+        Object.assign(measureContainer.style, {
+          position: 'absolute',
+          visibility: 'hidden',
+          top: '0',
+          left: '0',
+          pointerEvents: 'none',
+          zIndex: '-1',
+        } as CSSStyleDeclaration);
+        document.body.appendChild(measureContainer);
+
+        for (const n of nodesToMeasure) {
+          const generalOptions = this.getNodeOptions();
+          const targetWidth = generalOptions.nodeWidth;
+          
+          const tmpBox = document.createElement('div');
+          Object.assign(tmpBox.style, {
+            position: 'relative',
+            padding: '6px 10px 22px',
+            border: '1px solid transparent',
+            borderRadius: '4px',
+            background: 'transparent',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            fontSize: '16px',
+            whiteSpace: 'nowrap', // Single line only
+            overflow: 'hidden',
+            maxWidth: `${targetWidth}px`,
+            boxSizing: 'border-box',
+          } as CSSStyleDeclaration);
+
+          if (n.text.trim() === '') {
+            tmpBox.innerHTML = '&nbsp;';
+          } else {
+            tmpBox.textContent = n.text; // Simple text only, no markdown rendering
+          }
+
+          measureContainer.appendChild(tmpBox);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+          const rect = tmpBox.getBoundingClientRect();
+          let measuredW = rect.width || targetWidth;
+          let measuredH = rect.height || 40;
+
+          if (measuredW > targetWidth) {
+            const scale = targetWidth / measuredW;
+            n.scaleFactor = scale;
+            measuredW = targetWidth;
+            measuredH = measuredH * scale;
+          } else {
+            measuredW = targetWidth;
+          }
+
+          this.sizeMap.set(n.line, { w: measuredW, h: measuredH });
+          measureContainer.removeChild(tmpBox);
+        }
+
+        document.body.removeChild(measureContainer);
+      }
+
+      // Update cytoscape elements
+      const els: import('cytoscape').ElementDefinition[] = [];
+      for (const n of flat) {
+        const dims = this.sizeMap.get(n.line)!;
+        els.push({
+          data: {
+            id: `n${n.line}`,
+            node: n,
+            width: dims.w,
+            height: dims.h,
+          },
+        });
+      }
+      for (const p of flat) {
+        p.children.forEach((c) => {
+          els.push({
+            data: {
+              id: `e${p.line}-${c.line}`,
+              source: `n${p.line}`,
+              target: `n${c.line}`,
+            },
+          });
+        });
+      }
+
+      // Update cytoscape without full relayout
+      this.cy.json({ elements: els });
+      
+      // Only trigger overlay update, no layout changes
+      this.updateOverlays();
+      
+    } catch (error) {
+      console.error('Incremental update failed, falling back to full draw:', error);
+      await this.draw();
+    }
+  }
+
+  /** Optimized update specifically for move operations that preserves visual state */
+  public async optimizedMoveUpdate(visualState: Map<number, any>): Promise<void> {
     if (!this.cy || !this.file) return;
 
     // Parse new outline
@@ -246,21 +438,7 @@ export class MindmapView extends TextFileView {
       });
     })(parseOutline(this.data));
 
-    // Get current nodes for comparison
-    const currentNodes = new Set(this.cy.nodes().map(n => n.id()));
-    const newNodes = new Set(flat.map(n => `n${n.line}`));
-
-    // Only do full rebuild if structure changed significantly
-    const nodesAdded = [...newNodes].filter(id => !currentNodes.has(id));
-    const nodesRemoved = [...currentNodes].filter(id => !newNodes.has(id));
-
-    if (nodesAdded.length > 1 || nodesRemoved.length > 1) {
-      // Significant structural change, do full rebuild
-      await this.draw();
-      return;
-    }
-
-    // Measure container for all nodes that need measurement
+    // Only measure nodes that are actually new or have changed content
     const measureContainer = document.createElement('div');
     Object.assign(measureContainer.style, {
       position: 'absolute',
@@ -272,67 +450,69 @@ export class MindmapView extends TextFileView {
     } as CSSStyleDeclaration);
     document.body.appendChild(measureContainer);
 
-    // Measure ALL nodes to ensure sizeMap is complete
-    for (const n of flat) {
-      const nodeId = `n${n.line}`;
-      const existingNode = this.cy.getElementById(nodeId);
-      
-      // Always measure if size is missing or node text changed
-      if (!this.sizeMap.has(n.line) || !existingNode.length || existingNode.data('node')?.text !== n.text) {
-        const tmpBox = document.createElement('div');
-        Object.assign(tmpBox.style, {
-          position: 'relative',
-          padding: '6px 10px 22px',
-          border: '1px solid transparent',
-          borderRadius: '4px',
-          background: 'transparent',
-          color: 'inherit',
-          fontFamily: 'inherit',
-          fontSize: '16px',
-          whiteSpace: 'normal',
-          wordWrap: 'break-word',
-          maxWidth: '260px',
-          boxSizing: 'border-box',
-        } as CSSStyleDeclaration);
-
-        if (n.text.trim() === '') {
-          tmpBox.innerHTML = '&nbsp;';
-        } else {
-          await MarkdownRenderer.renderMarkdown(
-            n.text,
-            tmpBox,
-            this.file.path,
-            (this as unknown) as Component
-          );
+    // Restore preserved visual state where possible
+    flat.forEach(n => {
+      const preserved = visualState.get(n.line);
+      if (preserved) {
+        this.sizeMap.set(n.line, preserved.dims);
+        if (preserved.scaleFactor) {
+          n.scaleFactor = preserved.scaleFactor;
         }
-
-        measureContainer.appendChild(tmpBox);
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-        const rect = tmpBox.getBoundingClientRect();
-        let measuredW = rect.width;
-        const measuredH = rect.height;
-
-        if (measuredW < 80) {
-          measuredW = 80;
-        }
-
-        this.sizeMap.set(n.line, { w: measuredW, h: measuredH });
-        measureContainer.removeChild(tmpBox);
       }
+    });
+
+    // Only measure nodes that don't have preserved dimensions
+    const nodesToMeasure = flat.filter(n => !this.sizeMap.has(n.line));
+    
+    for (const n of nodesToMeasure) {
+      const generalOptions = this.getNodeOptions();
+      const targetWidth = generalOptions.nodeWidth;
+      
+      const tmpBox = document.createElement('div');
+      Object.assign(tmpBox.style, {
+        position: 'relative',
+        padding: '6px 10px 22px',
+        border: '1px solid transparent',
+        borderRadius: '4px',
+        background: 'transparent',
+        color: 'inherit',
+        fontFamily: 'inherit',
+        fontSize: '16px',
+        whiteSpace: 'nowrap', // Single line only
+        overflow: 'hidden',
+        maxWidth: `${targetWidth}px`,
+        boxSizing: 'border-box',
+      } as CSSStyleDeclaration);
+
+      if (n.text.trim() === '') {
+        tmpBox.innerHTML = '&nbsp;';
+      } else {
+        tmpBox.textContent = n.text; // Simple text only, no markdown rendering
+      }
+
+      measureContainer.appendChild(tmpBox);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      const rect = tmpBox.getBoundingClientRect();
+      let measuredW = rect.width || targetWidth;
+      let measuredH = rect.height || 40;
+
+      if (measuredW > targetWidth) {
+        const scale = targetWidth / measuredW;
+        n.scaleFactor = scale;
+        measuredW = targetWidth;
+        measuredH = measuredH * scale;
+      } else {
+        measuredW = targetWidth;
+      }
+
+      this.sizeMap.set(n.line, { w: measuredW, h: measuredH });
+      measureContainer.removeChild(tmpBox);
     }
 
     document.body.removeChild(measureContainer);
 
-    // Verify all dimensions exist before proceeding
-    const missingDimensions = flat.filter(n => !this.sizeMap.has(n.line));
-    if (missingDimensions.length > 0) {
-      console.warn('Missing dimensions for nodes, falling back to full rebuild');
-      await this.draw();
-      return;
-    }
-
-    // Update cytoscape elements
+    // Update cytoscape elements with preserved state
     const els: import('cytoscape').ElementDefinition[] = [];
     for (const n of flat) {
       const dims = this.sizeMap.get(n.line)!;
@@ -357,25 +537,30 @@ export class MindmapView extends TextFileView {
       });
     }
 
-    // Update cytoscape with new elements
+    // Smart cytoscape update - preserve positions where possible
     this.cy.json({ elements: els });
     
-    // CRITICAL FIX: Update node data in existing cytoscape nodes
-    // This ensures that overlay event handlers use the correct line numbers
-    flat.forEach(newNode => {
-      const cyNode = this.cy!.getElementById(`n${newNode.line}`);
-      if (cyNode.length > 0) {
-        cyNode.data('node', newNode);
+    // Restore positions for nodes that still exist
+    flat.forEach(n => {
+      const preserved = visualState.get(n.line);
+      if (preserved) {
+        const cyNode = this.cy!.getElementById(`n${n.line}`);
+        if (cyNode.length > 0) {
+          cyNode.position(preserved.position);
+        }
       }
     });
     
-    // Relayout only if structure changed
-    if (nodesAdded.length > 0 || nodesRemoved.length > 0) {
-      this.relayout();
-    } else {
-      // Just update overlays for text changes
-      this.updateOverlays();
-    }
+    // Only do minimal relayout for new connections - fix the layout options
+    const layout = this.cy.layout({
+      name: 'preset',
+      fit: false
+    });
+    
+    layout.run();
+    
+    // Update overlays without full rebuild
+    this.updateOverlays();
   }
 
   /* ── Lifecycle ───────────────────────────── */
@@ -402,6 +587,50 @@ export class MindmapView extends TextFileView {
       height: '100%',
     });
 
+    // Add CSS for better Obsidian content rendering
+    if (!document.getElementById('mindmap-obsidian-css')) {
+      const style = document.createElement('style');
+      style.id = 'mindmap-obsidian-css';
+      style.textContent = `
+        .mindmap-wrapper .markdown-rendered {
+          font-size: inherit;
+          line-height: 1.4;
+        }
+        .mindmap-wrapper .markdown-rendered img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 4px;
+        }
+        .mindmap-wrapper .markdown-rendered a.internal-link {
+          color: var(--link-color);
+          text-decoration: none;
+        }
+        .mindmap-wrapper .markdown-rendered a.internal-link:hover {
+          color: var(--link-color-hover);
+          text-decoration: underline;
+        }
+        .mindmap-wrapper .markdown-rendered code {
+          background: var(--code-background);
+          padding: 2px 4px;
+          border-radius: 2px;
+          font-size: 0.9em;
+        }
+        .mindmap-wrapper .markdown-rendered pre {
+          background: var(--code-background);
+          padding: 8px;
+          border-radius: 4px;
+          overflow-x: auto;
+        }
+        .mindmap-wrapper .markdown-rendered blockquote {
+          border-left: 3px solid var(--quote-opening-modifier);
+          padding-left: 12px;
+          margin: 8px 0;
+          opacity: 0.8;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     this.toolbar = new VerticalToolbar(this);
 
     if (this.file) {
@@ -415,6 +644,13 @@ export class MindmapView extends TextFileView {
   async onClose(): Promise<void> {
     window.removeEventListener('resize', this.updateOverlays);
     this.cy?.destroy();
+    
+    // Clean up CSS when last mindmap view closes
+    const mindmapViews = this.app.workspace.getLeavesOfType(VIEW_TYPE_MINDMAP);
+    if (mindmapViews.length <= 1) {
+      const style = document.getElementById('mindmap-obsidian-css');
+      if (style) style.remove();
+    }
   }
 
   /* ── draw-Wrapper ────────────────────────── */
@@ -465,6 +701,244 @@ export class MindmapView extends TextFileView {
     this.cy.fit(this.cy.elements(), 50);
     this.cy.center(this.cy.elements());
   }
-}
 
-export default MindmapView;
+  async onLoadFile(file: TFile): Promise<void> {
+    super.onLoadFile(file);
+    
+    if (this.frontmatterStorage && file) {
+      const mindmapData = await this.frontmatterStorage.loadMindmapData(file);
+      
+      // Load node width from frontmatter (flat structure)
+      if (typeof mindmapData.nodeWidth === 'number') {
+        this.nodeOptions.nodeWidth = mindmapData.nodeWidth;
+        this.toolbar?.setNodeOptions(this.nodeOptions);
+      }
+      
+      // Load layout options from frontmatter (flat structure)
+      const layoutUpdates: Partial<LayoutOptions> = {};
+      if (mindmapData.rankDir) layoutUpdates.rankDir = mindmapData.rankDir;
+      if (mindmapData.align) layoutUpdates.align = mindmapData.align;
+      if (typeof mindmapData.nodeSep === 'number') layoutUpdates.nodeSep = mindmapData.nodeSep;
+      if (typeof mindmapData.edgeSep === 'number') layoutUpdates.edgeSep = mindmapData.edgeSep;
+      if (typeof mindmapData.rankSep === 'number') layoutUpdates.rankSep = mindmapData.rankSep;
+      if (typeof mindmapData.marginx === 'number') layoutUpdates.marginx = mindmapData.marginx;
+      if (typeof mindmapData.marginy === 'number') layoutUpdates.marginy = mindmapData.marginy;
+      if (mindmapData.acyciler) layoutUpdates.acyciler = mindmapData.acyciler;
+      if (mindmapData.ranker) layoutUpdates.ranker = mindmapData.ranker;
+      if (typeof mindmapData.spacingFactor === 'number') layoutUpdates.spacingFactor = mindmapData.spacingFactor;
+      
+      if (Object.keys(layoutUpdates).length > 0) {
+        this.layoutOptions = { ...this.layoutOptions, ...layoutUpdates };
+      }
+    }
+  }
+
+  public async executeUndo(): Promise<void> {
+    if (!this.file || !this.commandHistory.canUndo()) return;
+    
+    const newData = await this.commandHistory.undo(this.file);
+    if (newData !== null) {
+      this.data = newData;
+      await this.draw();
+      
+      // Force toolbar update
+      this.forceToolbarUpdate();
+    }
+  }
+
+  public async executeRedo(): Promise<void> {
+    if (!this.file || !this.commandHistory.canRedo()) return;
+    
+    const newData = await this.commandHistory.redo(this.file);
+    if (newData !== null) {
+      this.data = newData;
+      await this.draw();
+      
+      // Force toolbar update
+      this.forceToolbarUpdate();
+    }
+  }
+
+  // New command execution methods that handle everything properly
+  public async executeAddChildCommand(parentNode: OutlineNode): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await addChild(this.app, this.file, parentNode);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-child',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(parentNode)
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeAddSiblingCommand(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await addSibling(this.app, this.file, node);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-sibling',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node)
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await writeNode(this.app, this.file, node, newText);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: { 
+        oldText: node.text.substring(0, 100),
+        newText: newText.substring(0, 100)
+      }
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeDeleteNodeCommand(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await deleteNode(this.app, this.file, node);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'delete-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node)
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeDeleteNodeKeepChildrenCommand(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await deleteNodeKeepChildren(this.app, this.file, node);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'delete-node-keep-children',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node)
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeMoveSubtreeCommand(sourceNode: OutlineNode, targetNode: OutlineNode, insertAsChild: boolean): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await moveSubtree(this.app, this.file, sourceNode, targetNode, insertAsChild);
+    
+    if (newDoc === beforeState) {
+      return; // No change
+    }
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'move-subtree',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(sourceNode),
+      targetInfo: CommandHistory.createNodeInfo(targetNode),
+      metadata: { insertAsChild }
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeAddChildTextCommand(parentNode: OutlineNode, text: string): Promise<void> {
+    if (!this.file) return;
+    
+    const beforeState = this.data;
+    const newDoc = await addChildText(this.app, this.file, parentNode, text);
+    
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-child-text',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(parentNode),
+      metadata: { addedText: text.substring(0, 100) }
+    };
+    
+    this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public getNodeOptions(): NodeOptions {
+    return { ...this.nodeOptions };
+  }
+
+  public async updateRenderingOptions(newOptions: NodeOptions): Promise<void> {
+    this.nodeOptions = { ...newOptions };
+    
+    // Save to frontmatter
+    if (this.file) {
+      try {
+        await this.frontmatterStorage.updateNodeOptions(this.file, newOptions);
+      } catch (error) {
+        console.error('Failed to save node options to frontmatter:', error);
+      }
+    }
+    
+    // Clear size map to force remeasurement with new options
+    this.sizeMap.clear();
+    // Trigger full redraw
+    void this.draw();
+  }
+
+  public async updateLayoutOptions(newOptions: Partial<LayoutOptions>): Promise<void> {
+    this.layoutOptions = { ...this.layoutOptions, ...newOptions };
+    
+    // Save to frontmatter
+    if (this.file) {
+      try {
+        await this.frontmatterStorage.updateLayoutOptions(this.file, newOptions);
+      } catch (error) {
+        console.error('Failed to save layout options to frontmatter:', error);
+      }
+    }
+    
+    this.relayout();
+  }
+
+  public setNodeOptions(options: NodeOptions) {
+    this.nodeOptions = { ...options };
+  }
+
+  public forceToolbarUpdate(): void {
+    if (this.toolbar) {
+      // Use requestAnimationFrame for immediate update
+      requestAnimationFrame(() => {
+        if (this.toolbar) {
+          this.toolbar.updateUndoRedoButtons();
+        }
+      });
+    }
+  }
+}

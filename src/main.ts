@@ -5,6 +5,7 @@ import {
   TFolder,
   MarkdownView,
   Menu,
+  Notice,
 } from 'obsidian';
 import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './context-menu';
@@ -136,13 +137,15 @@ export default class MindmapPlugin extends Plugin {
     for (const leaf of leaves) {
       const view = leaf.view as MindmapView;
       if (view.file?.path === file.path) {
-        // Check if user is actively editing - if so, skip external updates
+        // Enhanced check for active editing or drag operations
         const hasActiveTextarea = view.wrapper?.querySelector('textarea');
-        if (hasActiveTextarea) {
-          continue; // Skip update while user is editing
+        const hasActiveDrag = view.wrapper?.querySelector('.mm-src, .mm-tgt');
+        
+        if (hasActiveTextarea || hasActiveDrag) {
+          continue; // Skip update during user interactions
         }
         
-        // Use incremental update for external changes too
+        // Use incremental update for external changes
         await view.reloadDataIncremental();
       }
     }
