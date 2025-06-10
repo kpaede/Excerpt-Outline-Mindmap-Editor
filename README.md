@@ -19,22 +19,20 @@ An Obsidian plugin for creating visual mindmaps optimized for literature excerpt
 Excerpt-Outline-Mindmap-Editor lets you visually structure text excerpts as mindmaps using a  drag-and-drop system.
 
 The underlying data model remains a standard Markdown outline (indented list) — fully compatible with Obsidian’s editor and outline plugins such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).  
-There is no proprietary format and no external storage.
+There is no proprietary format and no external storage, just Outline in Markdown (and a little bit of frontmatter).
 
 ---
 
 ## Key Features
 
-- Drag-and-drop support for creating and editing hierarchical structures  
-- Each node represents a list item in a Markdown outline  
-- Dragging a node into another creates a parent-child relationship  
-- When dragging a node, all its children move with it  
+- Drag-and-drop support for creating and editing hierarchical structures (each node represents a list item in a Markdown outline)
+- Dragging a node into another creates a parent-child relationship. When dragging a node, all its children move with it. 
 - Hover buttons allow adding new child and sibling nodes directly in the mindmap  
 - Node deletion supports:
   - Removing a single node from its parent
   - Deleting a node along with all its children
--  undo/redo buttons
-- storing layout options in frontmatter of the respective file
+- Undo/redo buttons let you – you guessed it – undo and redo actions (until you close a file).
+- Layout options are specific to a file and are stored in frontmatter of the respective file.
 
 ---
 
@@ -50,9 +48,8 @@ There is no proprietary format and no external storage.
 4. Use the "↓" button (visible on hover) to add child nodes directly
 5. Use the "→" button (visible on hover) to add sibling nodes directly
 6. Use the "x" button (also on hover) to delete a node, with the option to keep or remove children
-7. **Use the undo/redo buttons** in the toolbar to reverse or replay actions
-
-All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa. Undo/redo history is preserved between sessions using frontmatter storage.
+7. Use the undo/redo buttons in the toolbar to reverse or replay actions
+All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa.
 
 ---
 
@@ -76,7 +73,6 @@ Thanks to the developers.
 
 - copy+paste
 - Keyboard navigation
-- ✅ Layout saving (frontmatter) - implemented
 - Embedding Mindmaps into Markdown
 - Export and print options  
 
