@@ -8,9 +8,9 @@ An Obsidian plugin for creating visual mindmaps optimized for literature excerpt
 
 ## Development Notice
 
-**Caution**: This plugin is in an early stage of development. Do not rely on it as your only method for managing important data. Bugs, data loss, and instability are still very possible.
+**Caution**: This plugin only a sketch and will not be developed further. Bugs, data loss, and instability are still very possible, if not likely.
 
-**Developers**: I might not have the time to maintain this project permanently. If you're interested, please leave me a message.
+**Developers**: If you're interested in taking over the project, leave me a message.
 
 ---
 
