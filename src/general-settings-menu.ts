@@ -24,7 +24,7 @@ export class GeneralSettingsMenu {
   }
 
   private createMenu() {
-    this.container = document.body.createDiv({ cls: 'node-options-menu' }); // Reusing the same class for styling
+    this.container = document.body.createDiv({ cls: 'general-settings-menu' });
     this.positionMenu();
     this.buildContent();
     this.addClickOutsideHandler();
@@ -32,20 +32,14 @@ export class GeneralSettingsMenu {
 
   private positionMenu() {
     const rect = this.anchorEl.getBoundingClientRect();
-    this.container.style.position = 'absolute';
+    // Only set dynamic position; other layout handled by CSS
     this.container.style.left = `${rect.left + window.scrollX - 328}px`;
     this.container.style.top = `${rect.top + window.scrollY}px`;
-    this.container.style.width = '320px';
-    this.container.style.maxHeight = '400px';
-    this.container.style.overflowY = 'auto';
-    this.container.style.zIndex = '1000';
   }
 
   private buildContent() {
     const header = this.container.createEl('h3', { text: 'General Settings' });
-    header.style.margin = '0 0 12px 0';
-    header.style.fontSize = '14px';
-    header.style.fontWeight = '600';
+    // Header styling provided via CSS
 
     this.addSelectSetting(
       'Keyboard Navigation',
@@ -60,9 +54,7 @@ export class GeneralSettingsMenu {
     );
 
     const closeBtn = this.container.createEl('button', { text: 'Close' });
-    closeBtn.style.marginTop = '12px';
-    closeBtn.style.padding = '6px 12px';
-    closeBtn.style.width = '100%';
+    closeBtn.classList.add('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
   }
 

@@ -76,17 +76,42 @@ export class FrontmatterStorage {
 
   async saveMindmapData(file: TFile, data: ExcerptOutlineMindmapData): Promise<void> {
     try {
-      await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-        // Check if there's any data to save
+      if (this.app.fileManager && typeof (this.app.fileManager as any).processFrontMatter === 'function') {
+        await (this.app.fileManager as any).processFrontMatter(file, (frontmatter: any) => {
+          const hasData = Object.keys(data).some(key => data[key as keyof ExcerptOutlineMindmapData] !== undefined);
+          if (hasData) {
+            frontmatter['excerpt-outline-mindmap'] = this.encodeToString(data);
+          } else {
+            delete frontmatter['excerpt-outline-mindmap'];
+          }
+        });
+      } else {
+        // Fallback for older Obsidian versions without processFrontMatter
+        const contents = await this.app.vault.read(file);
+        const fmMatch = contents.match(/^---\n([\s\S]*?)\n---\n?/);
         const hasData = Object.keys(data).some(key => data[key as keyof ExcerptOutlineMindmapData] !== undefined);
-        
-        if (hasData) {
-          // Save as compact string
-          frontmatter['excerpt-outline-mindmap'] = this.encodeToString(data);
+
+        if (fmMatch) {
+          let fmText = fmMatch[1];
+          if (hasData) {
+            if (/^excerpt-outline-mindmap:/m.test(fmText)) {
+              fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, `excerpt-outline-mindmap: ${this.encodeToString(data)}\n`);
+            } else {
+              fmText = fmText + `\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n`;
+            }
+          } else {
+            fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, '');
+          }
+          const newContents = contents.replace(fmMatch[0], `---\n${fmText}---\n`);
+          await this.app.vault.modify(file, newContents);
         } else {
-          delete frontmatter['excerpt-outline-mindmap'];
+          // No frontmatter currently
+          if (hasData) {
+            const fm = `---\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n---\n\n`;
+            await this.app.vault.modify(file, fm + contents);
+          }
         }
-      });
+      }
     } catch (error) {
       console.error('Failed to save mindmap data to frontmatter:', error);
     }

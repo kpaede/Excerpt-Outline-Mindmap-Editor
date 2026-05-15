@@ -20,7 +20,7 @@ export class VerticalToolbar {
   constructor(view: MindmapView) {
     this.view = view;
     this.container = this.view.wrapper.createDiv({ cls: 'vertical-toolbar' });
-    this.applyContainerStyles();
+    // Styles are provided via CSS in styles.css
     this.buildButtons();
   }
 
@@ -158,15 +158,13 @@ export class VerticalToolbar {
     if (this.undoButton) {
       const canUndo = this.view.commandHistory.canUndo();
       (this.undoButton as HTMLButtonElement).disabled = !canUndo;
-      this.undoButton.style.opacity = canUndo ? '1' : '0.5';
-      this.undoButton.style.cursor = canUndo ? 'pointer' : 'not-allowed';
+      this.undoButton.classList.toggle('disabled', !canUndo);
     }
     
     if (this.redoButton) {
       const canRedo = this.view.commandHistory.canRedo();
       (this.redoButton as HTMLButtonElement).disabled = !canRedo;
-      this.redoButton.style.opacity = canRedo ? '1' : '0.5';
-      this.redoButton.style.cursor = canRedo ? 'pointer' : 'not-allowed';
+      this.redoButton.classList.toggle('disabled', !canRedo);
     }
   }
 

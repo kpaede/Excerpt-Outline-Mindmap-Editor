@@ -41,21 +41,14 @@ export class NodeOptionsMenu {
     const rect = this.anchorEl.getBoundingClientRect();
     
     // Position menu to the left of the button
-    this.container.style.position = 'absolute';
+    // Only set dynamic left/top; other layout handled via CSS class
     this.container.style.left = `${rect.left + window.scrollX - 328}px`;
     this.container.style.top = `${rect.top + window.scrollY}px`;
-    this.container.style.width = '320px';
-    this.container.style.maxHeight = '400px';
-    this.container.style.overflowY = 'auto';
-    this.container.style.zIndex = '1000';
   }
 
   private buildContent() {
     // Header
     const header = this.container.createEl('h3', { text: 'Node Options' });
-    header.style.margin = '0 0 12px 0';
-    header.style.fontSize = '14px';
-    header.style.fontWeight = '600';
 
     // Node Width Slider
     this.addSliderSetting(
@@ -73,9 +66,7 @@ export class NodeOptionsMenu {
 
     // Close button
     const closeBtn = this.container.createEl('button', { text: 'Close' });
-    closeBtn.style.marginTop = '12px';
-    closeBtn.style.padding = '6px 12px';
-    closeBtn.style.width = '100%';
+    closeBtn.classList.add('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
   }
 
@@ -101,7 +92,7 @@ export class NodeOptionsMenu {
     slider.max = String(max);
     slider.step = String(step);
     slider.value = String(getValue());
-    slider.style.marginRight = '8px';
+    slider.classList.add('slider-margin-right');
     
     const valueEl = controlDiv.createEl('span', { text: `${getValue()}px` });
     

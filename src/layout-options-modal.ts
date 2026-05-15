@@ -36,15 +36,10 @@ export class LayoutOptionsModal extends Modal {
     //    (Modal.open() wurde bereits durch vertical-toolbar.ts aufgerufen)
     //    Jetzt positionieren wir modalEl relativ zum anchorEl.
     const rect = this.anchorEl.getBoundingClientRect();
-    // modalEl ist standardmäßig in der Mitte; wir setzen transform und top/left neu:
-    modalEl.style.position = 'absolute';
-    modalEl.style.transform = 'none';
-    // Positioniere den Dialog links vom Icon (maxWidth=320px + 8px Abstand)
+    // Add a class for modal layout; set only left/top dynamically
+    modalEl.classList.add('layout-options-modal');
     modalEl.style.left = `${rect.left + window.scrollX - 328}px`;
     modalEl.style.top = `${rect.top + window.scrollY}px`;
-
-    // Max-Breite, damit es nicht zu breit überlappt
-    modalEl.style.maxWidth = '320px';
 
     // 2) Inhalt des Modals neu aufbauen
     contentEl.empty();
@@ -159,7 +154,7 @@ export class LayoutOptionsModal extends Modal {
       slider.max = String(max);
       slider.step = String(step);
       slider.value = String(getValue());
-      slider.style.marginRight = '8px';
+      slider.classList.add('slider-margin-right');
       // Wert-Anzeige
       const valueEl = setting.controlEl.createEl('span', { text: ` ${getValue()}` });
       slider.oninput = () => {
@@ -340,17 +335,7 @@ export class LayoutOptionsModal extends Modal {
     // Ganz unten: Close-Button
     // ───────────────────────────────────────────────────────────────────
     const closeBtn = contentEl.createEl('button', { text: 'Close' });
-    Object.assign(closeBtn.style, {
-      marginTop: '12px',
-      padding: '6px 12px',
-      borderRadius: '4px',
-      border: 'none',
-      backgroundColor: 'var(--interactive-accent)',
-      color: 'var(--text-on-accent)',
-      cursor: 'pointer',
-      width: '100%',
-      fontSize: 'var(--font-size-sm)',
-    });
+    closeBtn.classList.add('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
   }
 

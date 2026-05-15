@@ -35,9 +35,7 @@ export function startNodeEditing(
   input.type = 'text';
   input.className = 'node-editor';
   input.value = nodeToUse.text;
-  // dynamic fontFamily and color still applied inline because they're theme-dependent
-  if (font) input.style.fontFamily = font;
-  if (txt) input.style.color = txt;
+  // Appearance is driven by CSS variables set on the overlay container
 
   box.appendChild(input);
 
@@ -167,28 +165,21 @@ function performOverlayUpdate(view: MindmapView): void {
     box.dataset.nodeLine = String(nodeToUse.line);
     view.wrapper.appendChild(box);
 
-    // Update position and styling
-    Object.assign(box.style, {
-      position: 'absolute',
-      left: `${p.x}px`,
-      top: `${p.y}px`,
-      transform: `translate(-50%,-50%) scale(${zoom})`,
-      transformOrigin: 'center center',
-      width: `${dims.w}px`,
-      height: `${dims.h}px`,
-      padding: '6px 10px 22px',
-      border: `1px solid ${border}`,
-      borderRadius: '4px',
-      background: bg,
-      color: txt,
-      fontFamily: font,
-      fontSize: '16px',
-      whiteSpace: 'normal',
-      wordWrap: 'break-word',
-      boxShadow: '0 1px 3px rgba(0,0,0,.08)',
-      zIndex: '10',
-      boxSizing: 'border-box',
-    } as CSSStyleDeclaration);
+    // Update position and styling using CSS variables where possible
+    box.classList.add('mindmap-overlay');
+    // Dynamic position (pixel-based) still set inline
+    box.style.left = `${p.x}px`;
+    box.style.top = `${p.y}px`;
+    // Set CSS variables for dynamic visual values so styles.css controls presentation
+    box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
+    box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
+    box.style.setProperty('--mindmap-zoom', String(zoom));
+    box.style.setProperty('--mindmap-border', border);
+    box.style.setProperty('--mindmap-bg', bg);
+    box.style.setProperty('--mindmap-color', txt);
+    if (font) box.style.setProperty('--mindmap-font', font);
+    box.style.setProperty('--mindmap-font-size', '16px');
+    box.style.setProperty('--mindmap-box-shadow', '0 1px 3px rgba(0,0,0,.08)');
 
     if (view.selectedNodeLines.has(nodeToUse.line)) {
       box.classList.add('selected');
@@ -203,11 +194,9 @@ function performOverlayUpdate(view: MindmapView): void {
     // Remove pointerEvents: 'none' to allow interaction with embedded content
     md.dataset.text = nodeToUse.text;
     
-    // Apply scale factor if it exists
+    // Apply scale factor if it exists (exposed as CSS variable)
     if (nodeToUse.scaleFactor && nodeToUse.scaleFactor !== 1) {
-      md.style.transform = `scale(${nodeToUse.scaleFactor})`;
-      md.style.transformOrigin = 'top left';
-      md.style.width = `${100 / nodeToUse.scaleFactor}%`;
+      md.style.setProperty('--mindmap-scale', String(nodeToUse.scaleFactor));
     }
     
     if (nodeToUse.text.trim() === '') {
@@ -228,11 +217,7 @@ function performOverlayUpdate(view: MindmapView): void {
         view.file?.path || '',
         view as Component
       ).then(() => {
-        // Handle images in overlays
-        md.querySelectorAll('img').forEach(img => {
-          img.style.maxWidth = '100%';
-          img.style.height = 'auto';
-        });
+        // Images sizing handled via CSS
         
         // Handle internal links in overlays
         md.querySelectorAll('a.internal-link').forEach(link => {
@@ -241,7 +226,10 @@ function performOverlayUpdate(view: MindmapView): void {
             e.stopPropagation();
             const href = link.getAttribute('href');
             if (href && view.file) {
-              view.app.workspace.openLinkText(href, view.file.path);
+              // Use compatibility helper to open links across Obsidian versions
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const { openInternalLink } = require('./util');
+              void openInternalLink(view.app, href, view.file.path);
             }
           });
         });

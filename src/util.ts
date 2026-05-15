@@ -1,4 +1,5 @@
 import { Modal, App, Setting } from 'obsidian';
+import { TFile } from 'obsidian';
 
 export interface OutlineNode {
   text: string;
@@ -279,4 +280,27 @@ export function validateMoveOperation(
   }
   
   return { isValid: true };
+}
+
+export async function openInternalLink(app: App, href: string, currentFilePath?: string): Promise<void> {
+  try {
+    const target = app.vault.getAbstractFileByPath(href);
+    if (target && target instanceof TFile) {
+      await app.workspace.openFile(target as TFile);
+      return;
+    }
+    // Fallback to workspace.openLinkText if available (newer Obsidian)
+    const ws: any = app.workspace as any;
+    if (ws && typeof ws.openLinkText === 'function') {
+      try {
+        await ws.openLinkText(href, currentFilePath || '', false);
+        return;
+      } catch (e) {
+        // ignore and fallback
+      }
+    }
+    console.warn('Unable to open internal link:', href);
+  } catch (error) {
+    console.error('openInternalLink failed:', error);
+  }
 }

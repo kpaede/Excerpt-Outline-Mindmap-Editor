@@ -413,6 +413,92 @@ If your plugin does not need CSS, delete this file.
   opacity: 0.8;
 }
 
+/* General settings menu styling */
+.general-settings-menu {
+  position: absolute;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.general-settings-menu h3,
+.node-options-menu h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fullwidth-button {
+  margin-top: 12px;
+  padding: 6px 12px;
+  width: 100%;
+}
+
+.slider-margin-right {
+  margin-right: 8px;
+}
+
+.vertical-toolbar button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Layout modal adjustments */
+.layout-options-modal {
+  position: absolute !important;
+  transform: none !important;
+  max-width: 320px !important;
+}
+
+/* Mindmap overlay presentation using CSS variables */
+.mindmap-overlay {
+  position: absolute;
+  transform: translate(-50%,-50%) scale(var(--mindmap-zoom,1));
+  transform-origin: center center;
+  width: var(--mindmap-box-width, 200px);
+  height: var(--mindmap-box-height, 60px);
+  padding: 6px 10px 22px;
+  border: 1px solid var(--mindmap-border, rgba(0,0,0,0.1));
+  border-radius: 4px;
+  background: var(--mindmap-bg, #fff);
+  color: var(--mindmap-color, #000);
+  font-family: var(--mindmap-font, inherit);
+  font-size: var(--mindmap-font-size, 16px);
+  white-space: normal;
+  word-wrap: break-word;
+  box-shadow: var(--mindmap-box-shadow, 0 1px 3px rgba(0,0,0,.08));
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.mindmap-overlay .markdown-rendered {
+  /* Allow per-node scaling via variable */
+  transform: scale(var(--mindmap-scale, 1));
+  transform-origin: top left;
+  width: calc(100% / var(--mindmap-scale, 1));
+}
+
+.mindmap-overlay img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Measurement helper box for text measurement during layout */
+.mindmap-measure-box {
+  max-width: var(--mindmap-target-width, 240px);
+}
+
+/* Remove default outline from wrapper (focus management) */
+.mindmap-wrapper {
+  outline: none;
+}
+
 /* Canvas container for cytoscape */
 .mindmap-canvas {
   position: absolute;
@@ -548,5 +634,6 @@ If your plugin does not need CSS, delete this file.
   outline: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: var(--text-normal);
+  color: var(--mindmap-color, var(--text-normal));
+  font-family: var(--mindmap-font, inherit);
 }

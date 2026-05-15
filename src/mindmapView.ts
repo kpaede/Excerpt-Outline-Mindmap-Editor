@@ -99,7 +99,6 @@ export class MindmapView extends TextFileView {
   public prepareWrapper(): void {
     if (!this.wrapper) return;
     this.wrapper.tabIndex = 0;
-    this.wrapper.style.outline = 'none';
     this.wrapper.onkeydown = this.handleWrapperKeydown;
   }
 

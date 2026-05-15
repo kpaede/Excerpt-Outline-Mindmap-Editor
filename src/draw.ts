@@ -125,7 +125,8 @@ export async function draw(view: MindmapView): Promise<void> {
     const nodeOptions = view.getNodeOptions();
     const targetWidth = nodeOptions.nodeWidth;
     
-    tmpBox.style.maxWidth = `${targetWidth}px`;
+    // Use CSS variable for measurement max width to avoid inline layout styles
+    tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
 
     if (n.text.trim() === '') {
       tmpBox.innerHTML = '&nbsp;';
@@ -186,7 +187,10 @@ export async function draw(view: MindmapView): Promise<void> {
             e.preventDefault();
             const href = link.getAttribute('href');
             if (href && view.file) {
-              view.app.workspace.openLinkText(href, view.file.path);
+              // Use compatibility helper to open links across Obsidian versions
+              // eslint-disable-next-line @typescript-eslint/no-var-requires
+              const { openInternalLink } = require('./util');
+              void openInternalLink(view.app, href, view.file.path);
             }
           });
         });
