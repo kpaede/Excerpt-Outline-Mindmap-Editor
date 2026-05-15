@@ -1,8 +1,12 @@
 import { App, TFile } from 'obsidian';
 import { NodeOptions } from './node-options-menu';
 import { LayoutOptions } from './mindmapView';
+import { GeneralSettings } from './general-settings-menu';
 
 export interface ExcerptOutlineMindmapData {
+  // General options
+  keyboardNavigation?: 'hierarchical' | 'spatial';
+
   // Node options
   nodeWidth?: number;
   
@@ -112,6 +116,14 @@ export class FrontmatterStorage {
         (currentData as any)[key] = value;
       }
     });
+    await this.saveMindmapData(file, currentData);
+  }
+
+  async updateGeneralSettings(file: TFile, generalSettings: GeneralSettings): Promise<void> {
+    const currentData = await this.loadMindmapData(file);
+    if (generalSettings.keyboardNavigation) {
+      currentData.keyboardNavigation = generalSettings.keyboardNavigation;
+    }
     await this.saveMindmapData(file, currentData);
   }
 

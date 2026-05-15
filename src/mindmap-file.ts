@@ -128,6 +128,33 @@ export async function deleteNode(
   return await persistLines(app, file, lines);
 }
 
+export async function deleteMultipleNodes(
+  app: App,
+  file: TFile,
+  nodes: OutlineNode[]
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  let lines = fileText.split(/\r?\n/);
+
+  // Filter out nodes that are descendants of other nodes in the list
+  const topLevelNodes = nodes.filter(n => {
+    // If any other node in the list contains this node, filter it out
+    return !nodes.some(other => other !== n && n.line > other.line && n.line <= other.endLine);
+  });
+
+  // Sort descending by line number to safely splice from bottom to top
+  topLevelNodes.sort((a, b) => b.line - a.line);
+
+  for (const node of topLevelNodes) {
+    if (node.line >= 0 && node.line < lines.length) {
+      const end = subtreeEnd(lines, node.line, node.indent);
+      lines.splice(node.line, end - node.line);
+    }
+  }
+
+  return await persistLines(app, file, lines);
+}
+
 export async function deleteNodeKeepChildren(
   app: App,
   file: TFile,

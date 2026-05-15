@@ -4,12 +4,14 @@ import { ButtonComponent, setIcon, type IconName } from 'obsidian';
 import type { MindmapView } from './mindmapView';
 import { LayoutOptionsMenu } from './layout-options-menu';
 import { NodeOptionsMenu, NodeOptions } from './node-options-menu';
+import { GeneralSettingsMenu, GeneralSettings } from './general-settings-menu';
 
 export class VerticalToolbar {
   private container: HTMLDivElement;
   private view: MindmapView;
   private currentNodeMenu: NodeOptionsMenu | null = null;
   private currentLayoutMenu: LayoutOptionsMenu | null = null;
+  private currentGeneralMenu: GeneralSettingsMenu | null = null;
 
   private nodeOptions: NodeOptions = {
     nodeWidth: 300
@@ -72,22 +74,48 @@ export class VerticalToolbar {
     const separator = this.container.createDiv({ cls: 'toolbar-separator' });
     
     // Layout Options Button
-    const layoutBtnComp = new ButtonComponent(this.container);
-    layoutBtnComp.setIcon('layout-dashboard' as IconName);
-    layoutBtnComp.setTooltip('Layout Options');
-    const layoutButtonEl = this.container.querySelector('button:last-child') as HTMLElement;
-    layoutBtnComp.onClick(() => {
-      this.openLayoutOptions(layoutButtonEl);
-    });
+    const layoutBtn = this.container.createEl('button');
+    layoutBtn.addClass('clickable-icon');
+    setIcon(layoutBtn, 'layout-dashboard');
+    layoutBtn.setAttribute('aria-label', 'Layout Options');
+    layoutBtn.onclick = () => {
+      this.openLayoutOptions(layoutBtn);
+    };
 
-    // Node Options Button (now opens menu instead of modal)
-    const nodeBtnComp = new ButtonComponent(this.container);
-    nodeBtnComp.setIcon('square' as IconName);
-    nodeBtnComp.setTooltip('Node Options');
-    const nodeButtonEl = this.container.querySelector('button:last-child') as HTMLElement;
-    nodeBtnComp.onClick(() => {
-      this.openNodeOptions(nodeButtonEl);
-    });
+    // Node Options Button
+    const nodeBtn = this.container.createEl('button');
+    nodeBtn.addClass('clickable-icon');
+    setIcon(nodeBtn, 'square');
+    nodeBtn.setAttribute('aria-label', 'Node Options');
+    nodeBtn.onclick = () => {
+      this.openNodeOptions(nodeBtn);
+    };
+
+    // General Settings Button
+    const generalBtn = this.container.createEl('button');
+    generalBtn.addClass('clickable-icon');
+    setIcon(generalBtn, 'settings');
+    generalBtn.setAttribute('aria-label', 'General Settings');
+    generalBtn.onclick = () => {
+      this.openGeneralSettings(generalBtn);
+    };
+  }
+
+  private openGeneralSettings(buttonEl: HTMLElement) {
+    if (this.currentGeneralMenu) {
+      this.currentGeneralMenu.close();
+      this.currentGeneralMenu = null;
+    }
+
+    this.currentGeneralMenu = new GeneralSettingsMenu(
+      buttonEl,
+      this.view.generalSettings,
+      (newSettings) => {
+        this.view.generalSettings = { ...newSettings };
+        // Apply setting changes immediately if necessary
+      },
+      this.view
+    );
   }
 
   private openLayoutOptions(buttonEl: HTMLElement) {

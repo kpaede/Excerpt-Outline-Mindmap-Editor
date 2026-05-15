@@ -19,6 +19,7 @@ import {
   addSibling,
   writeNode,
   deleteNode,
+  deleteMultipleNodes,
   moveSubtree,
   addChildText,
   deleteNodeKeepChildren,
@@ -30,6 +31,7 @@ import { updateOverlays as updateOverlaysFn, startNodeEditing } from './updateOv
 import { NodeOptions } from './node-options-menu';
 import { FrontmatterStorage } from './frontmatter-storage';
 import { CommandHistory } from './command-history';
+import { GeneralSettings } from './general-settings-menu';
 
 export interface LayoutOptions {
   rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
@@ -53,7 +55,7 @@ export class MindmapView extends TextFileView {
   public isUpdatingOverlays = false;
   public frontmatterStorage: FrontmatterStorage;
   public commandHistory: CommandHistory;
-  public selectedNodeLine: number | null = null;
+  public selectedNodeLines: Set<number> = new Set();
   public pendingEditNodeLine: number | null = null;
 
   /**
@@ -99,11 +101,6 @@ export class MindmapView extends TextFileView {
     this.wrapper.tabIndex = 0;
     this.wrapper.style.outline = 'none';
     this.wrapper.onkeydown = this.handleWrapperKeydown;
-    this.wrapper.onclick = (event: MouseEvent) => {
-      if (event.target === this.wrapper) {
-        this.clearSelection();
-      }
-    };
   }
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
@@ -113,7 +110,72 @@ export class MindmapView extends TextFileView {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       this.navigateSelection(event.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right');
+      return;
     }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault();
+      if (this.selectedNodeLines.size > 0) {
+        const flat = this.getFlatNodes();
+        const nodesToDelete = flat.filter(n => this.selectedNodeLines.has(n.line));
+        
+        import('./delete-node-modal').then(({ DeleteNodeModal }) => {
+          new DeleteNodeModal(this.app, async (result) => {
+            if (!this.file) return;
+            if (result === "full") {
+              await this.executeDeleteMultipleNodesCommand(nodesToDelete);
+            } else if (result === "single") {
+              // Work from bottom to top to avoid shifting line numbers for subsequent deletions
+              const sortedNodes = [...nodesToDelete].sort((a, b) => b.line - a.line);
+              for (const node of sortedNodes) {
+                await this.executeDeleteNodeKeepChildrenCommand(node);
+              }
+              this.selectedNodeLines.clear();
+            }
+          }).open();
+        });
+      }
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key === 'c') {
+      if (this.selectedNodeLines.size > 0) {
+        event.preventDefault();
+        const flat = this.getFlatNodes();
+        const nodesToCopy = flat.filter(n => this.selectedNodeLines.has(n.line));
+        nodesToCopy.sort((a, b) => a.line - b.line);
+        
+        const textToCopy = nodesToCopy.map(n => n.text).join('\n');
+        navigator.clipboard.writeText(textToCopy);
+      }
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key === 'v') {
+      if (this.selectedNodeLines.size === 1) {
+        event.preventDefault();
+        navigator.clipboard.readText().then(async (text) => {
+          if (text) {
+            const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+            const line = Array.from(this.selectedNodeLines)[0];
+            const flat = this.getFlatNodes();
+            const targetNode = flat.find(n => n.line === line);
+            
+            if (targetNode) {
+              // Add children from bottom to top so they appear in correct order
+              for (let i = lines.length - 1; i >= 0; i--) {
+                await this.executeAddChildTextCommand(targetNode, lines[i].trim());
+              }
+            }
+          }
+        });
+      }
+      return;
+    }
+  };
+
+  public generalSettings: GeneralSettings = {
+    keyboardNavigation: 'hierarchical'
   };
 
   private nodeOptions: NodeOptions = {
@@ -140,8 +202,13 @@ export class MindmapView extends TextFileView {
     return this.data;
   }
 
+  public isLocalUpdate: boolean = false;
+
   setViewData(d: string): void {
-    this.data = d;
+    this.data = d || '';
+    if (this.isLocalUpdate) {
+      return;
+    }
     void this.draw();
   }
 
@@ -287,6 +354,7 @@ export class MindmapView extends TextFileView {
 
   // Enhanced applyDocIncremental with command tracking - now the primary method
   public async applyDocIncrementalWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): Promise<void> {
+    this.isLocalUpdate = true;
     this.data = d;
     
     // Record command in history
@@ -299,6 +367,11 @@ export class MindmapView extends TextFileView {
     
     // Force toolbar button update after command execution
     this.forceToolbarUpdate();
+
+    // Reset local update flag after giving file watcher time to catch up
+    setTimeout(() => {
+      this.isLocalUpdate = false;
+    }, 1000);
   }
 
   private debouncedSaveCommandHistory(): void {
@@ -437,11 +510,11 @@ export class MindmapView extends TextFileView {
         });
       }
 
-      // Update cytoscape without full relayout
+      // Update cytoscape elements
       this.cy.json({ elements: els });
       
-      // Only trigger overlay update, no layout changes
-      this.updateOverlays();
+      // We must relayout when nodes are added/removed/changed
+      this.relayout();
       
     } catch (error) {
       console.error('Incremental update failed, falling back to full draw:', error);
@@ -733,6 +806,11 @@ export class MindmapView extends TextFileView {
     if (this.frontmatterStorage && file) {
       const mindmapData = await this.frontmatterStorage.loadMindmapData(file);
       
+      // Load general settings
+      if (mindmapData.keyboardNavigation) {
+        this.generalSettings.keyboardNavigation = mindmapData.keyboardNavigation;
+      }
+
       // Load node width from frontmatter (flat structure)
       if (typeof mindmapData.nodeWidth === 'number') {
         this.nodeOptions.nodeWidth = mindmapData.nodeWidth;
@@ -848,10 +926,10 @@ export class MindmapView extends TextFileView {
 
   public async executeDeleteNodeCommand(node: OutlineNode): Promise<void> {
     if (!this.file) return;
-    
+
     const beforeState = this.data;
     const newDoc = await deleteNode(this.app, this.file, node);
-    
+
     const command: import('./command-history').MindmapCommand = {
       type: 'delete-node',
       timestamp: Date.now(),
@@ -859,10 +937,27 @@ export class MindmapView extends TextFileView {
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
-    
+
     await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
+  public async executeDeleteMultipleNodesCommand(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await deleteMultipleNodes(this.app, this.file, nodes);
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'delete-node', // reusing the type for simplicity, or could add delete-multiple-nodes
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]) // just store info of first node
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.selectedNodeLines.clear();
+  }
   public async executeDeleteNodeKeepChildrenCommand(node: OutlineNode): Promise<void> {
     if (!this.file) return;
     
@@ -973,16 +1068,39 @@ export class MindmapView extends TextFileView {
     }
   }
 
-  public selectNode(nodeLine: number): void {
-    this.selectedNodeLine = nodeLine;
+  public selectNode(nodeLine: number, append: boolean = false, fromCy: boolean = false): void {
+    if (!append) {
+      this.selectedNodeLines.clear();
+      if (this.cy && !fromCy) this.cy.nodes().unselect();
+    }
+    this.selectedNodeLines.add(nodeLine);
     this.updateSelectionStyling();
-    this.wrapper?.focus();
+    
+    if (!fromCy) {
+      this.wrapper?.focus();
+    }
+
+    if (this.cy && !fromCy) {
+      const cyNode = this.cy.getElementById(`n${nodeLine}`);
+      if (cyNode && !cyNode.selected()) cyNode.select();
+    }
+  }
+
+  public deselectNode(nodeLine: number, fromCy: boolean = false): void {
+    this.selectedNodeLines.delete(nodeLine);
+    this.updateSelectionStyling();
+
+    if (this.cy && !fromCy) {
+      const cyNode = this.cy.getElementById(`n${nodeLine}`);
+      if (cyNode && cyNode.selected()) cyNode.unselect();
+    }
   }
 
   public clearSelection(): void {
-    if (this.selectedNodeLine === null) return;
-    this.selectedNodeLine = null;
+    if (this.selectedNodeLines.size === 0) return;
+    this.selectedNodeLines.clear();
     this.updateSelectionStyling();
+    if (this.cy) this.cy.nodes().unselect();
   }
 
   private updateSelectionStyling(): void {
@@ -990,7 +1108,7 @@ export class MindmapView extends TextFileView {
 
     this.wrapper.querySelectorAll('[data-overlay]').forEach((overlay) => {
       const line = Number((overlay as HTMLElement).dataset.nodeLine);
-      overlay.classList.toggle('selected', line === this.selectedNodeLine);
+      overlay.classList.toggle('selected', this.selectedNodeLines.has(line));
     });
   }
 
@@ -1006,15 +1124,23 @@ export class MindmapView extends TextFileView {
   }
 
   private navigateSelection(direction: 'up' | 'down' | 'left' | 'right'): void {
+    if (this.generalSettings.keyboardNavigation === 'spatial') {
+      this.navigateSpatial(direction);
+      return;
+    }
+
     const flat = this.getFlatNodes();
     if (flat.length === 0) return;
 
-    if (this.selectedNodeLine === null) {
+    const selectedArray = Array.from(this.selectedNodeLines);
+    const lastSelectedLine = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
+
+    if (lastSelectedLine === null) {
       this.selectNode(flat[0].line);
       return;
     }
 
-    const current = flat.find(node => node.line === this.selectedNodeLine);
+    const current = flat.find(node => node.line === lastSelectedLine);
     if (!current) {
       this.selectNode(flat[0].line);
       return;
@@ -1046,6 +1172,62 @@ export class MindmapView extends TextFileView {
     if (direction === 'right') {
       const nextSibling = parent.children[siblingIndex + 1];
       if (nextSibling) this.selectNode(nextSibling.line);
+    }
+  }
+
+  private navigateSpatial(direction: 'up' | 'down' | 'left' | 'right'): void {
+    if (!this.cy) return;
+    const nodes = this.cy.nodes();
+    if (nodes.length === 0) return;
+
+    const selectedArray = Array.from(this.selectedNodeLines);
+    const lastSelectedLine = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
+
+    if (lastSelectedLine === null) {
+      const firstLine = nodes[0].data('node')?.line;
+      if (firstLine !== undefined) this.selectNode(firstLine);
+      return;
+    }
+
+    const currentCyNode = this.cy.getElementById(`n${lastSelectedLine}`);
+    if (!currentCyNode || currentCyNode.empty()) {
+      const firstLine = nodes[0].data('node')?.line;
+      if (firstLine !== undefined) this.selectNode(firstLine);
+      return;
+    }
+
+    const currentPos = currentCyNode.position();
+    let bestNode = null;
+    let bestScore = Infinity;
+
+    nodes.forEach(n => {
+      if (n.id() === currentCyNode.id()) return;
+      const pos = n.position();
+
+      const dx = pos.x - currentPos.x;
+      const dy = pos.y - currentPos.y;
+
+      let distanceScore = Infinity;
+
+      if (direction === 'right') {
+        if (dx > 0) distanceScore = dx + Math.abs(dy) * 3;
+      } else if (direction === 'left') {
+        if (dx < 0) distanceScore = -dx + Math.abs(dy) * 3;
+      } else if (direction === 'down') {
+        if (dy > 0) distanceScore = dy + Math.abs(dx) * 3;
+      } else if (direction === 'up') {
+        if (dy < 0) distanceScore = -dy + Math.abs(dx) * 3;
+      }
+
+      if (distanceScore < bestScore) {
+        bestScore = distanceScore;
+        bestNode = n;
+      }
+    });
+
+    if (bestNode) {
+      const bestLine = (bestNode as any).data('node')?.line;
+      if (bestLine !== undefined) this.selectNode(bestLine);
     }
   }
 

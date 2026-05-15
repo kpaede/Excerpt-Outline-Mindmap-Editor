@@ -201,7 +201,7 @@ function performOverlayUpdate(view: MindmapView): void {
       boxSizing: 'border-box',
     } as CSSStyleDeclaration);
 
-    if (view.selectedNodeLine === nodeToUse.line) {
+    if (view.selectedNodeLines.has(nodeToUse.line)) {
       box.classList.add('selected');
     }
 
@@ -512,7 +512,7 @@ function performOverlayUpdate(view: MindmapView): void {
       }
 
       e.stopPropagation();
-      view.selectNode(nodeToUse.line);
+      view.selectNode(nodeToUse.line, e.shiftKey || e.metaKey || e.ctrlKey);
     });
 
     // Enhanced double-click to edit with single-line input
