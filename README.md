@@ -1,5 +1,6 @@
 # Excerpt-Outline-Mindmap-Editor
 
+BEWARE: STILL IN BETA
 An Obsidian plugin for creating visual mindmaps optimized for literature excerpting. Running on pure Markdown outlines, with a drag-and-drop workflow.
 
 ![](demo.gif)
@@ -82,12 +83,7 @@ Thanks to the developers.
 
 ---
 
-## Feedback and Contributions
+## Disclaimer
 
-Feedback, issues, and contributions are welcome.
+This plugin was built to bridge a practical workflow gap in Obsidian. It is useful, but it is also ambitious and may still have rough edges. Please keep backups of important files and treat complex SVG editing with the usual care.
 
----
-
-## License
-
-MIT License
