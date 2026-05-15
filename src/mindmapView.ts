@@ -685,49 +685,7 @@ export class MindmapView extends TextFileView {
     });
     this.prepareWrapper();
 
-    // Add CSS for better Obsidian content rendering
-    if (!document.getElementById('mindmap-obsidian-css')) {
-      const style = document.createElement('style');
-      style.id = 'mindmap-obsidian-css';
-      style.textContent = `
-        .mindmap-wrapper .markdown-rendered {
-          font-size: inherit;
-          line-height: 1.4;
-        }
-        .mindmap-wrapper .markdown-rendered img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 4px;
-        }
-        .mindmap-wrapper .markdown-rendered a.internal-link {
-          color: var(--link-color);
-          text-decoration: none;
-        }
-        .mindmap-wrapper .markdown-rendered a.internal-link:hover {
-          color: var(--link-color-hover);
-          text-decoration: underline;
-        }
-        .mindmap-wrapper .markdown-rendered code {
-          background: var(--code-background);
-          padding: 2px 4px;
-          border-radius: 2px;
-          font-size: 0.9em;
-        }
-        .mindmap-wrapper .markdown-rendered pre {
-          background: var(--code-background);
-          padding: 8px;
-          border-radius: 4px;
-          overflow-x: auto;
-        }
-        .mindmap-wrapper .markdown-rendered blockquote {
-          border-left: 3px solid var(--quote-opening-modifier);
-          padding-left: 12px;
-          margin: 8px 0;
-          opacity: 0.8;
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Styling for markdown-rendered content moved to `styles.css` for proper theming.
 
     this.toolbar = new VerticalToolbar(this);
 

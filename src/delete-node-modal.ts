@@ -13,10 +13,7 @@ export class DeleteNodeModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     
-    const container = contentEl.createDiv();
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.gap = '8px';
+    const container = contentEl.createDiv({ cls: 'delete-node-modal-container' });
     
     const fullBtn = container.createEl("button", { text: "Delete node and all children" });
     const singleBtn = container.createEl("button", { text: "Delete only current node (keep children)" });

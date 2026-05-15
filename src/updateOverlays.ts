@@ -29,26 +29,15 @@ export function startNodeEditing(
   box.draggable = false;
 
   const md = box.querySelector('div[data-text]') as HTMLElement;
-  if (md) md.style.display = 'none';
+  if (md) md.classList.add('mm-hidden');
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'node-editor';
   input.value = nodeToUse.text;
-  Object.assign(input.style, {
-    position: 'absolute',
-    top: '6px',
-    left: '10px',
-    right: '10px',
-    border: 'none',
-    outline: 'none',
-    background: 'transparent',
-    fontFamily: font,
-    fontSize: '16px',
-    color: txt,
-    boxSizing: 'border-box',
-    width: 'calc(100% - 20px)',
-  } as CSSStyleDeclaration);
+  // dynamic fontFamily and color still applied inline because they're theme-dependent
+  if (font) input.style.fontFamily = font;
+  if (txt) input.style.color = txt;
 
   box.appendChild(input);
 
@@ -59,7 +48,7 @@ export function startNodeEditing(
 
     const newText = input.value.trim();
     if (box.contains(input)) box.removeChild(input);
-    if (md) md.style.display = 'block';
+    if (md) md.classList.remove('mm-hidden');
     box.classList.remove('editing');
     box.draggable = true;
 
@@ -293,6 +282,7 @@ function performOverlayUpdate(view: MindmapView): void {
       });
     }
     
+    box.classList.add('mindmap-overlay');
     box.insertBefore(md, box.firstChild);
 
     // Setup event handlers with improved drag and drop
@@ -426,37 +416,18 @@ function performOverlayUpdate(view: MindmapView): void {
 
     // Add control elements
     const ctr = document.createElement('div');
-    Object.assign(ctr.style, {
-      position: 'absolute',
-      bottom: '2px',
-      width: '100%',
-      textAlign: 'center',
-      fontSize: '14px',
-      display: 'none',
-    });
+    ctr.className = 'node-controls';
 
     const del = document.createElement('span');
     del.textContent = '×';
-    del.className = 'mindmap-node-control';
-    Object.assign(del.style, {
-      position: 'absolute',
-      top: '4px',
-      right: '6px',
-      cursor: 'pointer',
-      display: 'none',
-    });
+    del.className = 'mindmap-node-delete';
 
     const btn = (icon: string, label: string, f: () => void) => {
       const s = document.createElement('span');
       s.className = 'mindmap-node-control';
       s.setAttribute('aria-label', label);
       s.setAttribute('title', label);
-      s.style.cursor = 'pointer';
-      s.style.display = 'inline-flex';
-      s.style.alignItems = 'center';
-      s.style.justifyContent = 'center';
-      s.style.width = '20px';
-      s.style.height = '20px';
+      // Layout and cursor handled via CSS classes
       setIcon(s, icon);
       s.onclick = async (e) => {
         e.stopPropagation();
@@ -491,10 +462,10 @@ function performOverlayUpdate(view: MindmapView): void {
 
     box.append(ctr, del);
     box.onmouseenter = () => {
-      ctr.style.display = del.style.display = 'block';
+      box.classList.add('hovering');
     };
     box.onmouseleave = () => {
-      ctr.style.display = del.style.display = 'none';
+      box.classList.remove('hovering');
     };
 
     box.addEventListener('click', (e) => {

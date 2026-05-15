@@ -241,6 +241,178 @@ If your plugin does not need CSS, delete this file.
   height: 100%;
 }
 
+/* Delete node modal layout */
+.delete-node-modal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Hidden helper class */
+.mm-hidden {
+  display: none !important;
+}
+
+/* Node editor input styling */
+.node-editor {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  right: 10px;
+  border: none;
+  outline: none;
+  background: transparent;
+  box-sizing: border-box;
+  width: calc(100% - 20px);
+  font-size: 16px;
+}
+
+/* Node controls (hidden by default, shown when overlay has .hovering) */
+.node-controls {
+  position: absolute;
+  bottom: 2px;
+  width: 100%;
+  text-align: center;
+  font-size: 14px;
+  display: none;
+}
+
+.mindmap-node-control {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.mindmap-overlay.hovering .node-controls,
+.mindmap-overlay.hovering .mindmap-node-control.delete {
+  display: block;
+}
+
+/* Delete control positioning */
+.mindmap-node-delete {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  cursor: pointer;
+  display: none;
+}
+
+.mindmap-overlay.hovering .mindmap-node-delete {
+  display: block;
+}
+
+/* DnD and visual helpers (moved from dnd-css.ts) */
+.mindmap-wrapper [data-overlay] * {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: auto;
+}
+.mindmap-wrapper [data-overlay] {
+  -webkit-user-drag: element;
+  -khtml-user-drag: element;
+  -moz-user-drag: element;
+  -o-user-drag: element;
+  user-drag: element;
+}
+.mm-src {
+  border: 2px dashed #2970ff !important;
+  opacity: 0.4 !important;
+  z-index: 1000 !important;
+}
+.mm-src::before {
+  content: "Moving...";
+  position: absolute;
+  top: -22px;
+  right: 0;
+  font: bold 10px/18px var(--font-family, sans-serif);
+  background: linear-gradient(135deg, #2970ff, #1e5eff);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  z-index: 1001;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.mm-tgt {
+  border: 2px solid #31b549 !important;
+  background-color: rgba(49, 181, 73, 0.15) !important;
+  z-index: 999 !important;
+  box-shadow: 0 0 8px rgba(49, 181, 73, 0.3) !important;
+}
+.mm-tgt::after {
+  content: "Drop here";
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: bold 10px/16px var(--font-family, sans-serif);
+  background: #31b549;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1001;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Ensure interactive elements within nodes don't interfere with drag */
+.mindmap-wrapper [data-overlay] a,
+.mindmap-wrapper [data-overlay] button,
+.mindmap-wrapper [data-overlay] iframe,
+.mindmap-wrapper [data-overlay] video,
+.mindmap-wrapper [data-overlay] img {
+  pointer-events: auto;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+/* Markdown rendering tweaks previously injected dynamically */
+.mindmap-wrapper .markdown-rendered {
+  font-size: inherit;
+  line-height: 1.4;
+}
+.mindmap-wrapper .markdown-rendered img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.mindmap-wrapper .markdown-rendered a.internal-link {
+  color: var(--link-color);
+  text-decoration: none;
+}
+.mindmap-wrapper .markdown-rendered a.internal-link:hover {
+  color: var(--link-color-hover);
+  text-decoration: underline;
+}
+.mindmap-wrapper .markdown-rendered code {
+  background: var(--code-background);
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 0.9em;
+}
+.mindmap-wrapper .markdown-rendered pre {
+  background: var(--code-background);
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.mindmap-wrapper .markdown-rendered blockquote {
+  border-left: 3px solid var(--quote-opening-modifier);
+  padding-left: 12px;
+  margin: 8px 0;
+  opacity: 0.8;
+}
+
 /* Canvas container for cytoscape */
 .mindmap-canvas {
   position: absolute;
