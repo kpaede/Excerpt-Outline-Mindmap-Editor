@@ -357,3 +357,24 @@ If your plugin does not need CSS, delete this file.
   pointer-events: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
+
+.mindmap-wrapper [data-overlay].selected {
+  border: 2px solid var(--interactive-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 22%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.18) !important;
+  z-index: 120 !important;
+}
+
+.mindmap-wrapper [data-overlay].editing {
+  border-color: var(--interactive-accent-hover) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent-hover) 18%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.18) !important;
+}
+
+.mindmap-wrapper [data-overlay] input.node-editor {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+}

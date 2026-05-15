@@ -3,7 +3,7 @@ import { OutlineNode } from './util';
 
 export type DocString = string;
 
-async function persistLines(app: App, file: TFile, lines: string[]): Promise<void> {
+async function persistLines(app: App, file: TFile, lines: string[]): Promise<DocString> {
   const newDoc = lines.join('\n');
   let writtenViaEditor = false;
   app.workspace.getLeavesOfType('markdown').forEach((leaf) => {
@@ -19,6 +19,8 @@ async function persistLines(app: App, file: TFile, lines: string[]): Promise<voi
       await app.vault.modify(file, newDoc);
     } catch (err) {}
   }
+
+  return newDoc;
 }
 
 function subtreeEnd(lines: string[], start: number, indent: string): number {
@@ -59,15 +61,7 @@ export async function addChild(
   
   lines.splice(insertIndex, 0, newLine);
 
-  await persistLines(app, file, lines);
-
-  let refreshed: string;
-  try {
-    refreshed = await app.vault.read(file);
-  } catch (err) {
-    refreshed = lines.join('\n');
-  }
-  return refreshed;
+  return await persistLines(app, file, lines);
 }
 
 export async function addSibling(
@@ -91,15 +85,7 @@ export async function addSibling(
   const newLine = `${node.indent}${node.marker} `;
   lines.splice(insertIndex, 0, newLine);
 
-  await persistLines(app, file, lines);
-
-  let refreshed: string;
-  try {
-    refreshed = await app.vault.read(file);
-  } catch (err) {
-    refreshed = lines.join('\n');
-  }
-  return refreshed;
+  return await persistLines(app, file, lines);
 }
 
 export async function writeNode(
@@ -121,9 +107,7 @@ export async function writeNode(
   
   lines[node.line] = newLine;
 
-  await persistLines(app, file, lines);
-  const refreshed = await app.vault.read(file);
-  return refreshed;
+  return await persistLines(app, file, lines);
 }
 
 export async function deleteNode(
@@ -141,9 +125,7 @@ export async function deleteNode(
   const end = subtreeEnd(lines, node.line, node.indent);
   lines.splice(node.line, end - node.line);
 
-  await persistLines(app, file, lines);
-  const refreshed = await app.vault.read(file);
-  return refreshed;
+  return await persistLines(app, file, lines);
 }
 
 export async function deleteNodeKeepChildren(
@@ -172,9 +154,7 @@ export async function deleteNodeKeepChildren(
     }
   }
 
-  await persistLines(app, file, lines);
-  const refreshed = await app.vault.read(file);
-  return refreshed;
+  return await persistLines(app, file, lines);
 }
 
 export async function moveSubtree(
@@ -244,9 +224,7 @@ export async function moveSubtree(
     ...linesAfterRemoval.slice(insertionPoint)
   ];
   
-  await persistLines(app, file, finalLines);
-  const refreshed = await app.vault.read(file);
-  return refreshed;
+  return await persistLines(app, file, finalLines);
 }
 
 export async function addChildText(
@@ -271,7 +249,5 @@ export async function addChildText(
   
   lines.splice(insertIndex, 0, newLine);
 
-  await persistLines(app, file, lines);
-  const refreshed = await app.vault.read(file);
-  return refreshed;
+  return await persistLines(app, file, lines);
 }

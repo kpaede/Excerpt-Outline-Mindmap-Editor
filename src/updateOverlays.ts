@@ -1,6 +1,6 @@
 // src/updateOverlays.ts
 
-import { MarkdownRenderer, Component } from 'obsidian';
+import { MarkdownRenderer, Component, setIcon } from 'obsidian';
 import { parseOutline } from './util';
 import { MindmapView } from './mindmapView';
 import {
@@ -15,6 +15,75 @@ import {
 import { DeleteNodeModal, DeleteOption } from "./delete-node-modal";
 import { Notice } from 'obsidian';
 import { CommandHistory } from './command-history';
+
+export function startNodeEditing(
+  box: HTMLElement,
+  nodeToUse: import('./util').OutlineNode,
+  view: MindmapView,
+  font: string,
+  txt: string
+): void {
+  if (box.classList.contains('editing')) return;
+
+  box.classList.add('editing');
+  box.draggable = false;
+
+  const md = box.querySelector('div[data-text]') as HTMLElement;
+  if (md) md.style.display = 'none';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'node-editor';
+  input.value = nodeToUse.text;
+  Object.assign(input.style, {
+    position: 'absolute',
+    top: '6px',
+    left: '10px',
+    right: '10px',
+    border: 'none',
+    outline: 'none',
+    background: 'transparent',
+    fontFamily: font,
+    fontSize: '16px',
+    color: txt,
+    boxSizing: 'border-box',
+    width: 'calc(100% - 20px)',
+  } as CSSStyleDeclaration);
+
+  box.appendChild(input);
+
+  let finished = false;
+  const finish = async (save: boolean) => {
+    if (finished) return;
+    finished = true;
+
+    const newText = input.value.trim();
+    if (box.contains(input)) box.removeChild(input);
+    if (md) md.style.display = 'block';
+    box.classList.remove('editing');
+    box.draggable = true;
+
+    if (save && newText !== nodeToUse.text && view.file) {
+      await view.executeEditNodeCommand(nodeToUse, newText);
+    }
+  };
+
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      void finish(true);
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      void finish(false);
+    }
+  });
+  input.addEventListener('blur', () => void finish(true));
+
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
+}
 
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
@@ -60,6 +129,11 @@ function performOverlayUpdate(view: MindmapView): void {
   // Create a map of valid line numbers from current document
   const validLines = new Set(flatCurrent.map(n => n.line));
 
+  let pendingEdit: {
+    box: HTMLElement;
+    node: import('./util').OutlineNode;
+  } | null = null;
+
   view.cy!.nodes().forEach((n) => {
     const nd = n.data('node') as import('./util').OutlineNode;
     
@@ -101,6 +175,7 @@ function performOverlayUpdate(view: MindmapView): void {
     const box = document.createElement('div');
     box.dataset.overlay = '1';
     box.dataset.nodeId = nodeId;
+    box.dataset.nodeLine = String(nodeToUse.line);
     view.wrapper.appendChild(box);
 
     // Update position and styling
@@ -125,6 +200,14 @@ function performOverlayUpdate(view: MindmapView): void {
       zIndex: '10',
       boxSizing: 'border-box',
     } as CSSStyleDeclaration);
+
+    if (view.selectedNodeLine === nodeToUse.line) {
+      box.classList.add('selected');
+    }
+
+    if (view.pendingEditNodeLine === nodeToUse.line) {
+      pendingEdit = { box, node: nodeToUse };
+    }
 
     // Update content (always recreate)
     const md = document.createElement('div');
@@ -354,6 +437,7 @@ function performOverlayUpdate(view: MindmapView): void {
 
     const del = document.createElement('span');
     del.textContent = '×';
+    del.className = 'mindmap-node-control';
     Object.assign(del.style, {
       position: 'absolute',
       top: '4px',
@@ -362,10 +446,18 @@ function performOverlayUpdate(view: MindmapView): void {
       display: 'none',
     });
 
-    const btn = (l: string, f: () => void) => {
+    const btn = (icon: string, label: string, f: () => void) => {
       const s = document.createElement('span');
-      s.textContent = l;
+      s.className = 'mindmap-node-control';
+      s.setAttribute('aria-label', label);
+      s.setAttribute('title', label);
       s.style.cursor = 'pointer';
+      s.style.display = 'inline-flex';
+      s.style.alignItems = 'center';
+      s.style.justifyContent = 'center';
+      s.style.width = '20px';
+      s.style.height = '20px';
+      setIcon(s, icon);
       s.onclick = async (e) => {
         e.stopPropagation();
         if (!view.file) return;
@@ -375,10 +467,10 @@ function performOverlayUpdate(view: MindmapView): void {
     };
 
     ctr.append(
-      btn('↓', async () => {
+      btn('plus', 'Add child', async () => {
         await view.executeAddChildCommand(nodeToUse);
       }),
-      btn('→', async () => {
+      btn('git-pull-request-create', 'Add sibling', async () => {
         await view.executeAddSiblingCommand(nodeToUse);
       })
     );
@@ -405,8 +497,28 @@ function performOverlayUpdate(view: MindmapView): void {
       ctr.style.display = del.style.display = 'none';
     };
 
+    box.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (
+        box.classList.contains('editing') ||
+        target.closest('.mindmap-node-control') ||
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'A'
+      ) {
+        return;
+      }
+
+      e.stopPropagation();
+      view.selectNode(nodeToUse.line);
+    });
+
     // Enhanced double-click to edit with single-line input
     box.addEventListener('dblclick', (e) => {
+      view.clearSelection();
+
       // Check if the double-click was on an interactive element
       const target = e.target as HTMLElement;
       const isInteractiveElement = target.tagName === 'BUTTON' ||
@@ -427,49 +539,7 @@ function performOverlayUpdate(view: MindmapView): void {
       e.stopPropagation();
       e.preventDefault();
 
-      const md = box.querySelector('div[data-text]') as HTMLElement;
-      md.style.display = 'none';
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = nodeToUse.text;
-      Object.assign(input.style, {
-        position: 'absolute',
-        top: '6px',
-        left: '10px',
-        right: '10px',
-        border: 'none',
-        outline: 'none',
-        background: 'transparent',
-        fontFamily: font,
-        fontSize: '16px',
-        color: txt,
-        boxSizing: 'border-box',
-      });
-
-      box.appendChild(input);
-      input.focus();
-      input.select();
-
-      const finish = async (save: boolean) => {
-        const newText = input.value.trim();
-        box.removeChild(input);
-        md.style.display = 'block';
-
-        if (save && newText !== nodeToUse.text && view.file) {
-          await view.executeEditNodeCommand(nodeToUse, newText);
-        }
-      };
-
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          finish(true);
-        } else if (ev.key === 'Escape') {
-          finish(false);
-        }
-      });
-      input.addEventListener('blur', () => finish(true));
+      startNodeEditing(box, nodeToUse, view, font, txt);
     });
 
     // Prevent internal elements from starting their own drag operations
@@ -495,4 +565,12 @@ function performOverlayUpdate(view: MindmapView): void {
       }
     });
   });
+
+  if (pendingEdit) {
+    view.pendingEditNodeLine = null;
+    view.clearSelection();
+    requestAnimationFrame(() => {
+      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view, font, txt);
+    });
+  }
 }

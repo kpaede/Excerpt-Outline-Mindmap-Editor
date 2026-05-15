@@ -92,6 +92,7 @@ export async function draw(view: MindmapView): Promise<void> {
   if (isInitialDraw) {
     view.contentEl.empty();
     view.wrapper = view.contentEl.createDiv({ cls: 'mindmap-wrapper' });
+    view.prepareWrapper();
     if (!view.toolbar) {
       view.toolbar = new VerticalToolbar(view);
     }

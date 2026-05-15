@@ -26,7 +26,7 @@ import {
 } from './mindmap-file';
 import { VerticalToolbar } from './vertical-toolbar';
 import { draw as drawMindmap } from './draw';
-import { updateOverlays as updateOverlaysFn } from './updateOverlays';
+import { updateOverlays as updateOverlaysFn, startNodeEditing } from './updateOverlays';
 import { NodeOptions } from './node-options-menu';
 import { FrontmatterStorage } from './frontmatter-storage';
 import { CommandHistory } from './command-history';
@@ -53,6 +53,8 @@ export class MindmapView extends TextFileView {
   public isUpdatingOverlays = false;
   public frontmatterStorage: FrontmatterStorage;
   public commandHistory: CommandHistory;
+  public selectedNodeLine: number | null = null;
+  public pendingEditNodeLine: number | null = null;
 
   /**
    * Map von OutlineNode.line → gemessene Breite/Höhe (in px).
@@ -90,6 +92,28 @@ export class MindmapView extends TextFileView {
    */
   public updateOverlays = (): void => {
     updateOverlaysFn(this);
+  };
+
+  public prepareWrapper(): void {
+    if (!this.wrapper) return;
+    this.wrapper.tabIndex = 0;
+    this.wrapper.style.outline = 'none';
+    this.wrapper.onkeydown = this.handleWrapperKeydown;
+    this.wrapper.onclick = (event: MouseEvent) => {
+      if (event.target === this.wrapper) {
+        this.clearSelection();
+      }
+    };
+  }
+
+  private handleWrapperKeydown = (event: KeyboardEvent): void => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.navigateSelection(event.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right');
+    }
   };
 
   private nodeOptions: NodeOptions = {
@@ -262,7 +286,7 @@ export class MindmapView extends TextFileView {
   }
 
   // Enhanced applyDocIncremental with command tracking - now the primary method
-  public applyDocIncrementalWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
+  public async applyDocIncrementalWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): Promise<void> {
     this.data = d;
     
     // Record command in history
@@ -271,7 +295,7 @@ export class MindmapView extends TextFileView {
     }
     
     // Always use incremental update - no special cases
-    void this.incrementalUpdate();
+    await this.incrementalUpdate();
     
     // Force toolbar button update after command execution
     this.forceToolbarUpdate();
@@ -304,7 +328,7 @@ export class MindmapView extends TextFileView {
 
   // Make this the standard method for all operations
   public applyDocWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
-    this.applyDocIncrementalWithCommand(d, command);
+    void this.applyDocIncrementalWithCommand(d, command);
   }
 
   /** Incremental update that reuses existing measurements where possible */
@@ -586,6 +610,7 @@ export class MindmapView extends TextFileView {
       width: '100%',
       height: '100%',
     });
+    this.prepareWrapper();
 
     // Add CSS for better Obsidian content rendering
     if (!document.getElementById('mindmap-obsidian-css')) {
@@ -764,7 +789,9 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
     
     const beforeState = this.data;
+    const newChildLine = parentNode.line + 1;
     const newDoc = await addChild(this.app, this.file, parentNode);
+    this.pendingEditNodeLine = newChildLine;
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-child',
@@ -774,14 +801,17 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(parentNode)
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.enterEditModeForNodeByLine(newChildLine);
   }
 
   public async executeAddSiblingCommand(node: OutlineNode): Promise<void> {
     if (!this.file) return;
     
     const beforeState = this.data;
+    const newSiblingLine = node.endLine + 1;
     const newDoc = await addSibling(this.app, this.file, node);
+    this.pendingEditNodeLine = newSiblingLine;
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-sibling',
@@ -791,7 +821,8 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.enterEditModeForNodeByLine(newSiblingLine);
   }
 
   public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {
@@ -812,7 +843,7 @@ export class MindmapView extends TextFileView {
       }
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public async executeDeleteNodeCommand(node: OutlineNode): Promise<void> {
@@ -829,7 +860,7 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public async executeDeleteNodeKeepChildrenCommand(node: OutlineNode): Promise<void> {
@@ -846,7 +877,7 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public async executeMoveSubtreeCommand(sourceNode: OutlineNode, targetNode: OutlineNode, insertAsChild: boolean): Promise<void> {
@@ -869,7 +900,7 @@ export class MindmapView extends TextFileView {
       metadata: { insertAsChild }
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public async executeAddChildTextCommand(parentNode: OutlineNode, text: string): Promise<void> {
@@ -887,7 +918,7 @@ export class MindmapView extends TextFileView {
       metadata: { addedText: text.substring(0, 100) }
     };
     
-    this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public getNodeOptions(): NodeOptions {
@@ -940,5 +971,102 @@ export class MindmapView extends TextFileView {
         }
       });
     }
+  }
+
+  public selectNode(nodeLine: number): void {
+    this.selectedNodeLine = nodeLine;
+    this.updateSelectionStyling();
+    this.wrapper?.focus();
+  }
+
+  public clearSelection(): void {
+    if (this.selectedNodeLine === null) return;
+    this.selectedNodeLine = null;
+    this.updateSelectionStyling();
+  }
+
+  private updateSelectionStyling(): void {
+    if (!this.wrapper) return;
+
+    this.wrapper.querySelectorAll('[data-overlay]').forEach((overlay) => {
+      const line = Number((overlay as HTMLElement).dataset.nodeLine);
+      overlay.classList.toggle('selected', line === this.selectedNodeLine);
+    });
+  }
+
+  private getFlatNodes(): OutlineNode[] {
+    const flat: OutlineNode[] = [];
+    (function walk(arr: OutlineNode[]) {
+      arr.forEach((node) => {
+        flat.push(node);
+        walk(node.children);
+      });
+    })(parseOutline(this.data));
+    return flat;
+  }
+
+  private navigateSelection(direction: 'up' | 'down' | 'left' | 'right'): void {
+    const flat = this.getFlatNodes();
+    if (flat.length === 0) return;
+
+    if (this.selectedNodeLine === null) {
+      this.selectNode(flat[0].line);
+      return;
+    }
+
+    const current = flat.find(node => node.line === this.selectedNodeLine);
+    if (!current) {
+      this.selectNode(flat[0].line);
+      return;
+    }
+
+    const parent = flat.find(node => node.children.some(child => child.line === current.line));
+
+    if (direction === 'up') {
+      if (parent) this.selectNode(parent.line);
+      return;
+    }
+
+    if (direction === 'down') {
+      if (current.children[0]) this.selectNode(current.children[0].line);
+      return;
+    }
+
+    if (!parent) return;
+
+    const siblingIndex = parent.children.findIndex(child => child.line === current.line);
+    if (siblingIndex < 0) return;
+
+    if (direction === 'left') {
+      const previousSibling = parent.children[siblingIndex - 1];
+      if (previousSibling) this.selectNode(previousSibling.line);
+      return;
+    }
+
+    if (direction === 'right') {
+      const nextSibling = parent.children[siblingIndex + 1];
+      if (nextSibling) this.selectNode(nextSibling.line);
+    }
+  }
+
+  public async enterEditModeForNodeByLine(nodeLine: number): Promise<void> {
+    for (let i = 0; i < 12; i++) {
+      const overlay = this.wrapper?.querySelector(`[data-overlay][data-node-line="${nodeLine}"]`) as HTMLElement | null;
+      if (overlay && !this.isUpdatingOverlays) {
+        const node = this.getFlatNodes().find(candidate => candidate.line === nodeLine);
+        if (!node) return;
+
+        this.clearSelection();
+        const css = getComputedStyle(document.documentElement);
+        const font = css.getPropertyValue('--font-family').trim() || 'inherit';
+        const txt = css.getPropertyValue('--text-normal').trim() || '#000';
+        startNodeEditing(overlay, node, this, font, txt);
+        return;
+      }
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    console.warn(`Overlay not found for line ${nodeLine} to start editing.`);
   }
 }
