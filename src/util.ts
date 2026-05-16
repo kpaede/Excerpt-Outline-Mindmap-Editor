@@ -286,8 +286,11 @@ export async function openInternalLink(app: App, href: string, currentFilePath?:
   try {
     const target = app.vault.getAbstractFileByPath(href);
     if (target && target instanceof TFile) {
-      await app.workspace.openFile(target as TFile);
-      return;
+      const leaf = app.workspace.getLeaf(false);
+      if (leaf) {
+        await leaf.openFile(target as TFile);
+        return;
+      }
     }
     // Fallback to workspace.openLinkText if available (newer Obsidian)
     const ws: any = app.workspace as any;

@@ -32,9 +32,9 @@ export class GeneralSettingsMenu {
 
   private positionMenu() {
     const rect = this.anchorEl.getBoundingClientRect();
-    // Only set dynamic position; other layout handled by CSS
-    this.container.style.left = `${rect.left + window.scrollX - 328}px`;
-    this.container.style.top = `${rect.top + window.scrollY}px`;
+    // Only set dynamic position variables; other layout handled by CSS
+    this.container.style.setProperty('--menu-left', `${rect.left + window.scrollX - 328}px`);
+    this.container.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
   }
 
   private buildContent() {

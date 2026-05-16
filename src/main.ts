@@ -10,6 +10,7 @@ import {
 import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './context-menu';
 import { MindmapView } from './mindmapView';
+import { openInternalLink } from './util';
 
 export default class MindmapPlugin extends Plugin {
   async onload() {
@@ -128,9 +129,6 @@ export default class MindmapPlugin extends Plugin {
     if (matchingMdLeaf) {
       this.app.workspace.revealLeaf(matchingMdLeaf);
     } else {
-      // Use compatibility helper to open links across Obsidian versions
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { openInternalLink } = require('./util');
       await openInternalLink(this.app, file.path, '');
     }
   }

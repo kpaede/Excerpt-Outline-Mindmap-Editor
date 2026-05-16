@@ -3,7 +3,7 @@ import cytoscape, { Core, ElementDefinition } from 'cytoscape';
 // @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
-import { parseOutline, OutlineNode } from './util';
+import { parseOutline, OutlineNode, openInternalLink } from './util';
 import {
   addChild,
   addSibling,
@@ -187,9 +187,6 @@ export async function draw(view: MindmapView): Promise<void> {
             e.preventDefault();
             const href = link.getAttribute('href');
             if (href && view.file) {
-              // Use compatibility helper to open links across Obsidian versions
-              // eslint-disable-next-line @typescript-eslint/no-var-requires
-              const { openInternalLink } = require('./util');
               void openInternalLink(view.app, href, view.file.path);
             }
           });

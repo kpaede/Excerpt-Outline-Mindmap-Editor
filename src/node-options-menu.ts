@@ -41,9 +41,9 @@ export class NodeOptionsMenu {
     const rect = this.anchorEl.getBoundingClientRect();
     
     // Position menu to the left of the button
-    // Only set dynamic left/top; other layout handled via CSS class
-    this.container.style.left = `${rect.left + window.scrollX - 328}px`;
-    this.container.style.top = `${rect.top + window.scrollY}px`;
+    // Only set dynamic left/top variables; other layout handled via CSS class
+    this.container.style.setProperty('--menu-left', `${rect.left + window.scrollX - 328}px`);
+    this.container.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
   }
 
   private buildContent() {

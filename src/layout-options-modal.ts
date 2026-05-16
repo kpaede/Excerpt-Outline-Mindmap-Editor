@@ -36,10 +36,10 @@ export class LayoutOptionsModal extends Modal {
     //    (Modal.open() wurde bereits durch vertical-toolbar.ts aufgerufen)
     //    Jetzt positionieren wir modalEl relativ zum anchorEl.
     const rect = this.anchorEl.getBoundingClientRect();
-    // Add a class for modal layout; set only left/top dynamically
+    // Add a class for modal layout; set only left/top variables
     modalEl.classList.add('layout-options-modal');
-    modalEl.style.left = `${rect.left + window.scrollX - 328}px`;
-    modalEl.style.top = `${rect.top + window.scrollY}px`;
+    modalEl.style.setProperty('--layout-options-left', `${rect.left + window.scrollX - 328}px`);
+    modalEl.style.setProperty('--layout-options-top', `${rect.top + window.scrollY}px`);
 
     // 2) Inhalt des Modals neu aufbauen
     contentEl.empty();

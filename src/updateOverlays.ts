@@ -1,7 +1,7 @@
 // src/updateOverlays.ts
 
 import { MarkdownRenderer, Component, setIcon } from 'obsidian';
-import { parseOutline } from './util';
+import { parseOutline, openInternalLink } from './util';
 import { MindmapView } from './mindmapView';
 import {
   addChild,
@@ -167,17 +167,18 @@ function performOverlayUpdate(view: MindmapView): void {
 
     // Update position and styling using CSS variables where possible
     box.classList.add('mindmap-overlay');
-    // Dynamic position (pixel-based) still set inline
-    box.style.left = `${p.x}px`;
-    box.style.top = `${p.y}px`;
-    // Set CSS variables for dynamic visual values so styles.css controls presentation
+    // Dynamic position variables for CSS positioning
+    box.style.setProperty('--mindmap-left', `${p.x}px`);
+    box.style.setProperty('--mindmap-top', `${p.y}px`);
     box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
     box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
     box.style.setProperty('--mindmap-zoom', String(zoom));
     box.style.setProperty('--mindmap-border', border);
     box.style.setProperty('--mindmap-bg', bg);
     box.style.setProperty('--mindmap-color', txt);
-    if (font) box.style.setProperty('--mindmap-font', font);
+    if (font) {
+      box.style.setProperty('--mindmap-font', font);
+    }
     box.style.setProperty('--mindmap-font-size', '16px');
     box.style.setProperty('--mindmap-box-shadow', '0 1px 3px rgba(0,0,0,.08)');
 
@@ -226,9 +227,6 @@ function performOverlayUpdate(view: MindmapView): void {
             e.stopPropagation();
             const href = link.getAttribute('href');
             if (href && view.file) {
-              // Use compatibility helper to open links across Obsidian versions
-              // eslint-disable-next-line @typescript-eslint/no-var-requires
-              const { openInternalLink } = require('./util');
               void openInternalLink(view.app, href, view.file.path);
             }
           });

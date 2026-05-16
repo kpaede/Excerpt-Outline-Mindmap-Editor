@@ -106,6 +106,9 @@ If your plugin does not need CSS, delete this file.
 
 /* Node Options Menu */
 .node-options-menu {
+  position: absolute;
+  left: var(--menu-left, 0);
+  top: var(--menu-top, 0);
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -416,6 +419,8 @@ If your plugin does not need CSS, delete this file.
 /* General settings menu styling */
 .general-settings-menu {
   position: absolute;
+  left: var(--menu-left, 0);
+  top: var(--menu-top, 0);
   width: 320px;
   max-height: 400px;
   overflow-y: auto;
@@ -449,9 +454,40 @@ If your plugin does not need CSS, delete this file.
   cursor: not-allowed;
 }
 
+/* Vertical toolbar container */
+.vertical-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--background-secondary);
+  padding: 6px;
+  border-radius: 4px;
+  z-index: 999;
+}
+
+.toolbar-separator {
+  height: 8px;
+}
+
+.clickable-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* Layout modal adjustments */
 .layout-options-modal {
   position: absolute !important;
+  left: var(--layout-options-left, 0);
+  top: var(--layout-options-top, 0);
   transform: none !important;
   max-width: 320px !important;
 }
@@ -459,6 +495,8 @@ If your plugin does not need CSS, delete this file.
 /* Mindmap overlay presentation using CSS variables */
 .mindmap-overlay {
   position: absolute;
+  left: var(--mindmap-left, 0);
+  top: var(--mindmap-top, 0);
   transform: translate(-50%,-50%) scale(var(--mindmap-zoom,1));
   transform-origin: center center;
   width: var(--mindmap-box-width, 200px);

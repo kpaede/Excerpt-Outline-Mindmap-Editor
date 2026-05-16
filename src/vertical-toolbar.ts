@@ -24,20 +24,6 @@ export class VerticalToolbar {
     this.buildButtons();
   }
 
-  private applyContainerStyles() {
-    const style = this.container.style;
-    style.position = 'absolute';
-    style.top = '10px';
-    style.right = '10px';
-    style.display = 'flex';
-    style.flexDirection = 'column';
-    style.gap = '4px';
-    style.background = 'var(--background-secondary)';
-    style.padding = '6px';
-    style.borderRadius = '4px';
-    style.zIndex = '999';
-  }
-
   private buildButtons() {
     // Undo Button
     const undoBtn = this.container.createEl('button');
