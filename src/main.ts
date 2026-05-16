@@ -6,6 +6,7 @@ import {
   MarkdownView,
   Menu,
   Notice,
+  View,
 } from 'obsidian';
 import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './context-menu';
@@ -31,9 +32,9 @@ export default class MindmapPlugin extends Plugin {
     );
 
     this.registerEvent(
-      this.app.workspace.on(
+      (this.app.workspace.on as any)(
         'editor-menu',
-        (menu: Menu, _editor, view: any) => {
+        (menu: Menu, _editor: unknown, view: View) => {
           if (view.getViewType() === 'markdown') {
             const mdView = view as MarkdownView;
             const file = mdView.file;

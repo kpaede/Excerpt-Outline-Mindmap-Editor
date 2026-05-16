@@ -17,24 +17,11 @@ export class LayoutOptionsMenu {
   private createMenu(anchorEl: HTMLElement): HTMLDivElement {
     const menu = document.createElement('div');
     menu.className = 'layout-options-menu';
-    
+
     // Position relative to anchor element
     const rect = anchorEl.getBoundingClientRect();
-    Object.assign(menu.style, {
-      position: 'absolute',
-      left: `${rect.left + window.scrollX - 340}px`, // Position to the left of button
-      top: `${rect.top + window.scrollY}px`,
-      width: '320px',
-      maxHeight: '70vh',
-      overflowY: 'auto',
-      zIndex: '1000',
-      background: 'var(--background-primary)',
-      border: '1px solid var(--background-modifier-border)',
-      borderRadius: '8px',
-      padding: '16px',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-      fontSize: 'var(--font-size-sm)',
-    } as CSSStyleDeclaration);
+    menu.style.setProperty('--menu-left', `${rect.left + window.scrollX - 340}px`);
+    menu.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
 
     this.buildMenuContent(menu);
     return menu;
@@ -42,11 +29,7 @@ export class LayoutOptionsMenu {
 
   private buildMenuContent(container: HTMLElement): void {
     const title = container.createEl('h3', { text: 'Layout Options' });
-    Object.assign(title.style, {
-      margin: '0 0 16px 0',
-      fontSize: 'var(--font-size-md)',
-      fontWeight: '600',
-    });
+    title.addClass('layout-options-menu-title');
 
     const opts = this.view.layoutOptions;
 
@@ -143,17 +126,7 @@ export class LayoutOptionsMenu {
 
     // Close button
     const closeBtn = container.createEl('button', { text: 'Close' });
-    Object.assign(closeBtn.style, {
-      marginTop: '16px',
-      padding: '8px 16px',
-      borderRadius: '4px',
-      border: 'none',
-      background: 'var(--interactive-accent)',
-      color: 'var(--text-on-accent)',
-      cursor: 'pointer',
-      width: '100%',
-      fontSize: 'var(--font-size-sm)',
-    });
+    closeBtn.addClass('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
   }
 

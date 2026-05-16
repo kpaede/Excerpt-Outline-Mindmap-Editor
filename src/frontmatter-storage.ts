@@ -32,53 +32,61 @@ export class FrontmatterStorage {
 
   private encodeToString(data: ExcerptOutlineMindmapData): string {
     const parts: string[] = [];
-    
+
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined) {
         parts.push(`${key}:${value}`);
       }
     });
-    
+
     return parts.join(';');
   }
 
   private parseFromString(str: string): ExcerptOutlineMindmapData {
-    const result: ExcerptOutlineMindmapData = {};
+    const result: Partial<ExcerptOutlineMindmapData> = {};
     
-    if (!str || typeof str !== 'string') return result;
-    
+    if (!str || typeof str !== 'string') return result as ExcerptOutlineMindmapData;
+    const typedResult = result as Record<string, unknown>;
     const parts = str.split(';');
-    
     parts.forEach(part => {
       const [key, value] = part.split(':');
-      if (key && value !== undefined) {
-        const trimmedKey = key.trim();
-        const trimmedValue = value.trim();
-        
-        // Parse numbers
-        if (trimmedKey === 'nodeWidth' || trimmedKey === 'nodeSep' || 
-            trimmedKey === 'edgeSep' || trimmedKey === 'rankSep' || 
-            trimmedKey === 'marginx' || trimmedKey === 'marginy' || 
-            trimmedKey === 'spacingFactor') {
-          const numValue = parseFloat(trimmedValue);
-          if (!isNaN(numValue)) {
-            (result as any)[trimmedKey] = numValue;
-          }
-        } else {
-          // String values
-          (result as any)[trimmedKey] = trimmedValue;
+      if (!key || value === undefined) return;
+
+      const trimmedKey = key.trim();
+      const trimmedValue = value.trim();
+      const dataKey = trimmedKey as keyof ExcerptOutlineMindmapData;
+
+      if (
+        trimmedKey === 'nodeWidth' ||
+        trimmedKey === 'nodeSep' ||
+        trimmedKey === 'edgeSep' ||
+        trimmedKey === 'rankSep' ||
+        trimmedKey === 'marginx' ||
+        trimmedKey === 'marginy' ||
+        trimmedKey === 'spacingFactor'
+      ) {
+        const numValue = parseFloat(trimmedValue);
+        if (!isNaN(numValue)) {
+          typedResult[trimmedKey] = numValue;
         }
+      } else {
+        typedResult[trimmedKey] = trimmedValue;
       }
     });
-    
+
     return result;
   }
 
-  async saveMindmapData(file: TFile, data: ExcerptOutlineMindmapData): Promise<void> {
+  private async saveMindmapData(file: TFile, data: ExcerptOutlineMindmapData): Promise<void> {
+    const fileManager = this.app.fileManager as {
+      processFrontMatter?: (file: TFile, processor: (frontmatter: Record<string, unknown>) => void) => Promise<void>;
+    } | null;
+
+    const hasData = Object.values(data).some((value) => value !== undefined);
+
     try {
-      if (this.app.fileManager && typeof (this.app.fileManager as any).processFrontMatter === 'function') {
-        await (this.app.fileManager as any).processFrontMatter(file, (frontmatter: any) => {
-          const hasData = Object.keys(data).some(key => data[key as keyof ExcerptOutlineMindmapData] !== undefined);
+      if (fileManager?.processFrontMatter) {
+        await fileManager.processFrontMatter(file, (frontmatter) => {
           if (hasData) {
             frontmatter['excerpt-outline-mindmap'] = this.encodeToString(data);
           } else {
@@ -86,30 +94,27 @@ export class FrontmatterStorage {
           }
         });
       } else {
-        // Fallback for older Obsidian versions without processFrontMatter
         const contents = await this.app.vault.read(file);
         const fmMatch = contents.match(/^---\n([\s\S]*?)\n---\n?/);
-        const hasData = Object.keys(data).some(key => data[key as keyof ExcerptOutlineMindmapData] !== undefined);
 
         if (fmMatch) {
           let fmText = fmMatch[1];
+
           if (hasData) {
             if (/^excerpt-outline-mindmap:/m.test(fmText)) {
               fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, `excerpt-outline-mindmap: ${this.encodeToString(data)}\n`);
             } else {
-              fmText = fmText + `\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n`;
+              fmText = `${fmText}\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n`;
             }
           } else {
             fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, '');
           }
+
           const newContents = contents.replace(fmMatch[0], `---\n${fmText}---\n`);
           await this.app.vault.modify(file, newContents);
-        } else {
-          // No frontmatter currently
-          if (hasData) {
-            const fm = `---\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n---\n\n`;
-            await this.app.vault.modify(file, fm + contents);
-          }
+        } else if (hasData) {
+          const fm = `---\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n---\n\n`;
+          await this.app.vault.modify(file, fm + contents);
         }
       }
     } catch (error) {
@@ -120,11 +125,11 @@ export class FrontmatterStorage {
   async loadMindmapData(file: TFile): Promise<ExcerptOutlineMindmapData> {
     const cache = this.app.metadataCache.getFileCache(file);
     const frontmatter = cache?.frontmatter;
-    
+
     if (!frontmatter || !frontmatter['excerpt-outline-mindmap']) return {};
-    
+
     const mindmapDataString = frontmatter['excerpt-outline-mindmap'];
-    return this.parseFromString(mindmapDataString);
+    return this.parseFromString(String(mindmapDataString));
   }
 
   async updateNodeOptions(file: TFile, nodeOptions: NodeOptions): Promise<void> {
@@ -134,21 +139,26 @@ export class FrontmatterStorage {
   }
 
   async updateLayoutOptions(file: TFile, layoutOptions: Partial<LayoutOptions>): Promise<void> {
-    const currentData = await this.loadMindmapData(file);
-    Object.keys(layoutOptions).forEach(key => {
+    const currentData: Partial<ExcerptOutlineMindmapData> = await this.loadMindmapData(file);
+    const typedData = currentData as Record<string, unknown>;
+
+    Object.keys(layoutOptions).forEach((key) => {
       const value = layoutOptions[key as keyof LayoutOptions];
       if (value !== undefined) {
-        (currentData as any)[key] = value;
+        typedData[key] = value;
       }
     });
-    await this.saveMindmapData(file, currentData);
+
+    await this.saveMindmapData(file, currentData as ExcerptOutlineMindmapData);
   }
 
   async updateGeneralSettings(file: TFile, generalSettings: GeneralSettings): Promise<void> {
     const currentData = await this.loadMindmapData(file);
+
     if (generalSettings.keyboardNavigation) {
       currentData.keyboardNavigation = generalSettings.keyboardNavigation;
     }
+
     await this.saveMindmapData(file, currentData);
   }
 
@@ -162,7 +172,7 @@ export class FrontmatterStorage {
     await this.updateLayoutOptions(file, layoutOptions);
   }
 
-  async updateCommandHistory(file: TFile, historyState: any): Promise<void> {
+  async updateCommandHistory(file: TFile, historyState: unknown): Promise<void> {
     // Command history is handled separately and doesn't need frontmatter storage
     // This method exists for compatibility but doesn't save to frontmatter
     // to avoid cluttering the frontmatter with large history data

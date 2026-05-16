@@ -7,7 +7,7 @@ import {
   MarkdownRenderer,
   Component,
 } from 'obsidian';
-import { Core } from 'cytoscape';
+import { Core, type NodeSingular } from 'cytoscape';
 
 import './dnd-css';
 
@@ -44,6 +44,10 @@ export interface LayoutOptions {
   acyciler?: 'greedy';
   ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   spacingFactor?: number;
+}
+
+export interface MindmapViewState {
+  file?: string;
 }
 
 export class MindmapView extends TextFileView {
@@ -235,41 +239,15 @@ export class MindmapView extends TextFileView {
     this.contentEl.empty();
     
     const container = this.contentEl.createDiv({ cls: 'mindmap-empty-state' });
-    Object.assign(container.style, {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-      gap: '16px',
-      padding: '40px',
-      textAlign: 'center',
-    });
-    
 
     const title = container.createEl('h2', { text: 'Start your mindmap' });
-    Object.assign(title.style, {
-      margin: '0',
-      opacity: '0.8',
-    });
-    
+    title.addClass('mindmap-empty-title');
+
     const description = container.createEl('p', { text: 'Click the button below to create your first node' });
-    Object.assign(description.style, {
-      margin: '0 0 16px 0',
-      opacity: '0.6',
-    });
-    
+    description.addClass('mindmap-empty-description');
+
     const button = container.createEl('button', { text: 'Create First Node' });
-    Object.assign(button.style, {
-      padding: '12px 24px',
-      fontSize: '16px',
-      cursor: 'pointer',
-      borderRadius: '6px',
-      border: '1px solid var(--interactive-accent)',
-      background: 'var(--interactive-accent)',
-      color: 'var(--text-on-accent)',
-    });
-    
+    button.addClass('mindmap-empty-button');
     button.onclick = () => this.createFirstNode();
   }
 
@@ -278,44 +256,22 @@ export class MindmapView extends TextFileView {
     this.contentEl.empty();
     
     const container = this.contentEl.createDiv({ cls: 'mindmap-warning-state' });
-    Object.assign(container.style, {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100%',
-      gap: '16px',
-      padding: '40px',
-      textAlign: 'center',
-    });
-    
-    const icon = container.createDiv();
+
+    const icon = container.createDiv({ cls: 'mindmap-warning-icon' });
     icon.innerHTML = '⚠️';
-    Object.assign(icon.style, {
-      fontSize: '48px',
-      opacity: '0.6',
-    });
-    
+
     const title = container.createEl('h2', { text: 'Incompatible Content' });
-    Object.assign(title.style, {
-      margin: '0',
-      color: 'var(--text-error)',
-    });
-    
-    const description = container.createDiv();
+    title.addClass('mindmap-warning-title');
+
+    const description = container.createDiv({ cls: 'mindmap-warning-description' });
     description.innerHTML = `
       <p>This file contains content that isn't compatible with the mindmap view.</p>
       <p>The mindmap requires an outline structure using list items:</p>
-      <ul style="text-align: left; display: inline-block;">
+      <ul class="mindmap-warning-list">
         <li>like this
       </ul>
       <p>Please start with an empty file or the mentioned format.</p>
     `;
-    Object.assign(description.style, {
-      margin: '0',
-      opacity: '0.8',
-      maxWidth: '500px',
-    });
 
   }
 
@@ -522,7 +478,16 @@ export class MindmapView extends TextFileView {
   }
 
   /** Optimized update specifically for move operations that preserves visual state */
-  public async optimizedMoveUpdate(visualState: Map<number, any>): Promise<void> {
+  public async optimizedMoveUpdate(
+    visualState: Map<
+      number,
+      {
+        dims: { w: number; h: number };
+        scaleFactor?: number;
+        position?: { x: number; y: number };
+      }
+    >
+  ): Promise<void> {
     if (!this.cy || !this.file) return;
 
     // Parse new outline
@@ -639,7 +604,7 @@ export class MindmapView extends TextFileView {
     // Restore positions for nodes that still exist
     flat.forEach(n => {
       const preserved = visualState.get(n.line);
-      if (preserved) {
+      if (preserved?.position) {
         const cyNode = this.cy!.getElementById(`n${n.line}`);
         if (cyNode.length > 0) {
           cyNode.position(preserved.position);
@@ -661,7 +626,7 @@ export class MindmapView extends TextFileView {
 
   /* ── Lifecycle ───────────────────────────── */
   async onOpen(): Promise<void> {
-    const st = this.leaf.getViewState().state as any;
+    const st = this.leaf.getViewState().state as MindmapViewState | undefined;
     if (!st?.file) {
       return;
     }
@@ -677,11 +642,6 @@ export class MindmapView extends TextFileView {
     this.contentEl.empty();
 
     this.wrapper = this.contentEl.createDiv({ cls: 'mindmap-wrapper' });
-    Object.assign(this.wrapper.style, {
-      position: 'relative',
-      width: '100%',
-      height: '100%',
-    });
     this.prepareWrapper();
 
     // Styling for markdown-rendered content moved to `styles.css` for proper theming.
@@ -744,7 +704,7 @@ export class MindmapView extends TextFileView {
       padding: 30,
       nodeDimensionsIncludeLabels: false,
       spacingFactor: L.spacingFactor,
-    } as any;
+    } as unknown as import('cytoscape').LayoutOptions;
 
     // Don't reset firstFitDone - preserve current zoom level
     this.cy.layout(layoutObj).run();
@@ -1154,12 +1114,13 @@ export class MindmapView extends TextFileView {
     }
 
     const currentPos = currentCyNode.position();
-    let bestNode = null;
+    let bestNode: NodeSingular | null = null;
     let bestScore = Infinity;
 
     nodes.forEach(n => {
-      if (n.id() === currentCyNode.id()) return;
-      const pos = n.position();
+      const node = n as import('cytoscape').NodeSingular;
+      if (!node.isNode?.() || node.id() === currentCyNode.id()) return;
+      const pos = node.position();
 
       const dx = pos.x - currentPos.x;
       const dy = pos.y - currentPos.y;
@@ -1178,12 +1139,12 @@ export class MindmapView extends TextFileView {
 
       if (distanceScore < bestScore) {
         bestScore = distanceScore;
-        bestNode = n;
+        bestNode = node;
       }
     });
 
     if (bestNode) {
-      const bestLine = (bestNode as any).data('node')?.line;
+      const bestLine = (bestNode as unknown as import('cytoscape').NodeSingular).data('node')?.line;
       if (bestLine !== undefined) this.selectNode(bestLine);
     }
   }

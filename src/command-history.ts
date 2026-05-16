@@ -18,7 +18,7 @@ export interface MindmapCommand {
     indent: string;
     marker: string;
   };
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export class CommandHistory {

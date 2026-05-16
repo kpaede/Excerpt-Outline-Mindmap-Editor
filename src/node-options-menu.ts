@@ -1,4 +1,14 @@
-import { Setting } from 'obsidian';
+import { Setting, TFile } from 'obsidian';
+import { FrontmatterStorage } from './frontmatter-storage';
+
+type ClickHandlerElement = HTMLElement & {
+  _clickHandler?: (event: MouseEvent) => void;
+};
+
+interface NodeOptionsView {
+  file?: TFile | null;
+  frontmatterStorage?: FrontmatterStorage;
+}
 
 export interface NodeOptions {
   nodeWidth: number;
@@ -13,9 +23,9 @@ export class NodeOptionsMenu {
   private options: NodeOptions;
   private onSave: (options: NodeOptions) => void;
   private anchorEl: HTMLElement;
-  private view: any; // Add view reference for frontmatter access
+  private view?: NodeOptionsView;
 
-  constructor(anchorEl: HTMLElement, options: NodeOptions, onSave: (options: NodeOptions) => void, view?: any) {
+  constructor(anchorEl: HTMLElement, options: NodeOptions, onSave: (options: NodeOptions) => void, view?: NodeOptionsView) {
     this.anchorEl = anchorEl;
     this.options = { ...options };
     this.onSave = onSave;
@@ -125,13 +135,15 @@ export class NodeOptionsMenu {
     }, 100);
     
     // Store handler for cleanup
-    (this.container as any)._clickHandler = handler;
+    const container = this.container as ClickHandlerElement;
+    container._clickHandler = handler;
   }
 
   public close() {
     if (this.container) {
       // Remove click handler
-      const handler = (this.container as any)._clickHandler;
+      const container = this.container as ClickHandlerElement;
+      const handler = container._clickHandler;
       if (handler) {
         document.removeEventListener('click', handler);
       }

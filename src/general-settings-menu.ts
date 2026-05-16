@@ -1,4 +1,14 @@
-import { Setting } from 'obsidian';
+import { Setting, TFile } from 'obsidian';
+import { FrontmatterStorage } from './frontmatter-storage';
+
+type ClickHandlerElement = HTMLElement & {
+  _clickHandler?: (event: MouseEvent) => void;
+};
+
+interface GeneralSettingsView {
+  file?: TFile | null;
+  frontmatterStorage?: FrontmatterStorage;
+}
 
 export interface GeneralSettings {
   keyboardNavigation: 'hierarchical' | 'spatial';
@@ -13,9 +23,9 @@ export class GeneralSettingsMenu {
   private settings: GeneralSettings;
   private onSave: (settings: GeneralSettings) => void;
   private anchorEl: HTMLElement;
-  private view: any;
+  private view?: GeneralSettingsView;
 
-  constructor(anchorEl: HTMLElement, settings: GeneralSettings, onSave: (settings: GeneralSettings) => void, view?: any) {
+  constructor(anchorEl: HTMLElement, settings: GeneralSettings, onSave: (settings: GeneralSettings) => void, view?: GeneralSettingsView) {
     this.anchorEl = anchorEl;
     this.settings = { ...settings };
     this.onSave = onSave;
@@ -102,12 +112,14 @@ export class GeneralSettingsMenu {
       }
     };
     setTimeout(() => { document.addEventListener('click', handler); }, 100);
-    (this.container as any)._clickHandler = handler;
+    const container = this.container as ClickHandlerElement;
+    container._clickHandler = handler;
   }
 
   public close() {
     if (this.container) {
-      const handler = (this.container as any)._clickHandler;
+      const container = this.container as ClickHandlerElement;
+      const handler = container._clickHandler;
       if (handler) {
         document.removeEventListener('click', handler);
       }

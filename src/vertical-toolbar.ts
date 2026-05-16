@@ -1,6 +1,6 @@
 // src/vertical-toolbar.ts
 
-import { ButtonComponent, setIcon, type IconName } from 'obsidian';
+import { ButtonComponent, setIcon, type IconName, MarkdownView } from 'obsidian';
 import type { MindmapView } from './mindmapView';
 import { LayoutOptionsMenu } from './layout-options-menu';
 import { NodeOptionsMenu, NodeOptions } from './node-options-menu';
@@ -159,13 +159,12 @@ export class VerticalToolbar {
     
     // Find corresponding markdown editor
     const markdownLeaves = this.view.app.workspace.getLeavesOfType('markdown');
-    const matchingLeaf = markdownLeaves.find(leaf => {
-      const view = leaf.view as any;
-      return view.file?.path === this.view.file?.path;
-    });
+    const matchingLeaf = markdownLeaves.find((leaf) =>
+      leaf.view instanceof MarkdownView && leaf.view.file?.path === this.view.file?.path
+    );
     
-    if (matchingLeaf) {
-      const editor = (matchingLeaf.view as any).editor;
+    if (matchingLeaf && matchingLeaf.view instanceof MarkdownView) {
+      const editor = matchingLeaf.view.editor;
       if (editor && typeof editor.undo === 'function') {
         editor.undo();
         return true;
@@ -179,13 +178,12 @@ export class VerticalToolbar {
     
     // Find corresponding markdown editor
     const markdownLeaves = this.view.app.workspace.getLeavesOfType('markdown');
-    const matchingLeaf = markdownLeaves.find(leaf => {
-      const view = leaf.view as any;
-      return view.file?.path === this.view.file?.path;
-    });
+    const matchingLeaf = markdownLeaves.find((leaf) =>
+      leaf.view instanceof MarkdownView && leaf.view.file?.path === this.view.file?.path
+    );
     
-    if (matchingLeaf) {
-      const editor = (matchingLeaf.view as any).editor;
+    if (matchingLeaf && matchingLeaf.view instanceof MarkdownView) {
+      const editor = matchingLeaf.view.editor;
       if (editor && typeof editor.redo === 'function') {
         editor.redo();
         return true;

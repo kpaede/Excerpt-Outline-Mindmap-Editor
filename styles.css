@@ -169,6 +169,13 @@ If your plugin does not need CSS, delete this file.
 
 /* Layout Options Menu */
 .layout-options-menu {
+  position: absolute;
+  left: var(--menu-left, 0);
+  top: var(--menu-top, 0);
+  width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 1000;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -235,6 +242,63 @@ If your plugin does not need CSS, delete this file.
 
 .layout-options-menu button:hover {
   background: var(--interactive-accent-hover);
+}
+
+.layout-options-menu-title {
+  margin: 0 0 16px 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.mindmap-empty-state,
+.mindmap-warning-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+}
+
+.mindmap-empty-title,
+.mindmap-warning-title {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.mindmap-warning-title {
+  color: var(--text-error);
+}
+
+.mindmap-empty-description,
+.mindmap-warning-description {
+  margin: 0;
+  opacity: 0.8;
+  max-width: 500px;
+}
+
+.mindmap-empty-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.mindmap-warning-list {
+  text-align: left;
+  display: inline-block;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.mindmap-warning-icon {
+  font-size: 48px;
+  opacity: 0.6;
 }
 
 /* Mindmap wrapper container */

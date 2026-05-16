@@ -1,5 +1,5 @@
 import { MarkdownRenderer, Component } from 'obsidian';
-import cytoscape, { Core, ElementDefinition } from 'cytoscape';
+import cytoscape, { Core, ElementDefinition, type LayoutOptions } from 'cytoscape';
 // @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
@@ -304,7 +304,7 @@ export async function draw(view: MindmapView): Promise<void> {
     padding: 20,
     nodeDimensionsIncludeLabels: false,
     spacingFactor: L.spacingFactor,
-  } as any;
+  } as unknown as LayoutOptions;
 
   if (!view.cy) {
     const canvas = view.wrapper.createDiv({ cls: 'mindmap-canvas' });
