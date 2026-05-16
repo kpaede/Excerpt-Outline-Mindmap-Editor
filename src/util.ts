@@ -286,14 +286,21 @@ export async function openInternalLink(app: App, href: string, currentFilePath?:
   try {
     const target = app.vault.getAbstractFileByPath(href);
     if (target && target instanceof TFile) {
-      const leaf = app.workspace.getLeaf(false);
+      const ws: any = app.workspace;
+      let leaf = null;
+      if (typeof ws.getLeaf === 'function') {
+        leaf = ws.getLeaf(false);
+      } else if (ws.activeLeaf) {
+        leaf = ws.activeLeaf;
+      }
+
       if (leaf) {
         await leaf.openFile(target as TFile);
         return;
       }
     }
     // Fallback to workspace.openLinkText if available (newer Obsidian)
-    const ws: any = app.workspace as any;
+    const ws: any = app.workspace;
     if (ws && typeof ws.openLinkText === 'function') {
       try {
         await ws.openLinkText(href, currentFilePath || '', false);

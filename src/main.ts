@@ -61,7 +61,7 @@ export default class MindmapPlugin extends Plugin {
   }
 
   onunload() {
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE_MINDMAP);
+    // Do not detach leaves on unload; preserve user layout and leaf locations.
   }
 
   public async openMindmapReplacingLeaf(file: TFile): Promise<void> {
@@ -72,7 +72,7 @@ export default class MindmapPlugin extends Plugin {
         return v.file?.path === file.path;
       });
     if (existingLeaf) {
-      this.app.workspace.revealLeaf(existingLeaf);
+      this.revealLeaf(existingLeaf);
       return;
     }
 
@@ -87,7 +87,7 @@ export default class MindmapPlugin extends Plugin {
     if (matchingLeaf) {
       targetLeaf = matchingLeaf;
     } else {
-      targetLeaf = this.app.workspace.getLeaf(true);
+      targetLeaf = this.getWorkspaceLeaf(true);
     }
 
     await targetLeaf.setViewState({
@@ -98,7 +98,7 @@ export default class MindmapPlugin extends Plugin {
       active: true,
     });
 
-    this.app.workspace.revealLeaf(targetLeaf);
+    this.revealLeaf(targetLeaf);
   }
 
   public async openMarkdownReplacingLeaf(file: TFile): Promise<void> {
@@ -117,7 +117,7 @@ export default class MindmapPlugin extends Plugin {
         },
         active: true,
       });
-      this.app.workspace.revealLeaf(existingLeaf);
+      this.revealLeaf(existingLeaf);
       return;
     }
 
@@ -127,9 +127,33 @@ export default class MindmapPlugin extends Plugin {
       return mv.file?.path === file.path;
     });
     if (matchingMdLeaf) {
-      this.app.workspace.revealLeaf(matchingMdLeaf);
+      this.revealLeaf(matchingMdLeaf);
     } else {
       await openInternalLink(this.app, file.path, '');
+    }
+  }
+
+  private getWorkspaceLeaf(split: boolean): WorkspaceLeaf {
+    const ws: any = this.app.workspace;
+    if (typeof ws.getLeaf === 'function') {
+      return ws.getLeaf(split);
+    }
+
+    if (split && typeof ws.splitActiveLeaf === 'function') {
+      return ws.splitActiveLeaf();
+    }
+
+    return ws.activeLeaf;
+  }
+
+  private revealLeaf(leaf: WorkspaceLeaf): void {
+    const ws: any = this.app.workspace;
+    if (typeof ws.revealLeaf === 'function') {
+      ws.revealLeaf(leaf);
+      return;
+    }
+    if (typeof ws.setActiveLeaf === 'function') {
+      ws.setActiveLeaf(leaf);
     }
   }
 
