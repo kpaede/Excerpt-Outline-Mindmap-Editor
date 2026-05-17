@@ -65,6 +65,7 @@ export class MindmapView extends TextFileView {
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
   private isBoxSelecting: boolean = false;
+  private isBoxSelectionInitialized: boolean = false;
   private boxStartX: number = 0;
   private boxStartY: number = 0;
 
@@ -114,12 +115,16 @@ export class MindmapView extends TextFileView {
   }
 
   private initBoxSelection(): void {
+    if (this.isBoxSelectionInitialized) return;
+    this.isBoxSelectionInitialized = true;
+
     this.wrapper.addEventListener('mousedown', (e) => {
       // Only start box selection on Shift+LeftClick
       if (!e.shiftKey || e.button !== 0) return;
       
       // Explicitly disable Cytoscape panning to prevent inverse drawing effect
       if (this.cy) this.cy.userPanningEnabled(false);
+      e.preventDefault();
       e.stopPropagation();
 
       this.isBoxSelecting = true;
@@ -145,6 +150,7 @@ export class MindmapView extends TextFileView {
 
     window.addEventListener('mousemove', (e) => {
       if (!this.isBoxSelecting || !this.selectionBoxEl) return;
+      e.preventDefault();
 
       const rect = this.wrapper.getBoundingClientRect();
       let currentX = e.clientX - rect.left;
@@ -167,6 +173,8 @@ export class MindmapView extends TextFileView {
 
     window.addEventListener('mouseup', (e) => {
       if (!this.isBoxSelecting) return;
+      e.preventDefault();
+      e.stopPropagation();
       this.isBoxSelecting = false;
       this.wrapper.classList.remove('is-box-selecting');
       
@@ -174,8 +182,6 @@ export class MindmapView extends TextFileView {
       if (this.cy) this.cy.userPanningEnabled(true);
 
       if (this.selectionBoxEl) {
-        this.selectionBoxEl.style.display = 'none';
-
         const boxRect = this.selectionBoxEl.getBoundingClientRect();
         const overlays = this.wrapper.querySelectorAll('.mindmap-overlay');
         const newlySelected = new Set<number>();
@@ -197,6 +203,8 @@ export class MindmapView extends TextFileView {
         // Additive selection if holding Shift
         newlySelected.forEach(line => this.selectedNodeLines.add(line));
         this.updateSelectionStyling();
+
+        this.selectionBoxEl.style.display = 'none';
       }
     });
   }
