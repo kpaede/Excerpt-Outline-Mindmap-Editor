@@ -161,6 +161,8 @@ The embedded mindmap is shown as a full read-only overview. Hover the top-right 
 
 Only the filename belongs inside the code block. Options, extra text, or multiple files are not supported.
 
+![](images/embedding.png)
+
 ---
 
 ## Used Libraries
