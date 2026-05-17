@@ -73,6 +73,8 @@ export class MindmapView extends TextFileView {
   private selectionBoxEl: HTMLDivElement | null = null;
   private isBoxSelecting: boolean = false;
   private isBoxSelectionInitialized: boolean = false;
+  private isViewportWheelInitialized: boolean = false;
+  private hasDraggedSelectionBox: boolean = false;
   private suppressNextEmptyClick: boolean = false;
   private mindmapClipboardText: string | null = null;
   private pendingCutNodeLines: Set<number> = new Set();
@@ -122,6 +124,7 @@ export class MindmapView extends TextFileView {
     this.wrapper.tabIndex = 0;
     this.wrapper.onkeydown = this.handleWrapperKeydown;
     this.initBoxSelection();
+    this.initViewportWheelControls();
   }
 
   private initBoxSelection(): void {
@@ -151,15 +154,22 @@ export class MindmapView extends TextFileView {
     });
 
     this.wrapper.addEventListener('mousedown', (e) => {
-      // Only start box selection on Shift+LeftClick
-      if (!e.shiftKey || e.button !== 0) return;
+      if (e.button !== 0) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(
+          '.mindmap-overlay, .vertical-toolbar, button, a, input, select, textarea, [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
       
-      // Explicitly disable Cytoscape panning to prevent inverse drawing effect
-      if (this.cy) this.cy.userPanningEnabled(false);
       e.preventDefault();
       e.stopPropagation();
 
       this.isBoxSelecting = true;
+      this.hasDraggedSelectionBox = false;
       const rect = this.wrapper.getBoundingClientRect();
       this.boxStartX = e.clientX - rect.left;
       this.boxStartY = e.clientY - rect.top;
@@ -196,6 +206,7 @@ export class MindmapView extends TextFileView {
       const top = Math.min(this.boxStartY, currentY);
       const width = Math.abs(currentX - this.boxStartX);
       const height = Math.abs(currentY - this.boxStartY);
+      this.hasDraggedSelectionBox = width > 3 || height > 3;
 
       this.selectionBoxEl.style.left = `${left}px`;
       this.selectionBoxEl.style.top = `${top}px`;
@@ -208,11 +219,8 @@ export class MindmapView extends TextFileView {
       e.preventDefault();
       e.stopPropagation();
       this.isBoxSelecting = false;
-      this.suppressNextEmptyClick = true;
+      this.suppressNextEmptyClick = this.hasDraggedSelectionBox;
       this.wrapper.classList.remove('is-box-selecting');
-      
-      // Re-enable Cytoscape panning
-      if (this.cy) this.cy.userPanningEnabled(true);
 
       if (this.selectionBoxEl) {
         const boxRect = this.selectionBoxEl.getBoundingClientRect();
@@ -233,7 +241,10 @@ export class MindmapView extends TextFileView {
           }
         });
 
-        // Additive selection if holding Shift
+        if (!e.shiftKey) {
+          this.selectedNodeLines.clear();
+        }
+
         newlySelected.forEach(line => this.selectedNodeLines.add(line));
         this.updateSelectionStyling();
         this.wrapper?.focus();
@@ -241,6 +252,48 @@ export class MindmapView extends TextFileView {
         this.selectionBoxEl.style.display = 'none';
       }
     });
+  }
+
+  private initViewportWheelControls(): void {
+    if (this.isViewportWheelInitialized) return;
+    this.isViewportWheelInitialized = true;
+
+    this.wrapper.addEventListener('wheel', (event) => {
+      if (!this.cy) return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest(
+          '.vertical-toolbar, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.ctrlKey) {
+        const currentZoom = this.cy.zoom();
+        const zoomFactor = Math.exp(-event.deltaY * 0.006);
+        const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), currentZoom * zoomFactor));
+        const containerRect = this.cy.container()?.getBoundingClientRect();
+
+        this.cy.zoom({
+          level: nextZoom,
+          renderedPosition: {
+            x: containerRect ? event.clientX - containerRect.left : event.clientX,
+            y: containerRect ? event.clientY - containerRect.top : event.clientY,
+          },
+        });
+        return;
+      }
+
+      this.cy.panBy({
+        x: -event.deltaX,
+        y: -event.deltaY,
+      });
+    }, { capture: true, passive: false });
   }
 
   private showNodeContextMenu(event: MouseEvent): void {
@@ -505,6 +558,7 @@ export class MindmapView extends TextFileView {
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       this.navigateSelection(event.key.replace('Arrow', '').toLowerCase() as 'up' | 'down' | 'left' | 'right');
+      this.centerSelectedNodeInView();
       return;
     }
 
@@ -1461,6 +1515,22 @@ export class MindmapView extends TextFileView {
       const bestLine = (bestNode as unknown as import('cytoscape').NodeSingular).data('node')?.line;
       if (bestLine !== undefined) this.selectNode(bestLine);
     }
+  }
+
+  private centerSelectedNodeInView(): void {
+    if (!this.cy || this.selectedNodeLines.size === 0) return;
+
+    const selectedArray = Array.from(this.selectedNodeLines);
+    const nodeLine = selectedArray[selectedArray.length - 1];
+    const cyNode = this.cy.getElementById(`n${nodeLine}`);
+    if (!cyNode || cyNode.empty()) return;
+
+    requestAnimationFrame(() => {
+      this.cy?.animate({
+        center: { eles: cyNode },
+        duration: 140,
+      });
+    });
   }
 
   public async enterEditModeForNodeByLine(nodeLine: number): Promise<void> {

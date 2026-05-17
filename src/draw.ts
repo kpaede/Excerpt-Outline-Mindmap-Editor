@@ -354,4 +354,7 @@ export async function draw(view: MindmapView): Promise<void> {
     view.cy.json({ elements: els });
     view.cy.layout(layoutOpts).run();
   }
+
+  view.cy.userPanningEnabled(false);
+  view.cy.userZoomingEnabled(false);
 }
