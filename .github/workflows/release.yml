@@ -1,50 +1,80 @@
-name: Release Obsidian plugin with attestations
+name: Release
 
 on:
   push:
     tags:
       - "*"
+  workflow_dispatch:
 
 permissions:
   contents: write
   id-token: write
+  attestations: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "18.x"
+          node-version: 20
+          cache: npm
 
-      - name: Build plugin
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate release files
         run: |
-          npm install
-          npm run build
+          test -f main.js
+          test -f manifest.json
+          test -f styles.css
 
-      - name: Install GitHub CLI
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gh
+          node - <<'NODE'
+          const fs = require("fs");
+          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+          const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+          const tag = process.env.GITHUB_REF_NAME;
 
-      - name: Attest build provenance
+          if (tag !== manifest.version) {
+            console.error(`Release tag "${tag}" must match manifest.json version "${manifest.version}".`);
+            console.error("Obsidian community plugin releases should not use a leading v.");
+            process.exit(1);
+          }
+
+          if (versions[manifest.version] !== manifest.minAppVersion) {
+            console.error(
+              `versions.json must map "${manifest.version}" to minAppVersion "${manifest.minAppVersion}".`
+            );
+            process.exit(1);
+          }
+          NODE
+
+      - name: Generate artifact attestations
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             main.js
-            manifest.json
             styles.css
+            manifest.json
 
-      - name: Create draft release and upload assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${GITHUB_REF#refs/tags/}"
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
-          gh release create "$tag" \
-            --title="$tag" \
-            --draft \
-            main.js manifest.json styles.css
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            main.js
+            styles.css
+            manifest.json

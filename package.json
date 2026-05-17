@@ -1,6 +1,6 @@
 {
 	"name": "Excerpt-Outline-Mindmap-Editor",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "A visual drag-n-drop mindmap editor (with markdown outline under the hood).",
 	"main": "main.js",
 	"scripts": {
