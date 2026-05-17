@@ -15,6 +15,8 @@ import { openInternalLink } from './util';
 import { renderMindmapEomeEmbed } from './embed';
 
 export default class MindmapPlugin extends Plugin {
+  private suppressAutoMindmapOpen = new Set<string>();
+
   async onload() {
     this.registerView(
       VIEW_TYPE_MINDMAP,  
@@ -64,6 +66,34 @@ export default class MindmapPlugin extends Plugin {
         }
       })
     );
+
+    this.registerEvent(
+      this.app.workspace.on('file-open', (file) => {
+        if (file instanceof TFile) {
+          void this.openAsMindmapWhenMarked(file);
+        }
+      })
+    );
+
+    this.registerEvent(
+      this.app.workspace.on('active-leaf-change', (leaf) => {
+        const view = leaf?.view;
+        if (view instanceof MarkdownView && view.file) {
+          void this.openAsMindmapWhenMarked(view.file);
+        }
+      })
+    );
+
+    this.registerEvent(
+      this.app.metadataCache.on('changed', (file) => {
+        if (!(file instanceof TFile) || file.extension !== 'md') return;
+
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (activeView?.file?.path === file.path) {
+          void this.openAsMindmapWhenMarked(file);
+        }
+      })
+    );
   }
 
   onunload() {
@@ -108,6 +138,9 @@ export default class MindmapPlugin extends Plugin {
   }
 
   public async openMarkdownReplacingLeaf(file: TFile): Promise<void> {
+    this.suppressAutoMindmapOpen.add(file.path);
+    window.setTimeout(() => this.suppressAutoMindmapOpen.delete(file.path), 1500);
+
     const existingLeaf = this.app.workspace
       .getLeavesOfType(VIEW_TYPE_MINDMAP)
       .find((leaf) => {
@@ -161,6 +194,32 @@ export default class MindmapPlugin extends Plugin {
     if (typeof ws.setActiveLeaf === 'function') {
       ws.setActiveLeaf(leaf);
     }
+  }
+
+  private async openAsMindmapWhenMarked(file: TFile): Promise<void> {
+    if (file.extension !== 'md') return;
+    if (this.suppressAutoMindmapOpen.has(file.path)) return;
+
+    const activeLeaf = this.app.workspace.activeLeaf;
+    const activeView = activeLeaf?.view;
+    if (!(activeView instanceof MarkdownView) || activeView.file?.path !== file.path) return;
+
+    if (!(await this.hasMindmapFrontmatter(file))) return;
+
+    await this.openMindmapReplacingLeaf(file);
+  }
+
+  private async hasMindmapFrontmatter(file: TFile): Promise<boolean> {
+    const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+    if (frontmatter && Object.prototype.hasOwnProperty.call(frontmatter, 'excerpt-outline-mindmap')) {
+      return true;
+    }
+
+    const contents = await this.app.vault.cachedRead(file);
+    const match = contents.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+    if (!match) return false;
+
+    return /^excerpt-outline-mindmap(?:\s*:|$)/m.test(match[1]);
   }
 
   private async updateMindmapViews(file: TFile): Promise<void> {

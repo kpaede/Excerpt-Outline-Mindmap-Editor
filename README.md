@@ -35,6 +35,7 @@ There is no proprietary format and no external storage.
 - Keyboard Navigation (Spatial and Hierarchical)
 - you can select various nodes at once
 - Read-only mindmap embeds via `mindmap-eome` code blocks
+- Files marked with `excerpt-outline-mindmap` frontmatter open directly in the mindmap view
 
 ---
 
@@ -60,6 +61,18 @@ Mindmap files are regular Markdown files made from indented list items:
 ```
 
 The plugin does not use a custom file format. If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible.
+
+### Open marked files as mindmaps automatically
+
+Add `excerpt-outline-mindmap` to a Markdown file's frontmatter to make Obsidian open that file directly in the mindmap view:
+
+```yaml
+---
+excerpt-outline-mindmap:
+---
+```
+
+The same frontmatter key is also used to store mindmap layout and display settings for the file.
 
 ---
 

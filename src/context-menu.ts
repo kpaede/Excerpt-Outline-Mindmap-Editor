@@ -1,4 +1,4 @@
-import { Menu, TFile, WorkspaceLeaf, MarkdownView } from 'obsidian';
+import { Menu, TFile, WorkspaceLeaf } from 'obsidian';
 import MindmapPlugin from './main';
 import { VIEW_TYPE_MINDMAP } from './constants';
 
@@ -11,10 +11,7 @@ export function addToggleMindmapMenuItem(
   const existingMindmapLeaf = plugin.app.workspace
     .getLeavesOfType(VIEW_TYPE_MINDMAP)
     .find((l) => {
-      if (l.view instanceof MarkdownView) {
-        return l.view.file?.path === file.path;
-      }
-      return false;
+      return (l.view as { file?: TFile | null }).file?.path === file.path;
     });
 
   if (existingMindmapLeaf) {
