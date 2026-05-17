@@ -71,14 +71,14 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Responsive box sizing */
-.mindmap-adaptive-box {
+.mindmap-wrapper .mindmap-adaptive-box {
   min-width: 150px;
   max-width: var(--mindmap-max-box-width, 400px);
-  width: auto !important;
+  width: auto;
 }
 
-.mindmap-fixed-box {
-  width: 300px !important;
+.mindmap-wrapper .mindmap-fixed-box {
+  width: 300px;
   overflow: hidden;
 }
 
@@ -90,17 +90,6 @@ If your plugin does not need CSS, delete this file.
 /* Content scaling for fixed mode */
 .mindmap-content-scaled {
   transform-origin: top left;
-  overflow: hidden;
-}
-
-/* Ensure proper box sizing */
-.mindmap-overlay {
-  box-sizing: border-box;
-}
-
-.mindmap-overlay .markdown-rendered {
-  width: 100%;
-  height: 100%;
   overflow: hidden;
 }
 
@@ -306,6 +295,7 @@ If your plugin does not need CSS, delete this file.
   position: relative;
   width: 100%;
   height: 100%;
+  outline: none;
 }
 
 /* Delete node modal layout */
@@ -316,8 +306,8 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Hidden helper class */
-.mm-hidden {
-  display: none !important;
+.mindmap-wrapper .mm-hidden {
+  display: none;
 }
 
 /* Node editor input styling */
@@ -387,32 +377,32 @@ If your plugin does not need CSS, delete this file.
   -o-user-drag: element;
   user-drag: element;
 }
-.mm-src {
-  border: 2px dashed #2970ff !important;
-  opacity: 0.4 !important;
-  z-index: 1000 !important;
+.mindmap-wrapper .mm-src {
+  border: 2px dashed #2970ff;
+  opacity: 0.4;
+  z-index: 1000;
 }
-.mm-src::before {
+.mindmap-wrapper .mm-src::before {
   content: "Moving...";
   position: absolute;
   top: -22px;
   right: 0;
   font: bold 10px/18px var(--font-family, sans-serif);
   background: linear-gradient(135deg, #2970ff, #1e5eff);
-  color: #fff;
+  color: #ffffff;
   padding: 2px 8px;
   border-radius: 4px;
   z-index: 1001;
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
-.mm-tgt {
-  border: 2px solid #31b549 !important;
-  background-color: rgba(49, 181, 73, 0.15) !important;
-  z-index: 999 !important;
-  box-shadow: 0 0 8px rgba(49, 181, 73, 0.3) !important;
+.mindmap-wrapper .mm-tgt {
+  border: 2px solid #31b549;
+  background-color: rgba(49, 181, 73, 0.15);
+  z-index: 999;
+  box-shadow: 0 0 8px rgba(49, 181, 73, 0.3);
 }
-.mm-tgt::after {
+.mindmap-wrapper .mm-tgt::after {
   content: "Drop here";
   position: absolute;
   top: -20px;
@@ -420,7 +410,7 @@ If your plugin does not need CSS, delete this file.
   transform: translateX(-50%);
   font: bold 10px/16px var(--font-family, sans-serif);
   background: #31b549;
-  color: #fff;
+  color: #ffffff;
   padding: 2px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -518,20 +508,6 @@ If your plugin does not need CSS, delete this file.
   cursor: not-allowed;
 }
 
-/* Vertical toolbar container */
-.vertical-toolbar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--background-secondary);
-  padding: 6px;
-  border-radius: 4px;
-  z-index: 999;
-}
-
 .toolbar-separator {
   height: 8px;
 }
@@ -548,12 +524,12 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Layout modal adjustments */
-.layout-options-modal {
-  position: absolute !important;
+body div.layout-options-modal {
+  position: absolute;
   left: var(--layout-options-left, 0);
   top: var(--layout-options-top, 0);
-  transform: none !important;
-  max-width: 320px !important;
+  transform: none;
+  max-width: 320px;
 }
 
 /* Mindmap overlay presentation using CSS variables */
@@ -568,8 +544,8 @@ If your plugin does not need CSS, delete this file.
   padding: 6px 10px 22px;
   border: 1px solid var(--mindmap-border, rgba(0,0,0,0.1));
   border-radius: 4px;
-  background: var(--mindmap-bg, #fff);
-  color: var(--mindmap-color, #000);
+  background: var(--mindmap-bg, #ffffff);
+  color: var(--mindmap-color, #000000);
   font-family: var(--mindmap-font, inherit);
   font-size: var(--mindmap-font-size, 16px);
   white-space: normal;
@@ -584,21 +560,13 @@ If your plugin does not need CSS, delete this file.
   transform: scale(var(--mindmap-scale, 1));
   transform-origin: top left;
   width: calc(100% / var(--mindmap-scale, 1));
+  height: 100%;
+  overflow: hidden;
 }
 
 .mindmap-overlay img {
   max-width: 100%;
   height: auto;
-}
-
-/* Measurement helper box for text measurement during layout */
-.mindmap-measure-box {
-  max-width: var(--mindmap-target-width, 240px);
-}
-
-/* Remove default outline from wrapper (focus management) */
-.mindmap-wrapper {
-  outline: none;
 }
 
 /* Canvas container for cytoscape */
@@ -630,6 +598,7 @@ If your plugin does not need CSS, delete this file.
   white-space: normal;
   word-wrap: break-word;
   box-sizing: border-box;
+  max-width: var(--mindmap-target-width, 240px);
 }
 
 /* Code block styling in measurement boxes */
@@ -693,49 +662,24 @@ If your plugin does not need CSS, delete this file.
   margin: 2px 0;
 }
 
-/* Target when dragging - improved reliability */
-.mm-tgt {
-  border: 2px solid #31b549 !important;
-  background-color: rgba(49, 181, 73, 0.15) !important;
-  z-index: 999 !important;
-  box-shadow: 0 0 8px rgba(49, 181, 73, 0.3) !important;
-}
-
-.mm-tgt::after {
-  content: "Drop here";
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  font: bold 10px/16px var(--font-family, sans-serif);
-  background: #31b549;
-  color: #fff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  z-index: 1001;
-  pointer-events: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
 .mindmap-wrapper [data-overlay].selected {
-  border: 2px solid var(--interactive-accent) !important;
+  border: 2px solid var(--interactive-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 22%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.18) !important;
-  z-index: 120 !important;
+    0 2px 8px rgba(0, 0, 0, 0.18);
+  z-index: 120;
 }
 
 .mindmap-wrapper [data-overlay].editing {
-  border-color: var(--interactive-accent-hover) !important;
+  border-color: var(--interactive-accent-hover);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent-hover) 18%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.18) !important;
+    0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .mindmap-wrapper [data-overlay] input.node-editor {
-  border: none !important;
-  outline: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border: none;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--mindmap-color, var(--text-normal));
   font-family: var(--mindmap-font, inherit);
 }
