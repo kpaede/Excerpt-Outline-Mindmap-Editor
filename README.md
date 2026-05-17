@@ -19,35 +19,30 @@ There is no proprietary format and no external storage.
 
 ## Key Features
 
-- Drag-and-drop support for creating and editing hierarchical structures  
-- Each node represents a list item in a Markdown outline  
+- Drag-and-drop support for creating and editing hierarchical structures (Outline)
+- Each node represents a list item with indentation in a Markdown outline  
 - Dragging a node into another creates a parent-child relationship  
 - When dragging a node, all its children move with it  
 - Hover buttons allow adding new child and sibling nodes directly in the mindmap  
-- Node deletion supports:
-  - Removing a single node from its parent
+- Node deletion ask for:
+  - Removing just the selected node, but keep its children
   - Deleting a node along with all its children
--  undo/redo buttons
-- storing layout options in frontmatter of the respective file
-- Context Menu via Right Click
+- undo/redo buttons
+- layout options are stored in frontmatter of the respective file
+- There is a Context Menu via Right Click
 - Copy, Paste, Cut and Duplicate via Context Menu and Shortcuts
 - Keyboard Navigation (Spatial and Hierarchical)
+- you can select various nodes at once
 
 ---
 
 ## How to Use
 
-1. Create a Markdown file: empty with an outline structure.
+1. Create a Markdown file: empty – or with an outline structure.
 2. Open the file as a mindmap:
    - Click the three-dot menu in the top-right corner of the editor and select **"Open as mindmap"**,  
    - or right-click the file in the file explorer and choose **"Open as mindmap"**.
 3. Use drag and drop to build or restructure your outline visually:
-   - Drag a node onto another to make it a child
-   - Beware: All children move with their parent
-4. Use the "↓" button (visible on hover) to add child nodes directly
-5. Use the "→" button (visible on hover) to add sibling nodes directly
-6. Use the "x" button (also on hover) to delete a node, with the option to keep or remove children
-7. **Use the undo/redo buttons** in the toolbar to reverse or replay actions
 
 All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa. Undo/redo history is preserved between sessions using frontmatter storage.
 
