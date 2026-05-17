@@ -75,6 +75,10 @@ export function startNodeEditing(
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
 
+  if (view.wrapper.querySelector('input.node-editor')) {
+    return;
+  }
+
   // Prevent multiple concurrent overlay updates
   if (view.isUpdatingOverlays) {
     return;

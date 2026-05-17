@@ -1168,7 +1168,7 @@ export class MindmapView extends TextFileView {
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
-    await this.enterEditModeForNodeByLine(newChildLine);
+    this.scheduleEditModeForNodeByLine(newChildLine);
   }
 
   public async executeAddSiblingCommand(node: OutlineNode): Promise<void> {
@@ -1188,7 +1188,7 @@ export class MindmapView extends TextFileView {
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
-    await this.enterEditModeForNodeByLine(newSiblingLine);
+    this.scheduleEditModeForNodeByLine(newSiblingLine);
   }
 
   public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {
@@ -1576,13 +1576,19 @@ export class MindmapView extends TextFileView {
   }
 
   public async enterEditModeForNodeByLine(nodeLine: number): Promise<void> {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 60; i++) {
       const overlay = this.wrapper?.querySelector(`[data-overlay][data-node-line="${nodeLine}"]`) as HTMLElement | null;
       if (overlay && !this.isUpdatingOverlays) {
         const node = this.getFlatNodes().find(candidate => candidate.line === nodeLine);
         if (!node) return;
 
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (!overlay.isConnected || this.isUpdatingOverlays) continue;
+
         this.clearSelection();
+        if (this.pendingEditNodeLine === nodeLine) {
+          this.pendingEditNodeLine = null;
+        }
         const css = getComputedStyle(document.documentElement);
         const font = css.getPropertyValue('--font-family').trim() || 'inherit';
         const txt = css.getPropertyValue('--text-normal').trim() || '#000';
@@ -1594,5 +1600,15 @@ export class MindmapView extends TextFileView {
     }
 
     console.warn(`Overlay not found for line ${nodeLine} to start editing.`);
+  }
+
+  private scheduleEditModeForNodeByLine(nodeLine: number): void {
+    this.pendingEditNodeLine = nodeLine;
+
+    window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        void this.enterEditModeForNodeByLine(nodeLine);
+      });
+    }, 0);
   }
 }
