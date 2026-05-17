@@ -683,3 +683,17 @@ body div.layout-options-modal {
   color: var(--mindmap-color, var(--text-normal));
   font-family: var(--mindmap-font, inherit);
 }
+
+
+.mindmap-wrapper.is-box-selecting .mindmap-overlay {
+    pointer-events: none;
+}
+
+.mindmap-selection-box {
+  position: absolute;
+  background-color: rgba(66, 135, 245, 0.2);
+  border: 1px solid rgba(66, 135, 245, 0.8);
+  pointer-events: none;
+  z-index: 1000;
+  display: none;
+}

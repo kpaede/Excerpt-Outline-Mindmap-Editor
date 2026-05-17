@@ -313,8 +313,8 @@ export async function draw(view: MindmapView): Promise<void> {
       container: canvas,
       elements: els,
       layout: layoutOpts,
-      boxSelectionEnabled: true,
-      selectionType: 'additive',
+      boxSelectionEnabled: false,
+      selectionType: 'single',
       style: [
         {
           selector: 'node',
@@ -325,12 +325,6 @@ export async function draw(view: MindmapView): Promise<void> {
             width: 'data(width)',
             height: 'data(height)',
           },
-        },
-        {
-          selector: 'node:selected',
-          style: {
-            // Optional: minimal visual feedback from cy, though our HTML overlays handle actual styling
-          }
         },
         {
           selector: 'edge',
@@ -345,46 +339,6 @@ export async function draw(view: MindmapView): Promise<void> {
     });
 
     view.cy.on('pan zoom', () => view.updateOverlays());
-
-    // Sync cytoscape selection with our view's selection state
-    view.cy.on('select', 'node', (e) => {
-      try {
-        const id = e.target.id();
-        if (id && id.startsWith('n')) {
-          const line = parseInt(id.substring(1), 10);
-          view.selectNode(line, true, true); // true for append, true for fromCy
-        }
-      } catch (err) {
-        console.error('Error during node select:', err);
-      }
-    });
-
-    view.cy.on('unselect', 'node', (e) => {
-      try {
-        const id = e.target.id();
-        if (id && id.startsWith('n')) {
-          const line = parseInt(id.substring(1), 10);
-          view.deselectNode(line, true); // true for fromCy
-        }
-      } catch (err) {
-        console.error('Error during node unselect:', err);
-      }
-    });
-
-    // Handle box selection state to prevent overlays from intercepting pointer events
-    view.cy.on('boxstart', () => {
-      view.wrapper.classList.add('is-box-selecting');
-    });
-
-    view.cy.on('boxend', () => {
-      view.wrapper.classList.remove('is-box-selecting');
-    });
-
-    view.cy.on('tap', (e) => {
-      if (e.target === view.cy) {
-        view.clearSelection();
-      }
-    });
 
     view.cy.on('layoutstop', () => {
       if (!view.firstFitDone) {

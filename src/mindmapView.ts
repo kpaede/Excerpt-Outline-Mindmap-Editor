@@ -62,6 +62,12 @@ export class MindmapView extends TextFileView {
   public selectedNodeLines: Set<number> = new Set();
   public pendingEditNodeLine: number | null = null;
 
+  // Box selection properties
+  private selectionBoxEl: HTMLDivElement | null = null;
+  private isBoxSelecting: boolean = false;
+  private boxStartX: number = 0;
+  private boxStartY: number = 0;
+
   /**
    * Map von OutlineNode.line → gemessene Breite/Höhe (in px).
    * Wird von draw() gefüllt und später in updateOverlays() verwendet.
@@ -104,6 +110,95 @@ export class MindmapView extends TextFileView {
     if (!this.wrapper) return;
     this.wrapper.tabIndex = 0;
     this.wrapper.onkeydown = this.handleWrapperKeydown;
+    this.initBoxSelection();
+  }
+
+  private initBoxSelection(): void {
+    this.wrapper.addEventListener('mousedown', (e) => {
+      // Only start box selection on Shift+LeftClick
+      if (!e.shiftKey || e.button !== 0) return;
+      
+      // Explicitly disable Cytoscape panning to prevent inverse drawing effect
+      if (this.cy) this.cy.userPanningEnabled(false);
+      e.stopPropagation();
+
+      this.isBoxSelecting = true;
+      const rect = this.wrapper.getBoundingClientRect();
+      this.boxStartX = e.clientX - rect.left;
+      this.boxStartY = e.clientY - rect.top;
+
+      if (!this.selectionBoxEl) {
+        this.selectionBoxEl = document.createElement('div');
+        this.selectionBoxEl.className = 'mindmap-selection-box';
+        this.wrapper.appendChild(this.selectionBoxEl);
+      }
+
+      this.selectionBoxEl.style.display = 'block';
+      this.selectionBoxEl.style.left = `${this.boxStartX}px`;
+      this.selectionBoxEl.style.top = `${this.boxStartY}px`;
+      this.selectionBoxEl.style.width = '0px';
+      this.selectionBoxEl.style.height = '0px';
+      
+      // Make overlays unclickable during drag so they don't interfere
+      this.wrapper.classList.add('is-box-selecting');
+    }, { capture: true });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isBoxSelecting || !this.selectionBoxEl) return;
+
+      const rect = this.wrapper.getBoundingClientRect();
+      let currentX = e.clientX - rect.left;
+      let currentY = e.clientY - rect.top;
+
+      // Constrain visually within wrapper
+      currentX = Math.max(0, Math.min(currentX, rect.width));
+      currentY = Math.max(0, Math.min(currentY, rect.height));
+
+      const left = Math.min(this.boxStartX, currentX);
+      const top = Math.min(this.boxStartY, currentY);
+      const width = Math.abs(currentX - this.boxStartX);
+      const height = Math.abs(currentY - this.boxStartY);
+
+      this.selectionBoxEl.style.left = `${left}px`;
+      this.selectionBoxEl.style.top = `${top}px`;
+      this.selectionBoxEl.style.width = `${width}px`;
+      this.selectionBoxEl.style.height = `${height}px`;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (!this.isBoxSelecting) return;
+      this.isBoxSelecting = false;
+      this.wrapper.classList.remove('is-box-selecting');
+      
+      // Re-enable Cytoscape panning
+      if (this.cy) this.cy.userPanningEnabled(true);
+
+      if (this.selectionBoxEl) {
+        this.selectionBoxEl.style.display = 'none';
+
+        const boxRect = this.selectionBoxEl.getBoundingClientRect();
+        const overlays = this.wrapper.querySelectorAll('.mindmap-overlay');
+        const newlySelected = new Set<number>();
+        
+        overlays.forEach((overlay) => {
+          const nodeRect = overlay.getBoundingClientRect();
+          // Check for intersection
+          if (
+            boxRect.left < nodeRect.right &&
+            boxRect.right > nodeRect.left &&
+            boxRect.top < nodeRect.bottom &&
+            boxRect.bottom > nodeRect.top
+          ) {
+            const line = Number((overlay as HTMLElement).dataset.nodeLine);
+            if (!isNaN(line)) newlySelected.add(line);
+          }
+        });
+
+        // Additive selection if holding Shift
+        newlySelected.forEach(line => this.selectedNodeLines.add(line));
+        this.updateSelectionStyling();
+      }
+    });
   }
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
@@ -988,38 +1083,25 @@ export class MindmapView extends TextFileView {
   public selectNode(nodeLine: number, append: boolean = false, fromCy: boolean = false): void {
     if (!append) {
       this.selectedNodeLines.clear();
-      if (this.cy && !fromCy) this.cy.nodes().unselect();
     }
     this.selectedNodeLines.add(nodeLine);
     this.updateSelectionStyling();
-    
+
     if (!fromCy) {
       this.wrapper?.focus();
-    }
-
-    if (this.cy && !fromCy) {
-      const cyNode = this.cy.getElementById(`n${nodeLine}`);
-      if (cyNode && !cyNode.selected()) cyNode.select();
     }
   }
 
   public deselectNode(nodeLine: number, fromCy: boolean = false): void {
     this.selectedNodeLines.delete(nodeLine);
     this.updateSelectionStyling();
-
-    if (this.cy && !fromCy) {
-      const cyNode = this.cy.getElementById(`n${nodeLine}`);
-      if (cyNode && cyNode.selected()) cyNode.unselect();
-    }
   }
 
   public clearSelection(): void {
     if (this.selectedNodeLines.size === 0) return;
     this.selectedNodeLines.clear();
     this.updateSelectionStyling();
-    if (this.cy) this.cy.nodes().unselect();
   }
-
   private updateSelectionStyling(): void {
     if (!this.wrapper) return;
 
