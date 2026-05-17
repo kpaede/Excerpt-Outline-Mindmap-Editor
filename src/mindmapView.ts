@@ -66,6 +66,7 @@ export class MindmapView extends TextFileView {
   private selectionBoxEl: HTMLDivElement | null = null;
   private isBoxSelecting: boolean = false;
   private isBoxSelectionInitialized: boolean = false;
+  private suppressNextEmptyClick: boolean = false;
   private boxStartX: number = 0;
   private boxStartY: number = 0;
 
@@ -117,6 +118,24 @@ export class MindmapView extends TextFileView {
   private initBoxSelection(): void {
     if (this.isBoxSelectionInitialized) return;
     this.isBoxSelectionInitialized = true;
+
+    this.wrapper.addEventListener('click', (e) => {
+      if (this.suppressNextEmptyClick) {
+        this.suppressNextEmptyClick = false;
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(
+          '.mindmap-overlay, .vertical-toolbar, button, a, input, select, textarea, [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
+
+      this.clearSelection();
+    });
 
     this.wrapper.addEventListener('mousedown', (e) => {
       // Only start box selection on Shift+LeftClick
@@ -176,6 +195,7 @@ export class MindmapView extends TextFileView {
       e.preventDefault();
       e.stopPropagation();
       this.isBoxSelecting = false;
+      this.suppressNextEmptyClick = true;
       this.wrapper.classList.remove('is-box-selecting');
       
       // Re-enable Cytoscape panning
