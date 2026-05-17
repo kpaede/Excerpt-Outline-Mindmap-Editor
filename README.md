@@ -21,6 +21,7 @@ There is no proprietary format and no external storage.
 
 - Drag-and-drop support for creating and editing hierarchical structures (Outline)
 - Each node represents a list item with indentation in a Markdown outline  
+- Nodes can render Markdown content such as links, emphasis, images, SVGs, and other supported Obsidian-rendered content
 - Dragging a node into another creates a parent-child relationship  
 - When dragging a node, all its children move with it  
 - Hover buttons allow adding new child and sibling nodes directly in the mindmap  
@@ -33,6 +34,7 @@ There is no proprietary format and no external storage.
 - Copy, Paste, Cut and Duplicate via Context Menu and Shortcuts
 - Keyboard Navigation (Spatial and Hierarchical)
 - you can select various nodes at once
+- Read-only mindmap embeds via `mindmap-eome` code blocks
 
 ---
 
@@ -46,6 +48,19 @@ There is no proprietary format and no external storage.
 
 All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa. Undo/redo history is preserved between sessions using frontmatter storage.
 
+### Markdown outline format
+
+Mindmap files are regular Markdown files made from indented list items:
+
+```markdown
+- Parent node
+	- Child node
+		- Grandchild node
+- Another parent node
+```
+
+The plugin does not use a custom file format. If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible.
+
 ---
 
 ## Controls
@@ -56,6 +71,18 @@ All changes are written to the file as a clean Markdown outline — no custom sy
 - Use the trackpad pinch gesture to zoom in and out.
 - Use the toolbar's fit-to-view button to refit the whole mindmap into the visible area.
 - Mouse-dragging empty canvas space is reserved for box selection, not canvas movement.
+
+### Toolbar and settings
+
+The vertical toolbar provides:
+
+- **Undo** and **Redo**
+- **Fit to view**
+- **Layout options** for direction, spacing, ranking, and related graph layout settings
+- **Node options** such as node width
+- **General settings**, including keyboard navigation mode
+
+Layout and general options are stored in the file frontmatter, so different mindmaps can keep different visual settings.
 
 ### Select nodes
 
@@ -107,6 +134,20 @@ Right-click a node to open the context menu. Available actions include:
 
 When deleting nodes that have unselected children, the plugin asks whether to delete the full subtree or only the selected/current node while keeping its children.
 
+### Embed a mindmap in another note
+
+Use a `mindmap-eome` code block with exactly one Markdown filename:
+
+````markdown
+```mindmap-eome
+mindmap.md
+```
+````
+
+The embedded mindmap is shown as a full read-only overview. Hover the top-right corner of the embed and select the icon to open that file in the regular editable mindmap view.
+
+Only the filename belongs inside the code block. Options, extra text, or multiple files are not supported.
+
 ---
 
 ## Used Libraries
@@ -127,7 +168,6 @@ Thanks to the developers.
 
 ## Roadmap
 
-- Embedding Mindmaps into Markdown
 - Export and print options  
 
 ---

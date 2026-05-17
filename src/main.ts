@@ -12,6 +12,7 @@ import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './context-menu';
 import { MindmapView } from './mindmapView';
 import { openInternalLink } from './util';
+import { renderMindmapEomeEmbed } from './embed';
 
 export default class MindmapPlugin extends Plugin {
   async onload() {
@@ -19,6 +20,10 @@ export default class MindmapPlugin extends Plugin {
       VIEW_TYPE_MINDMAP,  
       (leaf: WorkspaceLeaf) => new MindmapView(leaf, this)
     );
+
+    this.registerMarkdownCodeBlockProcessor('mindmap-eome', async (source, el, ctx) => {
+      await renderMindmapEomeEmbed(this, source, el, ctx);
+    });
 
     this.registerEvent(
       this.app.workspace.on(
