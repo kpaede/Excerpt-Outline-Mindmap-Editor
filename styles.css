@@ -669,6 +669,11 @@ body div.layout-options-modal {
   z-index: 120;
 }
 
+.mindmap-wrapper [data-overlay].cut-pending {
+  opacity: 0.42;
+  filter: grayscale(0.35);
+}
+
 .mindmap-wrapper [data-overlay].editing {
   border-color: var(--interactive-accent-hover);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent-hover) 18%, transparent),

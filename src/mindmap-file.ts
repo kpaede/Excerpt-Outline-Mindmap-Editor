@@ -155,6 +155,38 @@ export async function deleteMultipleNodes(
   return await persistLines(app, file, lines);
 }
 
+export async function deleteMultipleNodesKeepChildren(
+  app: App,
+  file: TFile,
+  nodes: OutlineNode[]
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  const selectedLines = new Set(nodes.map((node) => node.line));
+  const sortedNodes = [...nodes].sort((a, b) => b.indent.length - a.indent.length);
+
+  const nextLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (selectedLines.has(i)) continue;
+
+    let line = lines[i];
+    const deletedAncestors = sortedNodes.filter((node) => i > node.line && i <= node.endLine);
+
+    for (const ancestor of deletedAncestors) {
+      const childPrefix = `${ancestor.indent}\t`;
+      if (line.startsWith(childPrefix)) {
+        line = `${ancestor.indent}${line.slice(childPrefix.length)}`;
+      }
+    }
+
+    nextLines.push(line);
+  }
+
+  return await persistLines(app, file, nextLines);
+}
+
 export async function deleteNodeKeepChildren(
   app: App,
   file: TFile,
@@ -275,6 +307,169 @@ export async function addChildText(
   const newLine = `${childIndent}- ${text}`;
   
   lines.splice(insertIndex, 0, newLine);
+
+  return await persistLines(app, file, lines);
+}
+
+function preparePastedOutlineLines(text: string, indent: string): string[] {
+  const rawLines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+$/, ''))
+    .filter((line) => line.trim() !== '');
+
+  if (rawLines.length === 0) return [];
+
+  const outlineItems = rawLines
+    .map((line, index) => {
+      const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+      if (!match) return null;
+
+      return {
+        index,
+        indent: match[1] ?? '',
+        marker: match[2],
+        text: match[3] ?? '',
+      };
+    })
+    .filter((item): item is { index: number; indent: string; marker: string; text: string } => item !== null);
+
+  if (outlineItems.length === 0) {
+    return rawLines.map((line) => `${indent}- ${line.trim()}`);
+  }
+
+  const indentColumns = (value: string): number => {
+    let columns = 0;
+
+    for (const char of value) {
+      columns += char === '\t' ? 4 : 1;
+    }
+
+    return columns;
+  };
+
+  const rawIndentLevels: number[] = [];
+
+  outlineItems.forEach((item) => {
+    const columns = indentColumns(item.indent);
+
+    if (!rawIndentLevels.includes(columns)) {
+      rawIndentLevels.push(columns);
+      rawIndentLevels.sort((a, b) => a - b);
+    }
+  });
+
+  const levelForColumns = (columns: number): number => {
+    const exactLevel = rawIndentLevels.indexOf(columns);
+    if (exactLevel !== -1) return exactLevel;
+
+    return rawIndentLevels.filter((levelColumns) => levelColumns < columns).length;
+  };
+
+  const outlineByLine = new Map(outlineItems.map((item) => [item.index, item]));
+  const normalizedLines: string[] = [];
+  let lastOutlineLevel = 0;
+
+  rawLines.forEach((line, index) => {
+    const item = outlineByLine.get(index);
+
+    if (item) {
+      lastOutlineLevel = levelForColumns(indentColumns(item.indent));
+      normalizedLines.push(`${indent}${'\t'.repeat(lastOutlineLevel)}${item.marker} ${item.text}`);
+      return;
+    }
+
+    normalizedLines.push(`${indent}${'\t'.repeat(lastOutlineLevel + 1)}- ${line.trim()}`);
+  });
+
+  return normalizedLines;
+}
+
+export async function addMarkdownAsChildren(
+  app: App,
+  file: TFile,
+  parent: OutlineNode,
+  text: string
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  if (parent.line < 0 || parent.line >= lines.length) {
+    return fileText;
+  }
+
+  const pastedLines = preparePastedOutlineLines(text, parent.indent + '\t');
+  if (pastedLines.length === 0) return fileText;
+
+  lines.splice(parent.endLine + 1, 0, ...pastedLines);
+
+  return await persistLines(app, file, lines);
+}
+
+export async function cutPasteMarkdownAsChildren(
+  app: App,
+  file: TFile,
+  sourceNodes: OutlineNode[],
+  parent: OutlineNode,
+  text: string
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  if (parent.line < 0 || parent.line >= lines.length) {
+    return fileText;
+  }
+
+  const topLevelNodes = sourceNodes
+    .filter((node) => !sourceNodes.some((other) => (
+      other !== node &&
+      node.line > other.line &&
+      node.line <= other.endLine
+    )))
+    .sort((a, b) => a.line - b.line);
+
+  if (topLevelNodes.some((node) => parent.line >= node.line && parent.line <= node.endLine)) {
+    return fileText;
+  }
+
+  const pastedLines = preparePastedOutlineLines(text, parent.indent + '\t');
+  if (pastedLines.length === 0) return fileText;
+
+  const deletedRanges = topLevelNodes.map((node) => ({ start: node.line, end: node.endLine }));
+  const keptLines: string[] = [];
+  let adjustedParentEndLine = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const isDeleted = deletedRanges.some((range) => i >= range.start && i <= range.end);
+    if (isDeleted) continue;
+
+    keptLines.push(lines[i]);
+
+    if (i <= parent.endLine) {
+      adjustedParentEndLine = keptLines.length - 1;
+    }
+  }
+
+  if (adjustedParentEndLine < 0) return fileText;
+
+  keptLines.splice(adjustedParentEndLine + 1, 0, ...pastedLines);
+
+  return await persistLines(app, file, keptLines);
+}
+
+export async function duplicateSubtree(
+  app: App,
+  file: TFile,
+  node: OutlineNode
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  if (node.line < 0 || node.line >= lines.length) {
+    return fileText;
+  }
+
+  const subtreeLines = lines.slice(node.line, node.endLine + 1);
+  lines.splice(node.endLine + 1, 0, ...subtreeLines);
 
   return await persistLines(app, file, lines);
 }

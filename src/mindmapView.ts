@@ -6,6 +6,8 @@ import {
   TFile,
   MarkdownRenderer,
   Component,
+  Menu,
+  Notice,
 } from 'obsidian';
 import { Core, type NodeSingular } from 'cytoscape';
 
@@ -20,8 +22,12 @@ import {
   writeNode,
   deleteNode,
   deleteMultipleNodes,
+  deleteMultipleNodesKeepChildren,
   moveSubtree,
   addChildText,
+  addMarkdownAsChildren,
+  cutPasteMarkdownAsChildren,
+  duplicateSubtree,
   deleteNodeKeepChildren,
   DocString,
 } from './mindmap-file';
@@ -29,6 +35,7 @@ import { VerticalToolbar } from './vertical-toolbar';
 import { draw as drawMindmap } from './draw';
 import { updateOverlays as updateOverlaysFn, startNodeEditing } from './updateOverlays';
 import { NodeOptions } from './node-options-menu';
+import { DeleteNodeModal } from './delete-node-modal';
 import { FrontmatterStorage } from './frontmatter-storage';
 import { CommandHistory } from './command-history';
 import { GeneralSettings } from './general-settings-menu';
@@ -67,6 +74,8 @@ export class MindmapView extends TextFileView {
   private isBoxSelecting: boolean = false;
   private isBoxSelectionInitialized: boolean = false;
   private suppressNextEmptyClick: boolean = false;
+  private mindmapClipboardText: string | null = null;
+  private pendingCutNodeLines: Set<number> = new Set();
   private boxStartX: number = 0;
   private boxStartY: number = 0;
 
@@ -135,6 +144,10 @@ export class MindmapView extends TextFileView {
       }
 
       this.clearSelection();
+    });
+
+    this.wrapper.addEventListener('contextmenu', (e) => {
+      this.showNodeContextMenu(e);
     });
 
     this.wrapper.addEventListener('mousedown', (e) => {
@@ -223,10 +236,266 @@ export class MindmapView extends TextFileView {
         // Additive selection if holding Shift
         newlySelected.forEach(line => this.selectedNodeLines.add(line));
         this.updateSelectionStyling();
+        this.wrapper?.focus();
 
         this.selectionBoxEl.style.display = 'none';
       }
     });
+  }
+
+  private showNodeContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+
+    const target = event.target as HTMLElement | null;
+    const overlay = target?.closest('.mindmap-overlay') as HTMLElement | null;
+    const contextLine = overlay ? Number(overlay.dataset.nodeLine) : NaN;
+    const contextNode = Number.isNaN(contextLine) ? null : this.getNodeByLine(contextLine);
+
+    if (contextNode && !this.selectedNodeLines.has(contextNode.line)) {
+      this.selectNode(contextNode.line);
+    } else {
+      this.wrapper?.focus();
+    }
+
+    const selectedNodes = this.getSelectedNodesForContext(contextNode);
+    const copyCount = selectedNodes.length;
+    const targetNode = contextNode ?? (this.selectedNodeLines.size === 1 ? selectedNodes[0] : null);
+    const menu = new Menu();
+
+    if (copyCount > 0) {
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Copy ${copyCount} nodes` : 'Copy')
+          .setIcon('copy')
+          .onClick(() => void this.copyNodesToClipboard(selectedNodes));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Cut ${copyCount} nodes` : 'Cut')
+          .setIcon('scissors')
+          .onClick(() => void this.cutNodesToClipboard(selectedNodes));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Delete ${copyCount} nodes` : 'Delete')
+          .setIcon('trash')
+          .onClick(() => void this.deleteNodesWithConfirmation(selectedNodes));
+      });
+    }
+
+    if (targetNode) {
+      if (copyCount > 0) menu.addSeparator();
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Add child')
+          .setIcon('plus')
+          .onClick(() => void this.executeAddChildCommand(targetNode));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Add sibling')
+          .setIcon('git-pull-request-create')
+          .onClick(() => void this.executeAddSiblingCommand(targetNode));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Edit node')
+          .setIcon('edit-3')
+          .onClick(() => void this.enterEditModeForNodeByLine(targetNode.line));
+      });
+
+      menu.addSeparator();
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Paste')
+          .setIcon('clipboard-paste')
+          .onClick(() => void this.pasteClipboardAsChildren(targetNode));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Duplicate')
+          .setIcon('copy-plus')
+          .onClick(() => void this.executeDuplicateNodeCommand(targetNode));
+      });
+    }
+
+    if (copyCount === 0 && !targetNode) {
+      menu.addItem((item) => item.setTitle('No node selected').setDisabled(true));
+    }
+
+    menu.showAtMouseEvent(event);
+  }
+
+  private getSelectedNodesForContext(contextNode: OutlineNode | null): OutlineNode[] {
+    const flat = this.getFlatNodes();
+    const selected = flat
+      .filter((node) => this.selectedNodeLines.has(node.line))
+      .sort((a, b) => a.line - b.line);
+
+    if (selected.length > 0 && (!contextNode || this.selectedNodeLines.has(contextNode.line))) {
+      return selected;
+    }
+
+    return contextNode ? [contextNode] : [];
+  }
+
+  private getTopLevelNodes(nodes: OutlineNode[]): OutlineNode[] {
+    return nodes.filter((node) => {
+      return !nodes.some((other) => (
+        other !== node &&
+        node.line > other.line &&
+        node.line <= other.endLine
+      ));
+    });
+  }
+
+  private getNodesAsMarkdown(nodes: OutlineNode[]): string {
+    const lines = this.data.split(/\r?\n/);
+    return this.getTopLevelNodes(nodes)
+      .sort((a, b) => a.line - b.line)
+      .map((node) => lines.slice(node.line, node.endLine + 1).join('\n'))
+      .join('\n');
+  }
+
+  private async copyNodesToClipboard(nodes: OutlineNode[]): Promise<boolean> {
+    const text = this.getNodesAsMarkdown(nodes);
+    if (!text) return false;
+
+    this.mindmapClipboardText = text;
+    this.pendingCutNodeLines.clear();
+    this.updateSelectionStyling();
+
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.error('Copy failed:', error);
+      new Notice('Copied inside mindmap.');
+      return true;
+    }
+  }
+
+  private async cutNodesToClipboard(nodes: OutlineNode[]): Promise<void> {
+    const text = this.getNodesAsMarkdown(nodes);
+    const topLevelNodes = this.getTopLevelNodes(nodes);
+    if (!text || topLevelNodes.length === 0) return;
+
+    this.mindmapClipboardText = text;
+    this.pendingCutNodeLines = new Set(topLevelNodes.map((node) => node.line));
+    this.updateSelectionStyling();
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Cut clipboard write failed:', error);
+      new Notice('Cut saved inside mindmap.');
+    }
+
+    this.wrapper?.focus();
+  }
+
+  private hasUnselectedDescendants(nodes: OutlineNode[], selectedLines: Set<number>): boolean {
+    const hasUnselectedDescendant = (node: OutlineNode): boolean => {
+      for (const child of node.children) {
+        if (!selectedLines.has(child.line)) return true;
+        if (hasUnselectedDescendant(child)) return true;
+      }
+
+      return false;
+    };
+
+    return nodes.some(hasUnselectedDescendant);
+  }
+
+  private async deleteNodesKeepingChildren(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await deleteMultipleNodesKeepChildren(this.app, this.file, nodes);
+
+    if (newDoc === beforeState) return;
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'delete-node-keep-children',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
+      metadata: { count: nodes.length }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.selectedNodeLines.clear();
+  }
+
+  private async deleteNodesWithConfirmation(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const selectedLines = new Set(nodes.map((node) => node.line));
+    const topLevelNodes = this.getTopLevelNodes(nodes);
+
+    if (!this.hasUnselectedDescendants(topLevelNodes, selectedLines)) {
+      await this.executeDeleteMultipleNodesCommand(topLevelNodes);
+      return;
+    }
+
+    new DeleteNodeModal(this.app, async (result) => {
+      if (!this.file) return;
+
+      if (result === "full") {
+        await this.executeDeleteMultipleNodesCommand(topLevelNodes);
+      } else if (result === "single") {
+        await this.deleteNodesKeepingChildren(nodes);
+      }
+    }).open();
+  }
+
+  private async pasteClipboardAsChildren(targetNode: OutlineNode): Promise<void> {
+    try {
+      let text = '';
+
+      try {
+        text = await navigator.clipboard.readText();
+      } catch (error) {
+        console.error('Paste clipboard read failed:', error);
+      }
+
+      if (!text.trim()) {
+        text = this.mindmapClipboardText ?? '';
+      }
+
+      if (!text.trim()) return;
+
+      const pendingCutNodes = this.getPendingCutNodes();
+      if (pendingCutNodes.length > 0 && text === this.mindmapClipboardText) {
+        await this.executeCutPasteNodesCommand(pendingCutNodes, targetNode, text);
+        return;
+      }
+
+      await this.executePasteNodesCommand(targetNode, text);
+    } catch (error) {
+      console.error('Paste failed:', error);
+      new Notice('Paste failed.');
+    }
+  }
+
+  private getPendingCutNodes(): OutlineNode[] {
+    if (this.pendingCutNodeLines.size === 0) return [];
+
+    return this.getFlatNodes()
+      .filter((node) => this.pendingCutNodeLines.has(node.line))
+      .sort((a, b) => a.line - b.line);
+  }
+
+  private getNodeByLine(nodeLine: number): OutlineNode | null {
+    return this.getFlatNodes().find((node) => node.line === nodeLine) ?? null;
   }
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
@@ -244,22 +513,7 @@ export class MindmapView extends TextFileView {
       if (this.selectedNodeLines.size > 0) {
         const flat = this.getFlatNodes();
         const nodesToDelete = flat.filter(n => this.selectedNodeLines.has(n.line));
-        
-        import('./delete-node-modal').then(({ DeleteNodeModal }) => {
-          new DeleteNodeModal(this.app, async (result) => {
-            if (!this.file) return;
-            if (result === "full") {
-              await this.executeDeleteMultipleNodesCommand(nodesToDelete);
-            } else if (result === "single") {
-              // Work from bottom to top to avoid shifting line numbers for subsequent deletions
-              const sortedNodes = [...nodesToDelete].sort((a, b) => b.line - a.line);
-              for (const node of sortedNodes) {
-                await this.executeDeleteNodeKeepChildrenCommand(node);
-              }
-              this.selectedNodeLines.clear();
-            }
-          }).open();
-        });
+        void this.deleteNodesWithConfirmation(nodesToDelete);
       }
       return;
     }
@@ -269,10 +523,17 @@ export class MindmapView extends TextFileView {
         event.preventDefault();
         const flat = this.getFlatNodes();
         const nodesToCopy = flat.filter(n => this.selectedNodeLines.has(n.line));
-        nodesToCopy.sort((a, b) => a.line - b.line);
-        
-        const textToCopy = nodesToCopy.map(n => n.text).join('\n');
-        navigator.clipboard.writeText(textToCopy);
+        void this.copyNodesToClipboard(nodesToCopy);
+      }
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key === 'x') {
+      if (this.selectedNodeLines.size > 0) {
+        event.preventDefault();
+        const flat = this.getFlatNodes();
+        const nodesToCut = flat.filter(n => this.selectedNodeLines.has(n.line));
+        void this.cutNodesToClipboard(nodesToCut);
       }
       return;
     }
@@ -280,21 +541,8 @@ export class MindmapView extends TextFileView {
     if ((event.metaKey || event.ctrlKey) && event.key === 'v') {
       if (this.selectedNodeLines.size === 1) {
         event.preventDefault();
-        navigator.clipboard.readText().then(async (text) => {
-          if (text) {
-            const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-            const line = Array.from(this.selectedNodeLines)[0];
-            const flat = this.getFlatNodes();
-            const targetNode = flat.find(n => n.line === line);
-            
-            if (targetNode) {
-              // Add children from bottom to top so they appear in correct order
-              for (let i = lines.length - 1; i >= 0; i--) {
-                await this.executeAddChildTextCommand(targetNode, lines[i].trim());
-              }
-            }
-          }
-        });
+        const targetNode = this.getNodeByLine(Array.from(this.selectedNodeLines)[0]);
+        if (targetNode) void this.pasteClipboardAsChildren(targetNode);
       }
       return;
     }
@@ -1056,6 +1304,73 @@ export class MindmapView extends TextFileView {
     await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
+  public async executePasteNodesCommand(parentNode: OutlineNode, text: string): Promise<void> {
+    if (!this.file) return;
+
+    const beforeState = this.data;
+    const newDoc = await addMarkdownAsChildren(this.app, this.file, parentNode, text);
+
+    if (newDoc === beforeState) return;
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-child-text',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(parentNode),
+      metadata: { pastedText: text.substring(0, 100) }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeCutPasteNodesCommand(sourceNodes: OutlineNode[], parentNode: OutlineNode, text: string): Promise<void> {
+    if (!this.file || sourceNodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await cutPasteMarkdownAsChildren(this.app, this.file, sourceNodes, parentNode, text);
+
+    if (newDoc === beforeState) {
+      new Notice('Cannot paste cut nodes into themselves.');
+      return;
+    }
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'move-subtree',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(sourceNodes[0]),
+      targetInfo: CommandHistory.createNodeInfo(parentNode),
+      metadata: { count: sourceNodes.length, cutPaste: true }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.pendingCutNodeLines.clear();
+    this.selectedNodeLines.clear();
+    this.updateSelectionStyling();
+  }
+
+  public async executeDuplicateNodeCommand(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+
+    const beforeState = this.data;
+    const newDoc = await duplicateSubtree(this.app, this.file, node);
+
+    if (newDoc === beforeState) return;
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-sibling',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: { duplicated: true }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
   public getNodeOptions(): NodeOptions {
     return { ...this.nodeOptions };
   }
@@ -1136,6 +1451,7 @@ export class MindmapView extends TextFileView {
     this.wrapper.querySelectorAll('[data-overlay]').forEach((overlay) => {
       const line = Number((overlay as HTMLElement).dataset.nodeLine);
       overlay.classList.toggle('selected', this.selectedNodeLines.has(line));
+      overlay.classList.toggle('cut-pending', this.pendingCutNodeLines.has(line));
     });
   }
 

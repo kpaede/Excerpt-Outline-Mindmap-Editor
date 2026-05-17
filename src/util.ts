@@ -19,7 +19,7 @@ export function parseOutline(markdown: string): OutlineNode[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+    const match = line.match(/^(\s*)([-*+]|\d+\.)(?:\s+(.*))?$/);
     
     if (!match) {
       continue; // Skip non-outline lines
@@ -166,7 +166,7 @@ export function isOutlineCompatible(markdown: string): boolean {
   
   // Check if all non-empty lines are outline items
   for (const line of nonEmptyLines) {
-    const isOutlineItem = line.match(/^\s*([-*+]|\d+\.)\s+/);
+    const isOutlineItem = line.match(/^\s*([-*+]|\d+\.)(?:\s+.*)?$/);
     if (!isOutlineItem) {
       return false;
     }
