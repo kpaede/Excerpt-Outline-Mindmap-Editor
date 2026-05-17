@@ -202,6 +202,9 @@ export async function renderMindmapEomeEmbed(
   el: HTMLElement,
   ctx: MarkdownPostProcessorContext
 ): Promise<void> {
+  el.classList.add('mindmap-eome-host');
+  el.parentElement?.classList.add('mindmap-eome-codeblock');
+
   const fileName = getEmbedFileName(source);
 
   if (!fileName) {

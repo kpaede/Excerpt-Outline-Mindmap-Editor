@@ -709,10 +709,26 @@ body div.layout-options-modal {
   width: 100%;
   height: 520px;
   overflow: hidden;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background: var(--background-primary);
-  margin: 0.75em 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  margin: 0;
+}
+
+.markdown-rendered pre.mindmap-eome-codeblock,
+.markdown-preview-view pre.mindmap-eome-codeblock {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.mindmap-eome-host {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
 }
 
 .mindmap-eome-canvas {
@@ -728,8 +744,8 @@ body div.layout-options-modal {
   top: 8px;
   right: 8px;
   z-index: 1500;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -753,8 +769,11 @@ body div.layout-options-modal {
 }
 
 .mindmap-eome-open-button svg {
-  width: 18px;
-  height: 18px;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
+  min-height: 22px;
+  stroke-width: 2.25;
 }
 
 .mindmap-eome-error {
