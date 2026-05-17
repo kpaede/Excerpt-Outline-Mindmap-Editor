@@ -478,6 +478,42 @@ function performOverlayUpdate(view: MindmapView): void {
       box.classList.remove('hovering');
     };
 
+    box.addEventListener('wheel', (e) => {
+      const target = e.target as HTMLElement;
+      if (
+        box.classList.contains('editing') ||
+        target.closest('input, textarea, select, pre, code, iframe, video, audio')
+      ) {
+        return;
+      }
+
+      const cyContainer = view.cy?.container();
+      if (!cyContainer) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      cyContainer.dispatchEvent(new WheelEvent(e.type, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        deltaZ: e.deltaZ,
+        deltaMode: e.deltaMode,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        screenX: e.screenX,
+        screenY: e.screenY,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey,
+        button: e.button,
+        buttons: e.buttons,
+      }));
+    }, { passive: false });
+
     box.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       if (
