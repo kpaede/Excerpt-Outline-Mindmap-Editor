@@ -732,120 +732,10 @@ export class MindmapView extends TextFileView {
 
   /** Incremental update that reuses existing measurements where possible */
   public async incrementalUpdate(): Promise<void> {
-    if (!this.cy || !this.file) {
-      await this.draw();
-      return;
-    }
-
-    try {
-      // Parse new outline (now simplified for single-line content)
-      const flat: OutlineNode[] = [];
-      (function walk(arr: import('./util').OutlineNode[]) {
-        arr.forEach((n) => {
-          flat.push(n);
-          walk(n.children);
-        });
-      })(parseOutline(this.data));
-
-      // Only measure nodes that don't have cached dimensions
-      const nodesToMeasure = flat.filter(n => !this.sizeMap.has(n.line));
-      
-      if (nodesToMeasure.length > 0) {
-        const measureContainer = document.createElement('div');
-        Object.assign(measureContainer.style, {
-          position: 'absolute',
-          visibility: 'hidden',
-          top: '0',
-          left: '0',
-          pointerEvents: 'none',
-          zIndex: '-1',
-        } as CSSStyleDeclaration);
-        document.body.appendChild(measureContainer);
-
-        for (const n of nodesToMeasure) {
-          const generalOptions = this.getNodeOptions();
-          const targetWidth = generalOptions.nodeWidth;
-          
-          const tmpBox = document.createElement('div');
-          Object.assign(tmpBox.style, {
-            position: 'relative',
-            padding: '6px 10px 22px',
-            border: '1px solid transparent',
-            borderRadius: '4px',
-            background: 'transparent',
-            color: 'inherit',
-            fontFamily: 'inherit',
-            fontSize: '16px',
-            whiteSpace: 'nowrap', // Single line only
-            overflow: 'hidden',
-            maxWidth: `${targetWidth}px`,
-            boxSizing: 'border-box',
-          } as CSSStyleDeclaration);
-
-          if (n.text.trim() === '') {
-            tmpBox.innerHTML = '&nbsp;';
-          } else {
-            tmpBox.textContent = n.text; // Simple text only, no markdown rendering
-          }
-
-          measureContainer.appendChild(tmpBox);
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-          const rect = tmpBox.getBoundingClientRect();
-          let measuredW = rect.width || targetWidth;
-          let measuredH = rect.height || 40;
-
-          if (measuredW > targetWidth) {
-            const scale = targetWidth / measuredW;
-            n.scaleFactor = scale;
-            measuredW = targetWidth;
-            measuredH = measuredH * scale;
-          } else {
-            measuredW = targetWidth;
-          }
-
-          this.sizeMap.set(n.line, { w: measuredW, h: measuredH });
-          measureContainer.removeChild(tmpBox);
-        }
-
-        document.body.removeChild(measureContainer);
-      }
-
-      // Update cytoscape elements
-      const els: import('cytoscape').ElementDefinition[] = [];
-      for (const n of flat) {
-        const dims = this.sizeMap.get(n.line)!;
-        els.push({
-          data: {
-            id: `n${n.line}`,
-            node: n,
-            width: dims.w,
-            height: dims.h,
-          },
-        });
-      }
-      for (const p of flat) {
-        p.children.forEach((c) => {
-          els.push({
-            data: {
-              id: `e${p.line}-${c.line}`,
-              source: `n${p.line}`,
-              target: `n${c.line}`,
-            },
-          });
-        });
-      }
-
-      // Update cytoscape elements
-      this.cy.json({ elements: els });
-      
-      // We must relayout when nodes are added/removed/changed
-      this.relayout();
-      
-    } catch (error) {
-      console.error('Incremental update failed, falling back to full draw:', error);
-      await this.draw();
-    }
+    // Document edits can shift line numbers, and nodes may contain rendered Markdown
+    // whose dimensions are much larger than the source text. Reuse the full
+    // measurement path so layout always uses current rendered node sizes.
+    await this.draw();
   }
 
   /** Optimized update specifically for move operations that preserves visual state */
@@ -1157,7 +1047,6 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newChildLine = parentNode.line + 1;
     const newDoc = await addChild(this.app, this.file, parentNode);
-    this.pendingEditNodeLine = newChildLine;
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-child',
@@ -1177,7 +1066,6 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newSiblingLine = node.endLine + 1;
     const newDoc = await addSibling(this.app, this.file, node);
-    this.pendingEditNodeLine = newSiblingLine;
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-sibling',
@@ -1603,12 +1491,21 @@ export class MindmapView extends TextFileView {
   }
 
   private scheduleEditModeForNodeByLine(nodeLine: number): void {
-    this.pendingEditNodeLine = nodeLine;
+    let started = false;
+    const startAfterOverlayUpdate = () => {
+      if (started) return;
+      started = true;
 
-    window.setTimeout(() => {
       requestAnimationFrame(() => {
-        void this.enterEditModeForNodeByLine(nodeLine);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            void this.enterEditModeForNodeByLine(nodeLine);
+          });
+        });
       });
-    }, 0);
+    };
+
+    this.cy?.one('layoutstop', startAfterOverlayUpdate);
+    window.setTimeout(startAfterOverlayUpdate, 350);
   }
 }

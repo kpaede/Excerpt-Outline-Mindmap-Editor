@@ -67,8 +67,28 @@ export function startNodeEditing(
   input.addEventListener('blur', () => void finish(true));
 
   requestAnimationFrame(() => {
-    input.focus();
+    const scrollContainers: Array<{ element: HTMLElement; left: number; top: number }> = [];
+    let ancestor: HTMLElement | null = box.parentElement;
+
+    while (ancestor) {
+      if (ancestor.scrollWidth > ancestor.clientWidth || ancestor.scrollHeight > ancestor.clientHeight) {
+        scrollContainers.push({
+          element: ancestor,
+          left: ancestor.scrollLeft,
+          top: ancestor.scrollTop,
+        });
+      }
+
+      ancestor = ancestor.parentElement;
+    }
+
+    input.focus({ preventScroll: true });
     input.select();
+
+    scrollContainers.forEach(({ element, left, top }) => {
+      element.scrollLeft = left;
+      element.scrollTop = top;
+    });
   });
 }
 
