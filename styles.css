@@ -898,6 +898,11 @@ body div.layout-options-modal {
     0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
+.mindmap-wrapper [data-overlay].selected .node-controls,
+.mindmap-wrapper [data-overlay].selected .mindmap-node-delete {
+  display: block;
+}
+
 .mindmap-wrapper [data-overlay] .node-editor {
   border: none;
   outline: none;
@@ -1009,4 +1014,256 @@ body div.layout-options-modal {
   left: 0;
   pointer-events: none;
   z-index: -1;
+}
+
+.mindmap-touch-drag-ghost {
+  position: fixed !important;
+  left: var(--touch-drag-left, 0);
+  top: var(--touch-drag-top, 0);
+  transform: translate(-50%, -50%) !important;
+  transform-origin: center center !important;
+  width: var(--touch-drag-width, 220px) !important;
+  height: var(--touch-drag-height, 80px) !important;
+  overflow: hidden !important;
+  padding: 6px 10px 22px !important;
+  border: 1px solid var(--interactive-accent) !important;
+  border-radius: 4px !important;
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+  opacity: 0.52;
+  pointer-events: none !important;
+  z-index: 900 !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18) !important;
+  box-sizing: border-box !important;
+  font-family: var(--font-family, inherit) !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+}
+
+.mindmap-touch-drag-ghost-content {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  transform: none !important;
+}
+
+.mindmap-touch-drag-ghost.is-over-target {
+  opacity: 0.24;
+}
+
+.mindmap-wrapper.is-touch-device .mindmap-overlay {
+  touch-action: none;
+  user-select: none;
+}
+
+.mindmap-wrapper.is-touch-device [data-overlay],
+.mindmap-wrapper.is-touch-device [data-overlay] * {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+.mindmap-wrapper.is-touch-device,
+.mindmap-wrapper.is-touch-device .mindmap-canvas {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.mindmap-wrapper.is-touch-device .mindmap-node-control {
+  width: 32px;
+  height: 32px;
+  margin: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mindmap-bg, var(--background-primary)) 78%, var(--background-secondary) 22%);
+}
+
+.mindmap-wrapper.is-touch-device .mindmap-node-delete {
+  top: 2px;
+  right: 2px;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mindmap-bg, var(--background-primary)) 78%, var(--background-secondary) 22%);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.mindmap-wrapper.is-touch-device [data-overlay].selected .mindmap-node-delete {
+  display: flex;
+}
+
+.mindmap-wrapper.is-touch-device .checkbox-toggle,
+.mindmap-wrapper.is-touch-device .mindmap-zotero-badge {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+.mindmap-mobile-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--mindmap-mobile-toolbar-top, 64px) + 58px) 12px 12px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.mindmap-mobile-editor-panel {
+  width: min(100%, 560px);
+  max-height: calc(100vh - var(--mindmap-mobile-toolbar-top, 64px) - 82px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+}
+
+.mindmap-mobile-editor-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mindmap-mobile-editor-textarea {
+  width: 100%;
+  min-height: 140px;
+  max-height: 42vh;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  caret-color: var(--text-normal);
+  font: inherit;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+
+.mindmap-mobile-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mindmap-mobile-editor-actions button {
+  min-height: 42px;
+  padding: 8px 14px;
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  .vertical-toolbar {
+    position: fixed;
+    top: var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top)));
+    right: auto;
+    left: 50%;
+    bottom: auto;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    padding: 8px;
+    gap: 6px;
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    z-index: 2000;
+  }
+
+  .vertical-toolbar button,
+  .clickable-icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .vertical-toolbar .toolbar-separator {
+    width: 1px;
+    height: 28px;
+    margin: 0 2px;
+  }
+
+  .vertical-toolbar .mindmap-zoom-indicator {
+    width: 54px;
+    height: 42px;
+    min-width: 54px;
+    min-height: 42px;
+    font-size: 12px;
+  }
+
+  .layout-options-menu,
+  .node-options-menu,
+  .general-settings-menu,
+  .zoom-options-menu {
+    left: max(12px, env(safe-area-inset-left)) !important;
+    right: max(12px, env(safe-area-inset-right));
+    top: calc(var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top))) + 58px) !important;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+
+  .layout-options-menu .setting-item,
+  .node-options-menu .setting-item,
+  .general-settings-menu .setting-item,
+  .zoom-options-menu .setting-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .layout-options-menu .setting-item-control,
+  .node-options-menu .setting-item-control,
+  .general-settings-menu .setting-item-control,
+  .zoom-options-menu .setting-item-control {
+    width: 100%;
+  }
+
+  .layout-options-menu input[type="range"],
+  .node-options-menu input[type="range"],
+  .zoom-options-menu input[type="range"] {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .fullwidth-button,
+  .zoom-options-actions button,
+  .mindmap-empty-button {
+    min-height: 42px;
+  }
+
+  .mindmap-eome-open-button {
+    opacity: 1;
+    width: 42px;
+    height: 42px;
+  }
+
+  .mindmap-wrapper.is-touch-device [data-overlay].editing {
+    z-index: 10001;
+    min-height: 96px;
+    box-shadow: 0 0 0 3px var(--interactive-accent), 0 14px 34px rgba(0, 0, 0, 0.3);
+  }
+
+  .mindmap-wrapper.is-touch-device [data-overlay].editing .node-editor {
+    min-height: 92px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    caret-color: var(--text-normal);
+  }
 }

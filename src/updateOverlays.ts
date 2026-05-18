@@ -11,6 +11,8 @@ type DropIntent =
   | { kind: 'sibling'; siblingInsertPosition: SiblingInsertPosition }
   | { kind: 'child'; childInsertPosition: ChildInsertPosition };
 
+type DropPointer = Pick<MouseEvent | DragEvent | PointerEvent, 'clientX' | 'clientY'>;
+
 function getPrimaryZoteroLink(text: string): string | null {
   const links: string[] = [];
   const linkRegex = /\]\((zotero:\/\/[^)\s]+(?:\([^)]*\)[^)\s]*)?)\)/g;
@@ -23,7 +25,7 @@ function getPrimaryZoteroLink(text: string): string | null {
   return links.find((link) => /^zotero:\/\/open-/i.test(link)) ?? links[0] ?? null;
 }
 
-function getDropIntent(event: DragEvent, targetBox: HTMLElement): DropIntent {
+function getDropIntent(event: DropPointer, targetBox: HTMLElement): DropIntent {
   const rect = targetBox.getBoundingClientRect();
   const relativeY = event.clientY - rect.top;
   const relativeX = event.clientX - rect.left;
@@ -37,7 +39,7 @@ function getDropIntent(event: DragEvent, targetBox: HTMLElement): DropIntent {
   return { kind: 'child', childInsertPosition: isLeft ? 'first' : 'last' };
 }
 
-function updateDropPreview(event: DragEvent, targetBox: HTMLElement): DropIntent {
+function updateDropPreview(event: DropPointer, targetBox: HTMLElement): DropIntent {
   const dropIntent = getDropIntent(event, targetBox);
   targetBox.classList.toggle('mm-tgt-sibling-before', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'before');
   targetBox.classList.toggle('mm-tgt-sibling-after', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'after');
@@ -50,7 +52,12 @@ function clearDropPreview(targetBox: HTMLElement): void {
   targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child');
 }
 
-export function startNodeEditing(
+function getOverlayAtPoint(clientX: number, clientY: number): HTMLElement | null {
+  const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+  return element?.closest('.mindmap-overlay') as HTMLElement | null;
+}
+
+function startMobileNodeEditing(
   box: HTMLElement,
   nodeToUse: import('./util').OutlineNode,
   view: MindmapView,
@@ -61,12 +68,111 @@ export function startNodeEditing(
   box.classList.add('editing');
   box.draggable = false;
 
+  const editor = document.createElement('div');
+  editor.className = 'mindmap-mobile-editor';
+
+  const panel = editor.createDiv({ cls: 'mindmap-mobile-editor-panel' });
+  panel.createDiv({ cls: 'mindmap-mobile-editor-title', text: 'Edit node' });
+
+  const input = document.createElement('textarea');
+  input.className = 'mindmap-mobile-editor-textarea';
+  input.value = nodeToUse.text;
+  input.placeholder = 'Edit node';
+  input.rows = 5;
+  input.spellcheck = true;
+  panel.appendChild(input);
+
+  const actions = panel.createDiv({ cls: 'mindmap-mobile-editor-actions' });
+  const cancelButton = actions.createEl('button', { text: 'Cancel' });
+  const saveButton = actions.createEl('button', { text: 'Save' });
+  saveButton.addClass('mod-cta');
+
+  let finished = false;
+
+  const closeEditor = () => {
+    editor.remove();
+    box.classList.remove('editing');
+    box.draggable = false;
+  };
+
+  const finish = async (save: boolean) => {
+    if (finished) return;
+    finished = true;
+
+    const newText = view.normalizeNodeText(input.value);
+    closeEditor();
+
+    if (save && newText !== nodeToUse.text && view.file) {
+      await view.executeEditNodeCommand(nodeToUse, newText);
+    }
+
+    if (save) {
+      view.selectNode(nodeToUse.line);
+    } else if (options.isNewNode && nodeToUse.children.length === 0) {
+      await view.deleteNodesWithConfirmation([nodeToUse]);
+    }
+  };
+
+  editor.addEventListener('pointerdown', (event) => {
+    event.stopPropagation();
+  });
+  editor.addEventListener('click', (event) => {
+    if (event.target === editor) {
+      void finish(true);
+      return;
+    }
+
+    event.stopPropagation();
+  });
+  input.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      void finish(true);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      void finish(false);
+    }
+  });
+  cancelButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    void finish(false);
+  });
+  saveButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    void finish(true);
+  });
+
+  document.body.appendChild(editor);
+
+  requestAnimationFrame(() => {
+    input.focus({ preventScroll: true });
+    input.select();
+  });
+}
+
+export function startNodeEditing(
+  box: HTMLElement,
+  nodeToUse: import('./util').OutlineNode,
+  view: MindmapView,
+  options: { isNewNode?: boolean } = {}
+): void {
+  if (box.classList.contains('editing')) return;
+
+  if (view.wrapper.classList.contains('is-touch-device')) {
+    startMobileNodeEditing(box, nodeToUse, view, options);
+    return;
+  }
+
+  box.classList.add('editing');
+  box.draggable = false;
+
   const md = box.querySelector('div[data-text]') as HTMLElement;
   if (md) md.classList.add('mm-hidden');
 
   const input = document.createElement('textarea');
   input.className = 'node-editor';
   input.value = nodeToUse.text;
+  input.placeholder = 'Edit node';
   input.rows = 1;
   input.spellcheck = true;
   // Appearance is driven by CSS variables set on the overlay container
@@ -83,7 +189,7 @@ export function startNodeEditing(
     if (box.contains(input)) box.removeChild(input);
     if (md) md.classList.remove('mm-hidden');
     box.classList.remove('editing');
-    box.draggable = true;
+    box.draggable = !view.wrapper.classList.contains('is-touch-device');
   };
 
   const deleteCurrentNode = async () => {
@@ -407,11 +513,19 @@ function performOverlayUpdate(view: MindmapView): void {
     box.classList.add('mindmap-overlay');
     box.insertBefore(md, box.firstChild);
 
+    const isTouchDevice = view.wrapper.classList.contains('is-touch-device');
+
     // Setup event handlers with improved drag and drop
-    box.draggable = true;
+    box.draggable = !isTouchDevice;
     
     // Prevent child elements from being draggable
     box.addEventListener('dragstart', (e) => {
+      if (isTouchDevice) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+
       // Ensure we're always dragging the entire node, not internal content
       if (e.target !== box) {
         e.preventDefault();
@@ -608,6 +722,296 @@ function performOverlayUpdate(view: MindmapView): void {
       box.classList.remove('hovering');
     };
 
+    let suppressNextTouchDblClick = false;
+
+    if (isTouchDevice) {
+      let longPressTimer: number | null = null;
+      let touchDragActive = false;
+      let touchDragGhost: HTMLElement | null = null;
+      let touchDropTarget: HTMLElement | null = null;
+      let touchDropIntent: DropIntent | null = null;
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let lastTapAt = 0;
+      let suppressNextClick = false;
+      let touchDragAbortController: AbortController | null = null;
+      let touchDragLastPoint: { clientX: number; clientY: number } | null = null;
+      let touchDragPointerId: number | null = null;
+
+      const clearLongPressTimer = () => {
+        if (longPressTimer === null) return;
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      };
+
+      const clearTouchDropTarget = () => {
+        if (!touchDropTarget) return;
+        touchDropTarget.classList.remove('mm-tgt');
+        clearDropPreview(touchDropTarget);
+        touchDropTarget = null;
+        touchDropIntent = null;
+        touchDragGhost?.classList.remove('is-over-target');
+      };
+
+      const removeTouchDragGhost = () => {
+        if (touchDragGhost?.parentElement) {
+          touchDragGhost.remove();
+        }
+        touchDragGhost = null;
+      };
+
+      const finishTouchDrag = () => {
+        clearLongPressTimer();
+        clearTouchDropTarget();
+        removeTouchDragGhost();
+        box.classList.remove('mm-src');
+        view.wrapper.classList.remove('is-touch-dragging');
+        view.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-drag-end'));
+        touchDragActive = false;
+        touchDragAbortController?.abort();
+        touchDragAbortController = null;
+        touchDragLastPoint = null;
+        touchDragPointerId = null;
+      };
+
+      const moveTouchDragGhost = (event: PointerEvent) => {
+        if (!touchDragGhost) return;
+        touchDragGhost.style.setProperty('--touch-drag-left', `${event.clientX}px`);
+        touchDragGhost.style.setProperty('--touch-drag-top', `${event.clientY}px`);
+      };
+
+      const updateTouchDragGhostScale = () => {
+        if (!touchDragGhost) return;
+
+        const boxRect = box.getBoundingClientRect();
+        touchDragGhost.style.setProperty('--touch-drag-width', `${Math.max(80, Math.round(boxRect.width * 0.92))}px`);
+        touchDragGhost.style.setProperty('--touch-drag-height', `${Math.max(40, Math.round(boxRect.height * 0.92))}px`);
+      };
+
+      const updateTouchDropTarget = (event: DropPointer) => {
+        const nextTarget = getOverlayAtPoint(event.clientX, event.clientY);
+        if (nextTarget === box) {
+          clearTouchDropTarget();
+          return;
+        }
+
+        if (nextTarget !== touchDropTarget) {
+          clearTouchDropTarget();
+          touchDropTarget = nextTarget;
+          if (touchDropTarget) {
+            touchDropTarget.classList.add('mm-tgt');
+          }
+        }
+
+        if (touchDropTarget) {
+          touchDragGhost?.classList.add('is-over-target');
+          touchDropIntent = updateDropPreview(event, touchDropTarget);
+        }
+      };
+
+      const startTouchDrag = (event: PointerEvent) => {
+        longPressTimer = null;
+        touchDragActive = true;
+        touchDragPointerId = event.pointerId;
+        suppressNextClick = true;
+        view.selectNode(nodeToUse.line);
+        box.classList.add('mm-src');
+        view.wrapper.classList.add('is-touch-dragging');
+        view.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-drag-start', {
+          detail: { pointerId: event.pointerId },
+        }));
+        touchDragAbortController?.abort();
+        touchDragAbortController = new AbortController();
+        touchDragLastPoint = { clientX: event.clientX, clientY: event.clientY };
+        view.wrapper.addEventListener('mindmap-touch-viewport-change', () => {
+          if (!touchDragActive || !touchDragLastPoint) return;
+          updateTouchDragGhostScale();
+          updateTouchDropTarget(touchDragLastPoint);
+        }, {
+          signal: touchDragAbortController.signal,
+        });
+        window.addEventListener('pointermove', (pointerEvent) => {
+          if (
+            pointerEvent.pointerType !== 'touch' ||
+            pointerEvent.pointerId !== touchDragPointerId ||
+            !touchDragActive
+          ) {
+            return;
+          }
+
+          pointerEvent.preventDefault();
+          pointerEvent.stopPropagation();
+          touchDragLastPoint = { clientX: pointerEvent.clientX, clientY: pointerEvent.clientY };
+          moveTouchDragGhost(pointerEvent);
+          updateTouchDropTarget(pointerEvent);
+        }, {
+          passive: false,
+          signal: touchDragAbortController.signal,
+        });
+
+        touchDragGhost = document.createElement('div');
+        touchDragGhost.className = 'mindmap-touch-drag-ghost';
+        const mdClone = md.cloneNode(true) as HTMLElement;
+        mdClone.classList.add('mindmap-touch-drag-ghost-content');
+        mdClone.style.removeProperty('--mindmap-scale');
+        touchDragGhost.appendChild(mdClone);
+        document.body.appendChild(touchDragGhost);
+        updateTouchDragGhostScale();
+        moveTouchDragGhost(event);
+      };
+
+      const completeTouchDrag = async (event: PointerEvent) => {
+        if (
+          event.pointerType !== 'touch' ||
+          event.pointerId !== touchDragPointerId ||
+          !touchDragActive
+        ) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const targetBox = touchDropTarget;
+        const dropIntent = touchDropIntent;
+        finishTouchDrag();
+
+        const targetLine = Number(targetBox?.dataset.nodeLine);
+        const targetNode = Number.isNaN(targetLine) ? null : flatCurrent.find(n => n.line === targetLine);
+        const srcNodeFromOutline = flatCurrent.find(n => n.line === nodeToUse.line);
+
+        if (view.file && srcNodeFromOutline && targetNode && targetNode.line !== srcNodeFromOutline.line && dropIntent) {
+          try {
+            await view.executeMoveSubtreeCommand(
+              srcNodeFromOutline,
+              targetNode,
+              dropIntent.kind === 'child',
+              dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
+              dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
+            );
+          } catch (error) {
+            console.error('Touch move subtree failed:', error);
+            new Notice('Move failed: ' + (error.message || 'Unknown error'));
+          }
+        }
+      };
+
+      box.addEventListener('pointerdown', (event) => {
+        if (
+          event.pointerType !== 'touch' ||
+          box.classList.contains('editing') ||
+          view.wrapper.classList.contains('is-touch-pinching')
+        ) return;
+
+        const target = event.target as HTMLElement;
+        if (target.closest('button, a, input, select, textarea, iframe, video, audio, [contenteditable="true"]')) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        touchStartX = event.clientX;
+        touchStartY = event.clientY;
+        clearLongPressTimer();
+
+        longPressTimer = window.setTimeout(() => {
+          if (view.wrapper.classList.contains('is-touch-pinching')) {
+            clearLongPressTimer();
+            return;
+          }
+
+          startTouchDrag(event);
+          window.addEventListener('pointerup', (pointerEvent) => {
+            void completeTouchDrag(pointerEvent);
+          }, { signal: touchDragAbortController?.signal });
+          window.addEventListener('pointercancel', (pointerEvent) => {
+            if (
+              pointerEvent.pointerType === 'touch' &&
+              pointerEvent.pointerId === touchDragPointerId
+            ) finishTouchDrag();
+          }, { signal: touchDragAbortController?.signal });
+        }, 420);
+      }, { passive: true });
+
+      box.addEventListener('pointermove', (event) => {
+        if (event.pointerType !== 'touch') return;
+
+        const deltaX = Math.abs(event.clientX - touchStartX);
+        const deltaY = Math.abs(event.clientY - touchStartY);
+
+        if (!touchDragActive && view.wrapper.classList.contains('is-touch-pinching')) {
+          clearLongPressTimer();
+          return;
+        }
+
+        if (!touchDragActive && (deltaX > 10 || deltaY > 10)) {
+          clearLongPressTimer();
+          return;
+        }
+
+        if (!touchDragActive) return;
+        if (event.pointerId !== touchDragPointerId) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        touchDragLastPoint = { clientX: event.clientX, clientY: event.clientY };
+        moveTouchDragGhost(event);
+        updateTouchDropTarget(event);
+      }, { passive: false });
+
+      box.addEventListener('pointerup', async (event) => {
+        if (event.pointerType !== 'touch') return;
+
+        const wasDragging = touchDragActive;
+        const hadPendingLongPress = longPressTimer !== null;
+        clearLongPressTimer();
+
+        if (wasDragging) {
+          await completeTouchDrag(event);
+          return;
+        }
+
+        const target = event.target as HTMLElement;
+        if (
+          !hadPendingLongPress ||
+          target.closest('button, a, input, select, textarea, iframe, video, audio, [contenteditable="true"]')
+        ) {
+          return;
+        }
+
+        const now = Date.now();
+        if (now - lastTapAt < 360) {
+          event.preventDefault();
+          event.stopPropagation();
+          suppressNextClick = true;
+          suppressNextTouchDblClick = true;
+          view.selectNode(nodeToUse.line);
+          const contextEvent = new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+          box.dispatchEvent(contextEvent);
+          lastTapAt = 0;
+          window.setTimeout(() => {
+            suppressNextTouchDblClick = false;
+          }, 450);
+          return;
+        }
+
+        lastTapAt = now;
+      });
+
+      box.addEventListener('pointercancel', finishTouchDrag);
+
+      box.addEventListener('click', (event) => {
+        if (!suppressNextClick) return;
+        suppressNextClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }, { capture: true });
+    }
+
     box.addEventListener('wheel', (e) => {
       const target = e.target as HTMLElement;
       if (
@@ -645,6 +1049,12 @@ function performOverlayUpdate(view: MindmapView): void {
     }, { passive: false });
 
     box.addEventListener('click', (e) => {
+      if (view.wrapper.classList.contains('is-touch-dragging')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       const target = e.target as HTMLElement;
       if (
         box.classList.contains('editing') ||
@@ -664,6 +1074,19 @@ function performOverlayUpdate(view: MindmapView): void {
 
     // Enhanced double-click to edit with single-line input
     box.addEventListener('dblclick', (e) => {
+      if (view.wrapper.classList.contains('is-touch-dragging')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      if (suppressNextTouchDblClick) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextTouchDblClick = false;
+        return;
+      }
+
       view.clearSelection();
 
       // Check if the double-click was on an interactive element
