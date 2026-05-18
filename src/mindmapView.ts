@@ -18,6 +18,7 @@ import {
   addChild,
   addSibling,
   writeNode,
+  writeMultipleNodes,
   deleteNode,
   deleteMultipleNodes,
   deleteMultipleNodesKeepChildren,
@@ -369,6 +370,20 @@ export class MindmapView extends TextFileView {
           .setTitle('Edit node')
           .setIcon('edit-3')
           .onClick(() => void this.enterEditModeForNodeByLine(targetNode.line));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to unchecked tasks` : 'Convert to unchecked task')
+          .setIcon('check-square')
+          .onClick(() => void this.convertNodesToTask(selectedNodes));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to checked tasks` : 'Convert to checked task')
+          .setIcon('check-square')
+          .onClick(() => void this.convertNodesToCheckedTask(selectedNodes));
       });
 
       menu.addSeparator();
@@ -1035,6 +1050,92 @@ export class MindmapView extends TextFileView {
       metadata: {
         checkboxBefore: node.checkbox,
         checkboxAfter: node.checkbox === 'checked' ? 'unchecked' : 'checked',
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async convertNodeToTask(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+
+    const desiredText = this.normalizeNodeText(`[ ] ${node.text}`, false);
+    const beforeState = this.data;
+    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: {
+        oldText: node.text.substring(0, 100),
+        newText: desiredText.substring(0, 100),
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async convertNodeToCheckedTask(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+
+    const desiredText = this.normalizeNodeText(`[x] ${node.text}`, false);
+    const beforeState = this.data;
+    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: {
+        oldText: node.text.substring(0, 100),
+        newText: desiredText.substring(0, 100),
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async convertNodesToTask(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[ ] ${node.text}`, false));
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
+      metadata: {
+        oldText: nodes.map((node) => node.text.substring(0, 50)).join(' | '),
+        newText: nodes.map((node) => `[ ] ${node.text}`.substring(0, 50)).join(' | '),
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async convertNodesToCheckedTask(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[x] ${node.text}`, false));
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
+      metadata: {
+        oldText: nodes.map((node) => node.text.substring(0, 50)).join(' | '),
+        newText: nodes.map((node) => `[x] ${node.text}`.substring(0, 50)).join(' | '),
       }
     };
 

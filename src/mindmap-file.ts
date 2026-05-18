@@ -110,6 +110,29 @@ export async function writeNode(
   return await persistLines(app, file, lines);
 }
 
+export async function writeMultipleNodes(
+  app: App,
+  file: TFile,
+  nodes: OutlineNode[],
+  transform: (node: OutlineNode) => string
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  const sortedNodes = [...nodes].sort((a, b) => b.line - a.line);
+  sortedNodes.forEach((node) => {
+    if (node.line < 0 || node.line >= lines.length) {
+      return;
+    }
+
+    const newText = transform(node);
+    const prefix = node.indent + node.marker;
+    lines[node.line] = `${prefix} ${newText}`;
+  });
+
+  return await persistLines(app, file, lines);
+}
+
 export async function deleteNode(
   app: App,
   file: TFile,
