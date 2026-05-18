@@ -5,6 +5,11 @@ import { parseOutline, openInternalLink } from './util';
 import { MindmapView } from './mindmapView';
 import { DeleteNodeModal, DeleteOption } from "./delete-node-modal";
 import { Notice } from 'obsidian';
+import type { ChildInsertPosition, SiblingInsertPosition } from './mindmap-file';
+
+type DropIntent =
+  | { kind: 'sibling'; siblingInsertPosition: SiblingInsertPosition }
+  | { kind: 'child'; childInsertPosition: ChildInsertPosition };
 
 function getPrimaryZoteroLink(text: string): string | null {
   const links: string[] = [];
@@ -16,6 +21,33 @@ function getPrimaryZoteroLink(text: string): string | null {
   }
 
   return links.find((link) => /^zotero:\/\/open-/i.test(link)) ?? links[0] ?? null;
+}
+
+function getDropIntent(event: DragEvent, targetBox: HTMLElement): DropIntent {
+  const rect = targetBox.getBoundingClientRect();
+  const relativeY = event.clientY - rect.top;
+  const relativeX = event.clientX - rect.left;
+
+  const isLeft = relativeX < rect.width / 2;
+
+  if (relativeY < rect.height / 2) {
+    return { kind: 'sibling', siblingInsertPosition: isLeft ? 'before' : 'after' };
+  }
+
+  return { kind: 'child', childInsertPosition: isLeft ? 'first' : 'last' };
+}
+
+function updateDropPreview(event: DragEvent, targetBox: HTMLElement): DropIntent {
+  const dropIntent = getDropIntent(event, targetBox);
+  targetBox.classList.toggle('mm-tgt-sibling-before', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'before');
+  targetBox.classList.toggle('mm-tgt-sibling-after', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'after');
+  targetBox.classList.toggle('mm-tgt-first-child', dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'first');
+  targetBox.classList.toggle('mm-tgt-last-child', dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'last');
+  return dropIntent;
+}
+
+function clearDropPreview(targetBox: HTMLElement): void {
+  targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child');
 }
 
 export function startNodeEditing(
@@ -437,6 +469,7 @@ function performOverlayUpdate(view: MindmapView): void {
     
     box.addEventListener('dragend', () => {
       box.classList.remove('mm-src');
+      clearDropPreview(box);
       dragCounter = 0; // Reset counter
     });
     
@@ -445,6 +478,7 @@ function performOverlayUpdate(view: MindmapView): void {
       e.stopPropagation();
       dragCounter++;
       box.classList.add('mm-tgt');
+      updateDropPreview(e, box);
     });
     
     box.addEventListener('dragleave', (e) => {
@@ -455,6 +489,7 @@ function performOverlayUpdate(view: MindmapView): void {
       if (dragCounter <= 0) {
         dragCounter = 0;
         box.classList.remove('mm-tgt');
+        clearDropPreview(box);
       }
     });
     
@@ -465,12 +500,15 @@ function performOverlayUpdate(view: MindmapView): void {
       if (!box.classList.contains('mm-tgt')) {
         box.classList.add('mm-tgt');
       }
+      updateDropPreview(e, box);
     });
     
     box.addEventListener('drop', async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const dropIntent = getDropIntent(e, box);
       box.classList.remove('mm-tgt');
+      clearDropPreview(box);
       dragCounter = 0;
       
       const srcLine = e.dataTransfer!.getData('text/mindmap-line');
@@ -484,7 +522,13 @@ function performOverlayUpdate(view: MindmapView): void {
           try {
             await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
             // Use the new command-based move operation
-            await view.executeMoveSubtreeCommand(srcNodeFromOutline, nodeToUse, true);
+            await view.executeMoveSubtreeCommand(
+              srcNodeFromOutline,
+              nodeToUse,
+              dropIntent.kind === 'child',
+              dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
+              dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
+            );
           } catch (error) {
             console.error('Move subtree failed:', error);
             new Notice('Move failed: ' + (error.message || 'Unknown error'));
@@ -497,7 +541,11 @@ function performOverlayUpdate(view: MindmapView): void {
           try {
             await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
             // Use the new command-based add child text operation
-            await view.executeAddChildTextCommand(nodeToUse, txtData);
+            if (dropIntent.kind === 'sibling') {
+              await view.executeAddSiblingTextCommand(nodeToUse, txtData, dropIntent.siblingInsertPosition);
+            } else {
+              await view.executeAddChildTextCommand(nodeToUse, txtData, dropIntent.childInsertPosition);
+            }
           } catch (error) {
             console.error('Add child text failed:', error);
             new Notice('Failed to add content: ' + (error.message || 'Unknown error'));

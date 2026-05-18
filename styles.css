@@ -558,12 +558,33 @@ If your plugin does not need CSS, delete this file.
 }
 .mindmap-wrapper .mm-tgt {
   border: 2px solid #31b549;
-  background-color: rgba(49, 181, 73, 0.15);
+  background-color: transparent;
+  background-image:
+    linear-gradient(to right, rgba(41, 112, 255, 0.2) 0 50%, rgba(144, 89, 255, 0.2) 50% 100%),
+    linear-gradient(to right, rgba(49, 181, 73, 0.18) 0 50%, rgba(214, 132, 32, 0.2) 50% 100%);
+  background-position: 0 0, 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 50%, 100% 50%;
   z-index: 999;
   box-shadow: 0 0 8px rgba(49, 181, 73, 0.3);
 }
+.mindmap-wrapper .mm-tgt.mm-tgt-sibling-before {
+  border-color: #2970ff;
+  box-shadow: inset 4px 4px 0 #2970ff, 0 0 8px rgba(41, 112, 255, 0.32);
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-sibling-after {
+  border-color: #9059ff;
+  box-shadow: inset -4px 4px 0 #9059ff, 0 0 8px rgba(144, 89, 255, 0.32);
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-first-child {
+  border-color: #31b549;
+  box-shadow: inset 4px -4px 0 #31b549, 0 0 8px rgba(49, 181, 73, 0.3);
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-last-child {
+  border-color: #d68420;
+  box-shadow: inset -4px -4px 0 #d68420, 0 0 8px rgba(214, 132, 32, 0.32);
+}
 .mindmap-wrapper .mm-tgt::after {
-  content: "Drop here";
   position: absolute;
   top: -20px;
   left: 50%;
@@ -577,6 +598,22 @@ If your plugin does not need CSS, delete this file.
   z-index: 1001;
   pointer-events: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-sibling-before::after {
+  content: "Insert as sibling before";
+  background: #2970ff;
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-sibling-after::after {
+  content: "Insert as sibling after";
+  background: #9059ff;
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-first-child::after {
+  content: "Insert as first child";
+  background: #31b549;
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-last-child::after {
+  content: "Insert as last child";
+  background: #d68420;
 }
 
 /* Ensure interactive elements within nodes don't interfere with drag */

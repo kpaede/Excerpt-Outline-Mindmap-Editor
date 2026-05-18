@@ -2,6 +2,8 @@ import { App, TFile, MarkdownView } from 'obsidian';
 import { OutlineNode } from './util';
 
 export type DocString = string;
+export type ChildInsertPosition = 'first' | 'last';
+export type SiblingInsertPosition = 'before' | 'after';
 
 async function persistLines(app: App, file: TFile, lines: string[]): Promise<DocString> {
   const newDoc = lines.join('\n');
@@ -245,6 +247,8 @@ export async function moveSubtree(
   source: OutlineNode,
   target: OutlineNode,
   insertAsChild: boolean = true,
+  childInsertPosition: ChildInsertPosition = 'first',
+  siblingInsertPosition: SiblingInsertPosition = 'after',
   beforeState?: string
 ): Promise<DocString> {
   const fileText = beforeState || await app.vault.read(file);
@@ -275,7 +279,11 @@ export async function moveSubtree(
   // Calculate insertion point
   let insertionPoint: number;
   if (insertAsChild) {
-    insertionPoint = adjustedTargetLine + 1;
+    insertionPoint = childInsertPosition === 'first'
+      ? adjustedTargetLine + 1
+      : subtreeEnd(linesAfterRemoval, adjustedTargetLine, target.indent);
+  } else if (siblingInsertPosition === 'before') {
+    insertionPoint = adjustedTargetLine;
   } else {
     const targetEnd = subtreeEnd(linesAfterRemoval, adjustedTargetLine, target.indent);
     insertionPoint = targetEnd;
@@ -312,7 +320,8 @@ export async function addChildText(
   app: App,
   file: TFile,
   parent: OutlineNode,
-  text: string
+  text: string,
+  childInsertPosition: ChildInsertPosition = 'last'
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
   const lines = fileText.split(/\r?\n/);
@@ -321,13 +330,36 @@ export async function addChildText(
     return fileText;
   }
 
-  // Insert after the complete parent node
-  const insertIndex = parent.endLine + 1;
+  const insertIndex = childInsertPosition === 'first' ? parent.line + 1 : parent.endLine + 1;
   
   // Create child with proper indentation
   const childIndent = parent.indent + '\t';
   const newLine = `${childIndent}- ${text}`;
   
+  lines.splice(insertIndex, 0, newLine);
+
+  return await persistLines(app, file, lines);
+}
+
+export async function addSiblingText(
+  app: App,
+  file: TFile,
+  target: OutlineNode,
+  text: string,
+  siblingInsertPosition: SiblingInsertPosition = 'after'
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  const lines = fileText.split(/\r?\n/);
+
+  if (target.line < 0 || target.line >= lines.length) {
+    return fileText;
+  }
+
+  const insertIndex = siblingInsertPosition === 'before'
+    ? target.line
+    : subtreeEnd(lines, target.line, target.indent);
+  const newLine = `${target.indent}${target.marker} ${text}`;
+
   lines.splice(insertIndex, 0, newLine);
 
   return await persistLines(app, file, lines);

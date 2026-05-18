@@ -24,11 +24,14 @@ import {
   deleteMultipleNodesKeepChildren,
   moveSubtree,
   addChildText,
+  addSiblingText,
   addMarkdownAsChildren,
   cutPasteMarkdownAsChildren,
   duplicateSubtree,
   deleteNodeKeepChildren,
   DocString,
+  ChildInsertPosition,
+  SiblingInsertPosition,
 } from './mindmap-file';
 import { VerticalToolbar } from './vertical-toolbar';
 import { draw as drawMindmap } from './draw';
@@ -1279,11 +1282,25 @@ export class MindmapView extends TextFileView {
     this.restoreSelectionAfterDeletion(restoreSelection);
   }
 
-  public async executeMoveSubtreeCommand(sourceNode: OutlineNode, targetNode: OutlineNode, insertAsChild: boolean): Promise<void> {
+  public async executeMoveSubtreeCommand(
+    sourceNode: OutlineNode,
+    targetNode: OutlineNode,
+    insertAsChild: boolean,
+    childInsertPosition: ChildInsertPosition = 'first',
+    siblingInsertPosition: SiblingInsertPosition = 'after'
+  ): Promise<void> {
     if (!this.file) return;
     
     const beforeState = this.data;
-    const newDoc = await moveSubtree(this.app, this.file, sourceNode, targetNode, insertAsChild);
+    const newDoc = await moveSubtree(
+      this.app,
+      this.file,
+      sourceNode,
+      targetNode,
+      insertAsChild,
+      childInsertPosition,
+      siblingInsertPosition
+    );
     
     if (newDoc === beforeState) {
       return; // No change
@@ -1296,20 +1313,24 @@ export class MindmapView extends TextFileView {
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(sourceNode),
       targetInfo: CommandHistory.createNodeInfo(targetNode),
-      metadata: { insertAsChild }
+      metadata: { insertAsChild, childInsertPosition, siblingInsertPosition }
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
-  public async executeAddChildTextCommand(parentNode: OutlineNode, text: string): Promise<void> {
+  public async executeAddChildTextCommand(
+    parentNode: OutlineNode,
+    text: string,
+    childInsertPosition: ChildInsertPosition = 'last'
+  ): Promise<void> {
     if (!this.file) return;
     
     text = this.normalizeNodeText(text);
     if (!text) return;
 
     const beforeState = this.data;
-    const newDoc = await addChildText(this.app, this.file, parentNode, text);
+    const newDoc = await addChildText(this.app, this.file, parentNode, text, childInsertPosition);
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-child-text',
@@ -1317,9 +1338,36 @@ export class MindmapView extends TextFileView {
       beforeState,
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(parentNode),
-      metadata: { addedText: text.substring(0, 100) }
+      metadata: { addedText: text.substring(0, 100), childInsertPosition }
     };
     
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeAddSiblingTextCommand(
+    targetNode: OutlineNode,
+    text: string,
+    siblingInsertPosition: SiblingInsertPosition = 'after'
+  ): Promise<void> {
+    if (!this.file) return;
+
+    text = this.normalizeNodeText(text);
+    if (!text) return;
+
+    const beforeState = this.data;
+    const newDoc = await addSiblingText(this.app, this.file, targetNode, text, siblingInsertPosition);
+
+    if (newDoc === beforeState) return;
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'add-sibling',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(targetNode),
+      metadata: { addedText: text.substring(0, 100), dropIntent: 'sibling', siblingInsertPosition }
+    };
+
     await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 

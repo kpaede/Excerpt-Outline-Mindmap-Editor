@@ -122,7 +122,9 @@ Zoom, layout, node, and general options are stored in the file frontmatter, so d
 
 ### Move and restructure nodes
 
-- Drag a node onto another node to make it a child of the target node.
+- Drag a node onto another node to move it relative to that target node.
+- Drop onto the upper-left area of a target node to insert as a sibling before it, or onto the upper-right area to insert as a sibling after it.
+- Drop onto the lower-left area to insert as the first child, or onto the lower-right area to insert as the last child.
 - Moving a node also moves its children.
 - Use **Cut** and **Paste** to move nodes by clipboard-style interaction:
   - **Cut** marks the selected nodes as pending and fades them visually.
