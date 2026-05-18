@@ -1,58 +1,49 @@
 # Excerpt-Outline-Mindmap-Editor
 
-BEWARE: STILL IN BETA! Bugs, data loss, and instability are still very possible.
+**Beta warning:** This plugin is still in active development. Bugs, data loss, and instability are still possible.
 
-An Obsidian plugin for creating visual mindmaps optimized for literature excerpting. Running on pure Markdown outlines, with a drag-and-drop workflow.
+Excerpt-Outline-Mindmap-Editor is an Obsidian plugin for working with Markdown outlines as visual mindmaps. It is built around a precise drag-and-drop workflow for restructuring hierarchical notes without leaving the underlying Markdown format.
+
+It is especially useful for literature excerpting, research notes, and other situations where a plain outline is the right data model, but a spatial view makes the structure easier to understand and reshape.
 
 ![](images/screenshot.png)
 
 ---
 
-## What It Does
+## Core idea
 
-Excerpt-Outline-Mindmap-Editor lets you visually structure text excerpts as mindmaps using a  drag-and-drop system.
+A node in the mindmap is just a Markdown list item. Moving a node changes its position and indentation in the file. There is no custom database, no proprietary mindmap file, and no hidden document format.
 
-The underlying data model remains a standard Markdown outline (indented list) — fully compatible with Obsidian’s editor and outline plugins such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).  
-There is no proprietary format and no external storage.
-
----
-
-## Key Features
-
-- Drag-and-drop support for creating and editing hierarchical structures (Outline)
-- Each node represents a list item with indentation in a Markdown outline  
-- Nodes can render Markdown content such as links, emphasis, images, SVGs, and other supported Obsidian-rendered content
-- Dragging a node into another creates a parent-child relationship  
-- When dragging a node, all its children move with it  
-- Hover buttons allow adding new child and sibling nodes directly in the mindmap  
-- Node deletion ask for:
-  - Removing just the selected node, but keep its children
-  - Deleting a node along with all its children
-- undo/redo buttons
-- layout options are stored in frontmatter of the respective file
-- There is a Context Menu via Right Click
-- Copy, Paste, Cut and Duplicate via Context Menu and Shortcuts
-- Keyboard Navigation (Spatial and Hierarchical)
-- Task list support: nodes with `- [ ]` and `- [x]` are recognized and can be toggled directly in the mindmap
-- Checked nodes are visually marked as completed with a light gray overlay and muted text color
-- Zotero links inside a node render a source badge at the bottom-right of the node box
-- you can select various nodes at once
-- Read-only mindmap embeds via `mindmap-eome` code blocks
-- With the frontmatter key `excerpt-outline-mindmap`, the file opens directly in the mindmap view.
+This keeps your notes readable in Obsidian's normal editor and compatible with outline-based tools such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).
 
 ---
 
-## How to Use
+## Drag and drop
 
-1. Create a Markdown file: empty – or with an outline structure.
+The main interaction is dropping one node onto another. The target node is split into four drop zones:
+
+- **Upper left:** insert as sibling before the target
+- **Upper right:** insert as sibling after the target
+- **Lower left:** insert as first child of the target
+- **Lower right:** insert as last child of the target
+
+When you move a node, its whole subtree moves with it. The result is written back to the Markdown outline, so the visual operation and the document structure stay in sync.
+
+---
+
+## Quick start
+
+1. Create a Markdown file, either empty or with an outline.
 2. Open the file as a mindmap:
-   - Click the three-dot menu in the top-right corner of the editor and select **"Open as mindmap"**,  
-   - or right-click the file in the file explorer and choose **"Open as mindmap"**.
-3. Use drag and drop to build or restructure your outline visually:
+   - Select the three-dot menu in the editor and choose **Open as mindmap**.
+   - Or right-click the file in the file explorer and choose **Open as mindmap**.
+3. Build or restructure the outline visually.
 
-All changes are written to the file as a clean Markdown outline — no custom syntax or hidden metadata. You can open lineage files with this plugin and vice versa. Undo/redo history is preserved between sessions using frontmatter storage.
+All changes are written back to the Markdown file. You can switch between the mindmap and the normal Markdown editor at any time.
 
-### Markdown outline format
+---
+
+## Markdown data
 
 Mindmap files are regular Markdown files made from indented list items:
 
@@ -63,111 +54,73 @@ Mindmap files are regular Markdown files made from indented list items:
 - Another parent node
 ```
 
-The plugin does not use a custom file format. If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible.
+Task list items are supported too:
 
-### Frontmatter storage
+```markdown
+- [ ] Unchecked task
+- [x] Checked task
+```
 
-Mindmap display settings are stored in the file's `excerpt-outline-mindmap` frontmatter key.
-
-When this key contains stored mindmap settings, the file opens directly in the mindmap view when you open the file. This is only checked at file-open time. The plugin does not react to typing, metadata updates, or normal editing inside an already open Obsidian Markdown editor.
-
-You can still explicitly open any mindmap file as regular Markdown from the plugin menu.
+If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible. Display settings such as layout, zoom, node width, and keyboard navigation mode are stored per file in the `excerpt-outline-mindmap` frontmatter key.
 
 ---
 
-## Controls
+## What you can do
 
-### Navigate the canvas
+### Structure
 
-- Use two fingers on the trackpad to move/pan across the mindmap.
-- Hold the middle mouse button and drag to move/pan across the mindmap.
-- Use the trackpad pinch gesture to zoom in and out.
-- Use the toolbar's fit-to-view button to refit the whole mindmap into the visible area.
-- Mouse-dragging empty canvas space is reserved for box selection, not canvas movement.
-- Navigate via the arrow keys when a node is selected.
+- Move nodes with the four-zone drag-and-drop system.
+- Add child and sibling nodes from hover controls or the context menu.
+- Copy, cut, paste, duplicate, and delete nodes.
+- Select multiple nodes by clicking with **Cmd**/**Ctrl** or **Shift**, or by drawing a selection box on empty canvas space.
+- Delete only a node or delete its full subtree when children are involved.
 
-### Toolbar and settings
+### Editing
 
-The vertical toolbar provides:
+- Double-click a node, press **Enter**, or use the context menu to edit.
+- Newly created child and sibling nodes enter edit mode automatically.
+- Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.
+- Hard line breaks inside a single node are not supported and are removed from imported text.
+
+### Tasks and sources
+
+- Nodes using `- [ ]` and `- [x]` are recognized as tasks and can be toggled directly in the mindmap.
+- Non-task nodes can optionally show a checkbox on hover and become task items when clicked.
+- Checked nodes are visually muted.
+- Nodes containing Zotero links show a Zotero badge for opening the source.
+
+### Navigation
+
+- Pan with two fingers on a trackpad or by holding the middle mouse button.
+- Zoom with a trackpad pinch gesture or **Ctrl** + mouse wheel.
+- Use **Fit to view** in the toolbar to refit the whole mindmap.
+- Navigate selected nodes with the arrow keys.
+- Choose spatial or hierarchical keyboard navigation in **General settings**.
+
+### Toolbar
 
 - **Undo** and **Redo**
 - **Fit to view**
-- A clickable **zoom percentage** with a dedicated zoom slider
-- **Layout options** for direction, alignment, spacing, ranking, and resetting layout settings
-- **Node options** such as node width
-- **General settings**, including keyboard navigation mode
-
-Zoom, layout, node, and general options are stored in the file frontmatter, so different mindmaps can keep different visual settings.
-
-### Select nodes
-
-- Click a node to select it.
-- Hold **Cmd**/**Ctrl** or **Shift** while clicking nodes to add multiple nodes to the selection.
-- Drag with the left mouse button on empty canvas space to draw a selection box.
-- Hold **Shift** while drawing a selection box to add nodes to the current selection.
-- Click empty canvas space to clear the current selection.
-
-### Edit and create nodes
-
-- Double-click a node to edit it.
-- Right-click a node and choose **Edit node** to edit it from the context menu.
-- Use the hover controls or the context menu to choose **Add child** or **Add sibling**.
-- Newly created child or sibling nodes enter edit mode automatically so you can start typing right away.
-- Task list nodes show a checkbox icon at the top-left corner of the node box and can be toggled directly from the mindmap.
-- Non-task nodes can optionally show a hover checkbox if enabled in General Settings, which converts them into checklist items when clicked.
-- Nodes containing Zotero links display a Zotero badge at the bottom-right of the node box for quick source opening.
-- While editing a node, text wraps visually across multiple lines. **Enter** saves. Hard line breaks inside a node are not supported and are removed from imported text.
-- While editing a node, **Cmd/Ctrl + Delete** or **Cmd/Ctrl + Backspace** deletes the node, using the same child-confirmation flow as the delete button.
-- Pressing **Escape** in a newly created node without children removes that new node again.
-
-### Move and restructure nodes
-
-- Drag a node onto another node to move it relative to that target node.
-- Drop onto the upper-left area of a target node to insert as a sibling before it, or onto the upper-right area to insert as a sibling after it.
-- Drop onto the lower-left area to insert as the first child, or onto the lower-right area to insert as the last child.
-- Moving a node also moves its children.
-- Use **Cut** and **Paste** to move nodes by clipboard-style interaction:
-  - **Cut** marks the selected nodes as pending and fades them visually.
-  - The original nodes are removed only when you paste them somewhere else.
-  - Pasting onto a target node inserts the cut nodes as children of that target.
-
-### Context menu and clipboard
-
-Right-click a node to open the context menu. Available actions include:
-
-- **Add child**
-- **Add sibling**
-- **Edit node**
-- **Copy**
-- **Cut**
-- **Paste**
-- **Duplicate**
-- **Delete**
-
-**Copy**, **Cut**, and **Delete** work with multiple selected nodes. The context menu shows the number of affected nodes when multiple nodes are selected.
+- Zoom menu
+- Layout options
+- Node width options
+- General settings
 
 ### Keyboard shortcuts
 
 - **Arrow keys** navigate through nodes.
-- The currently selected node is centered automatically while navigating with the arrow keys.
 - **Enter** edits the selected node.
-- **Cmd/Ctrl + Arrow Down** adds a child to the selected node.
-- **Cmd/Ctrl + Shift + Arrow Down** adds a sibling after the selected node.
+- **Cmd/Ctrl + Arrow Down** adds a last child to the selected node.
+- **Cmd/Ctrl + Arrow Left** adds a sibling before the selected node.
+- **Cmd/Ctrl + Arrow Right** adds a sibling after the selected node.
 - **Cmd/Ctrl + C** copies the selected node or selected nodes.
 - **Cmd/Ctrl + X** cuts the selected node or selected nodes.
 - **Cmd/Ctrl + V** pastes onto the currently selected node.
 - **Delete**/**Backspace** deletes the selected node or selected nodes.
 
-When deleting nodes that have unselected children, the plugin asks whether to delete the full subtree or only the selected/current node while keeping its children.
+---
 
-### Layout and zoom
-
-- Select **Layout options** from the toolbar to adjust rank direction, left/right alignment, node separation, rank separation, spacing factor, and ranker.
-- Use **Reset layout options** to remove stored layout settings from the file frontmatter and return to defaults.
-- Select the zoom percentage in the toolbar to open the zoom menu.
-- Zoom changes are stored as `zoomFactor` in the file frontmatter.
-
-### Embed a mindmap in another note
+## Embed a mindmap in another note
 
 Use a `mindmap-eome` code block with exactly one Markdown filename:
 
@@ -179,16 +132,16 @@ mindmap.md
 
 The embedded mindmap is shown as a full read-only overview. Hover the top-right corner of the embed and select the icon to open that file in the regular editable mindmap view.
 
-Only the filename belongs inside the code block. Options, extra text, or multiple files are not supported.
+Only the filename belongs inside the code block. Options, extra text, and multiple files are not supported.
 
 ![](images/embedding.png)
 
 ---
 
-## Used Libraries
+## Libraries
 
-- [Cytoscape.js](https://js.cytoscape.org/) – for visual graph rendering  
-- [Dagre](https://github.com/dagrejs/dagre) – for automatic hierarchical layout
+- [Cytoscape.js](https://js.cytoscape.org/) for graph rendering
+- [Dagre](https://github.com/dagrejs/dagre) for automatic hierarchical layout
 
 Thanks to the developers.
 

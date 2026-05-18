@@ -659,16 +659,23 @@ export class MindmapView extends TextFileView {
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
 
+    if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      if (this.selectedNodeLines.size === 1) {
+        event.preventDefault();
+        const selectedNode = this.getNodeByLine(Array.from(this.selectedNodeLines)[0]);
+        if (selectedNode) {
+          void this.executeAddSiblingCommand(selectedNode, event.key === 'ArrowLeft' ? 'before' : 'after');
+        }
+      }
+      return;
+    }
+
     if ((event.metaKey || event.ctrlKey) && event.key === 'ArrowDown') {
       if (this.selectedNodeLines.size === 1) {
         event.preventDefault();
         const selectedNode = this.getNodeByLine(Array.from(this.selectedNodeLines)[0]);
         if (selectedNode) {
-          if (event.shiftKey) {
-            void this.executeAddSiblingCommand(selectedNode);
-          } else {
-            void this.executeAddChildCommand(selectedNode);
-          }
+          void this.executeAddChildCommand(selectedNode, 'last');
         }
       }
       return;
@@ -1051,38 +1058,46 @@ export class MindmapView extends TextFileView {
   }
 
   // New command execution methods that handle everything properly
-  public async executeAddChildCommand(parentNode: OutlineNode): Promise<void> {
+  public async executeAddChildCommand(
+    parentNode: OutlineNode,
+    childInsertPosition: ChildInsertPosition = 'last'
+  ): Promise<void> {
     if (!this.file) return;
     
     const beforeState = this.data;
-    const newChildLine = parentNode.line + 1;
-    const newDoc = await addChild(this.app, this.file, parentNode);
+    const newChildLine = childInsertPosition === 'first' ? parentNode.line + 1 : parentNode.endLine + 1;
+    const newDoc = await addChild(this.app, this.file, parentNode, childInsertPosition);
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-child',
       timestamp: Date.now(),
       beforeState,
       afterState: newDoc,
-      nodeInfo: CommandHistory.createNodeInfo(parentNode)
+      nodeInfo: CommandHistory.createNodeInfo(parentNode),
+      metadata: { childInsertPosition }
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
     this.scheduleEditModeForNodeByLine(newChildLine);
   }
 
-  public async executeAddSiblingCommand(node: OutlineNode): Promise<void> {
+  public async executeAddSiblingCommand(
+    node: OutlineNode,
+    siblingInsertPosition: SiblingInsertPosition = 'after'
+  ): Promise<void> {
     if (!this.file) return;
     
     const beforeState = this.data;
-    const newSiblingLine = node.endLine + 1;
-    const newDoc = await addSibling(this.app, this.file, node);
+    const newSiblingLine = siblingInsertPosition === 'before' ? node.line : node.endLine + 1;
+    const newDoc = await addSibling(this.app, this.file, node, siblingInsertPosition);
     
     const command: import('./command-history').MindmapCommand = {
       type: 'add-sibling',
       timestamp: Date.now(),
       beforeState,
       afterState: newDoc,
-      nodeInfo: CommandHistory.createNodeInfo(node)
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: { siblingInsertPosition }
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);

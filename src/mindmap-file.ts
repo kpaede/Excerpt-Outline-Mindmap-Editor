@@ -43,7 +43,8 @@ function subtreeEnd(lines: string[], start: number, indent: string): number {
 export async function addChild(
   app: App,
   file: TFile,
-  parent: OutlineNode
+  parent: OutlineNode,
+  childInsertPosition: ChildInsertPosition = 'last'
 ): Promise<DocString> {
   let fileText: string;
   try {
@@ -57,7 +58,7 @@ export async function addChild(
     return fileText;
   }
 
-  const insertIndex = parent.line + 1;
+  const insertIndex = childInsertPosition === 'first' ? parent.line + 1 : parent.endLine + 1;
   const childIndent = parent.indent + '\t';
   const newLine = `${childIndent}- `;
   
@@ -69,7 +70,8 @@ export async function addChild(
 export async function addSibling(
   app: App,
   file: TFile,
-  node: OutlineNode
+  node: OutlineNode,
+  siblingInsertPosition: SiblingInsertPosition = 'after'
 ): Promise<DocString> {
   let fileText: string;
   try {
@@ -83,7 +85,9 @@ export async function addSibling(
     return fileText;
   }
 
-  const insertIndex = subtreeEnd(lines, node.line, node.indent);
+  const insertIndex = siblingInsertPosition === 'before'
+    ? node.line
+    : subtreeEnd(lines, node.line, node.indent);
   const newLine = `${node.indent}${node.marker} `;
   lines.splice(insertIndex, 0, newLine);
 
