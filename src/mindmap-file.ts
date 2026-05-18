@@ -1,4 +1,4 @@
-import { App, TFile, MarkdownView, Notice } from 'obsidian';
+import { App, TFile, MarkdownView } from 'obsidian';
 import { OutlineNode } from './util';
 
 export type DocString = string;
@@ -222,7 +222,6 @@ export async function moveSubtree(
   source: OutlineNode,
   target: OutlineNode,
   insertAsChild: boolean = true,
-  isOptimizedMove: boolean = false,
   beforeState?: string
 ): Promise<DocString> {
   const fileText = beforeState || await app.vault.read(file);

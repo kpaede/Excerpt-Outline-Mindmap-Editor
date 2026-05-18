@@ -211,9 +211,4 @@ export class FrontmatterStorage {
     await this.updateLayoutOptions(file, layoutOptions);
   }
 
-  async updateCommandHistory(file: TFile, historyState: unknown): Promise<void> {
-    // Command history is handled separately and doesn't need frontmatter storage
-    // This method exists for compatibility but doesn't save to frontmatter
-    // to avoid cluttering the frontmatter with large history data
-  }
 }

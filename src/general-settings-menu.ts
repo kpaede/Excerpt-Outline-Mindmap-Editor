@@ -1,4 +1,4 @@
-import { Setting, TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import { FrontmatterStorage } from './frontmatter-storage';
 
 type ClickHandlerElement = HTMLElement & {
@@ -48,7 +48,7 @@ export class GeneralSettingsMenu {
   }
 
   private buildContent() {
-    const header = this.container.createEl('h3', { text: 'General Settings' });
+    this.container.createEl('h3', { text: 'General Settings' });
     // Header styling provided via CSS
 
     this.addSelectSetting(

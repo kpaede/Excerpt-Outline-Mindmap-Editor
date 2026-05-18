@@ -230,13 +230,13 @@ export function wouldBreakCodeBlock(lines: string[], startCheck: number, endChec
   return false;
 }
 
-export function findSafeMoveBoundaries(lines: string[], start: number, end: number): { start: number; end: number; isSafe: boolean } {
+export function findSafeMoveBoundaries(_lines: string[], start: number, end: number): { start: number; end: number; isSafe: boolean } {
   // The boundaries are already safe since we're working with complete outline nodes
   // that include their full multi-line content
   return { start, end, isSafe: true };
 }
 
-export function findSafeInsertionPoint(lines: string[], insertAfterLine: number): { insertLine: number; isSafe: boolean } {
+export function findSafeInsertionPoint(_lines: string[], insertAfterLine: number): { insertLine: number; isSafe: boolean } {
   // Simple insertion after the complete node (including all its lines)
   return { insertLine: insertAfterLine + 1, isSafe: true };
 }
@@ -272,8 +272,6 @@ export function validateMoveOperation(
   targetNode: OutlineNode
 ): { isValid: boolean; reason?: string } {
   const sourceRange = findCompleteSubtreeRange(lines, sourceNode);
-  const targetRange = findCompleteSubtreeRange(lines, targetNode);
-  
   // Check if target is within source subtree
   if (targetNode.line >= sourceRange.start && targetNode.line <= sourceRange.end) {
     return { isValid: false, reason: 'Cannot move node into its own subtree' };

@@ -2,10 +2,8 @@ import {
   Plugin,
   WorkspaceLeaf,
   TFile,
-  TFolder,
   MarkdownView,
   Menu,
-  Notice,
   View,
 } from 'obsidian';
 import { VIEW_TYPE_MINDMAP } from './constants';
@@ -30,9 +28,9 @@ export default class MindmapPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on(
         'file-menu',
-        (menu: Menu, abstractFile, _source, leaf) => {
+        (menu: Menu, abstractFile) => {
           if (abstractFile instanceof TFile && abstractFile.extension === 'md') {
-            addToggleMindmapMenuItem(menu, this, abstractFile, leaf);
+            addToggleMindmapMenuItem(menu, this, abstractFile);
           }
         }
       )

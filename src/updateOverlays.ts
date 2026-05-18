@@ -3,25 +3,13 @@
 import { MarkdownRenderer, Component, setIcon } from 'obsidian';
 import { parseOutline, openInternalLink } from './util';
 import { MindmapView } from './mindmapView';
-import {
-  addChild,
-  addSibling,
-  writeNode,
-  deleteNode,
-  moveSubtree,
-  addChildText,
-  deleteNodeKeepChildren,
-} from './mindmap-file';
 import { DeleteNodeModal, DeleteOption } from "./delete-node-modal";
 import { Notice } from 'obsidian';
-import { CommandHistory } from './command-history';
 
 export function startNodeEditing(
   box: HTMLElement,
   nodeToUse: import('./util').OutlineNode,
-  view: MindmapView,
-  font: string,
-  txt: string
+  view: MindmapView
 ): void {
   if (box.classList.contains('editing')) return;
 
@@ -576,7 +564,7 @@ function performOverlayUpdate(view: MindmapView): void {
       e.stopPropagation();
       e.preventDefault();
 
-      startNodeEditing(box, nodeToUse, view, font, txt);
+      startNodeEditing(box, nodeToUse, view);
     });
 
     // Prevent internal elements from starting their own drag operations
@@ -607,7 +595,7 @@ function performOverlayUpdate(view: MindmapView): void {
     view.pendingEditNodeLine = null;
     view.clearSelection();
     requestAnimationFrame(() => {
-      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view, font, txt);
+      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view);
     });
   }
 }

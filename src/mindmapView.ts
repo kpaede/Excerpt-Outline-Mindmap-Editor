@@ -4,8 +4,6 @@ import {
   TextFileView,
   WorkspaceLeaf,
   TFile,
-  MarkdownRenderer,
-  Component,
   Menu,
   Notice,
 } from 'obsidian';
@@ -639,8 +637,6 @@ export class MindmapView extends TextFileView {
     nodeWidth: 300
   };
 
-  private saveDebounceTimer?: number;
-
   constructor(leaf: WorkspaceLeaf, _plugin: MindmapPlugin) {
     super(leaf);
     this.frontmatterStorage = new FrontmatterStorage(this.app);
@@ -749,12 +745,6 @@ export class MindmapView extends TextFileView {
     await this.draw();
   }
 
-  /** Apply document changes with full rebuild */
-  private applyDoc(d: DocString): void {
-    this.data = d;
-    void this.draw();
-  }
-
   /** Apply document changes with incremental update */
   public applyDocIncremental(d: DocString): void {
     this.data = d;
@@ -783,31 +773,6 @@ export class MindmapView extends TextFileView {
     }, 1000);
   }
 
-  private debouncedSaveCommandHistory(): void {
-    if (this.saveDebounceTimer) {
-      clearTimeout(this.saveDebounceTimer);
-    }
-    
-    this.saveDebounceTimer = window.setTimeout(() => {
-      this.saveCommandHistoryToFrontmatter().catch(error => {
-        console.warn('Failed to save command history to frontmatter:', error);
-      });
-    }, 500); // Save after 500ms of inactivity
-  }
-
-  private async saveCommandHistoryToFrontmatter(): Promise<void> {
-    if (this.file && this.frontmatterStorage) {
-      try {
-        const historyState = this.commandHistory.getHistoryState();
-        await this.frontmatterStorage.updateCommandHistory(this.file, historyState);
-      } catch (error) {
-        console.warn('Failed to save command history:', error);
-        // Clear history if saving fails consistently
-        this.commandHistory.clear();
-      }
-    }
-  }
-
   // Make this the standard method for all operations
   public applyDocWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
     void this.applyDocIncrementalWithCommand(d, command);
@@ -819,153 +784,6 @@ export class MindmapView extends TextFileView {
     // whose dimensions are much larger than the source text. Reuse the full
     // measurement path so layout always uses current rendered node sizes.
     await this.draw();
-  }
-
-  /** Optimized update specifically for move operations that preserves visual state */
-  public async optimizedMoveUpdate(
-    visualState: Map<
-      number,
-      {
-        dims: { w: number; h: number };
-        scaleFactor?: number;
-        position?: { x: number; y: number };
-      }
-    >
-  ): Promise<void> {
-    if (!this.cy || !this.file) return;
-
-    // Parse new outline
-    const flat: OutlineNode[] = [];
-    (function walk(arr: import('./util').OutlineNode[]) {
-      arr.forEach((n) => {
-        flat.push(n);
-        walk(n.children);
-      });
-    })(parseOutline(this.data));
-
-    // Only measure nodes that are actually new or have changed content
-    const measureContainer = document.createElement('div');
-    Object.assign(measureContainer.style, {
-      position: 'absolute',
-      visibility: 'hidden',
-      top: '0',
-      left: '0',
-      pointerEvents: 'none',
-      zIndex: '-1',
-    } as CSSStyleDeclaration);
-    document.body.appendChild(measureContainer);
-
-    // Restore preserved visual state where possible
-    flat.forEach(n => {
-      const preserved = visualState.get(n.line);
-      if (preserved) {
-        this.sizeMap.set(n.line, preserved.dims);
-        if (preserved.scaleFactor) {
-          n.scaleFactor = preserved.scaleFactor;
-        }
-      }
-    });
-
-    // Only measure nodes that don't have preserved dimensions
-    const nodesToMeasure = flat.filter(n => !this.sizeMap.has(n.line));
-    
-    for (const n of nodesToMeasure) {
-      const generalOptions = this.getNodeOptions();
-      const targetWidth = generalOptions.nodeWidth;
-      
-      const tmpBox = document.createElement('div');
-      Object.assign(tmpBox.style, {
-        position: 'relative',
-        padding: '6px 10px 22px',
-        border: '1px solid transparent',
-        borderRadius: '4px',
-        background: 'transparent',
-        color: 'inherit',
-        fontFamily: 'inherit',
-        fontSize: '16px',
-        whiteSpace: 'nowrap', // Single line only
-        overflow: 'hidden',
-        maxWidth: `${targetWidth}px`,
-        boxSizing: 'border-box',
-      } as CSSStyleDeclaration);
-
-      if (n.text.trim() === '') {
-        tmpBox.innerHTML = '&nbsp;';
-      } else {
-        tmpBox.textContent = n.text; // Simple text only, no markdown rendering
-      }
-
-      measureContainer.appendChild(tmpBox);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-      const rect = tmpBox.getBoundingClientRect();
-      let measuredW = rect.width || targetWidth;
-      let measuredH = rect.height || 40;
-
-      if (measuredW > targetWidth) {
-        const scale = targetWidth / measuredW;
-        n.scaleFactor = scale;
-        measuredW = targetWidth;
-        measuredH = measuredH * scale;
-      } else {
-        measuredW = targetWidth;
-      }
-
-      this.sizeMap.set(n.line, { w: measuredW, h: measuredH });
-      measureContainer.removeChild(tmpBox);
-    }
-
-    document.body.removeChild(measureContainer);
-
-    // Update cytoscape elements with preserved state
-    const els: import('cytoscape').ElementDefinition[] = [];
-    for (const n of flat) {
-      const dims = this.sizeMap.get(n.line)!;
-      els.push({
-        data: {
-          id: `n${n.line}`,
-          node: n,
-          width: dims.w,
-          height: dims.h,
-        },
-      });
-    }
-    for (const p of flat) {
-      p.children.forEach((c) => {
-        els.push({
-          data: {
-            id: `e${p.line}-${c.line}`,
-            source: `n${p.line}`,
-            target: `n${c.line}`,
-          },
-        });
-      });
-    }
-
-    // Smart cytoscape update - preserve positions where possible
-    this.cy.json({ elements: els });
-    
-    // Restore positions for nodes that still exist
-    flat.forEach(n => {
-      const preserved = visualState.get(n.line);
-      if (preserved?.position) {
-        const cyNode = this.cy!.getElementById(`n${n.line}`);
-        if (cyNode.length > 0) {
-          cyNode.position(preserved.position);
-        }
-      }
-    });
-    
-    // Only do minimal relayout for new connections - fix the layout options
-    const layout = this.cy.layout({
-      name: 'preset',
-      fit: false
-    });
-    
-    layout.run();
-    
-    // Update overlays without full rebuild
-    this.updateOverlays();
   }
 
   /* ── Lifecycle ───────────────────────────── */
@@ -1475,19 +1293,17 @@ export class MindmapView extends TextFileView {
     }
   }
 
-  public selectNode(nodeLine: number, append: boolean = false, fromCy: boolean = false): void {
+  public selectNode(nodeLine: number, append: boolean = false): void {
     if (!append) {
       this.selectedNodeLines.clear();
     }
     this.selectedNodeLines.add(nodeLine);
     this.updateSelectionStyling();
 
-    if (!fromCy) {
-      this.wrapper?.focus();
-    }
+    this.wrapper?.focus();
   }
 
-  public deselectNode(nodeLine: number, fromCy: boolean = false): void {
+  public deselectNode(nodeLine: number): void {
     this.selectedNodeLines.delete(nodeLine);
     this.updateSelectionStyling();
   }
@@ -1657,10 +1473,7 @@ export class MindmapView extends TextFileView {
         if (this.pendingEditNodeLine === nodeLine) {
           this.pendingEditNodeLine = null;
         }
-        const css = getComputedStyle(document.documentElement);
-        const font = css.getPropertyValue('--font-family').trim() || 'inherit';
-        const txt = css.getPropertyValue('--text-normal').trim() || '#000';
-        startNodeEditing(overlay, node, this, font, txt);
+        startNodeEditing(overlay, node, this);
         return;
       }
 

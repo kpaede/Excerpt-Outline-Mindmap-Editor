@@ -1,17 +1,9 @@
 import { MarkdownRenderer, Component } from 'obsidian';
-import cytoscape, { Core, ElementDefinition, type LayoutOptions } from 'cytoscape';
+import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
 // @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
 import { parseOutline, OutlineNode, openInternalLink } from './util';
-import {
-  addChild,
-  addSibling,
-  writeNode,
-  deleteNode,
-  moveSubtree,
-  DocString,
-} from './mindmap-file';
 import { VerticalToolbar } from './vertical-toolbar';
 import { MindmapView } from './mindmapView';
 

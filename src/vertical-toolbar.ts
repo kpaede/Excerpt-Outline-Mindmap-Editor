@@ -1,10 +1,10 @@
 // src/vertical-toolbar.ts
 
-import { ButtonComponent, setIcon, type IconName, MarkdownView } from 'obsidian';
+import { setIcon } from 'obsidian';
 import type { MindmapView } from './mindmapView';
 import { LayoutOptionsMenu } from './layout-options-menu';
 import { NodeOptionsMenu, NodeOptions } from './node-options-menu';
-import { GeneralSettingsMenu, GeneralSettings } from './general-settings-menu';
+import { GeneralSettingsMenu } from './general-settings-menu';
 import { ZoomOptionsMenu } from './zoom-options-menu';
 
 export class VerticalToolbar {
@@ -65,7 +65,7 @@ export class VerticalToolbar {
     this.setZoomFactor(this.view.layoutOptions.zoomFactor ?? 1);
 
     // Separator
-    const separator = this.container.createDiv({ cls: 'toolbar-separator' });
+    this.container.createDiv({ cls: 'toolbar-separator' });
     
     // Layout Options Button
     const layoutBtn = this.container.createEl('button');
@@ -206,44 +206,6 @@ export class VerticalToolbar {
       (this.redoButton as HTMLButtonElement).disabled = !canRedo;
       this.redoButton.classList.toggle('disabled', !canRedo);
     }
-  }
-
-  private tryEditorUndo(): boolean {
-    if (!this.view.file) return false;
-    
-    // Find corresponding markdown editor
-    const markdownLeaves = this.view.app.workspace.getLeavesOfType('markdown');
-    const matchingLeaf = markdownLeaves.find((leaf) =>
-      leaf.view instanceof MarkdownView && leaf.view.file?.path === this.view.file?.path
-    );
-    
-    if (matchingLeaf && matchingLeaf.view instanceof MarkdownView) {
-      const editor = matchingLeaf.view.editor;
-      if (editor && typeof editor.undo === 'function') {
-        editor.undo();
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private tryEditorRedo(): boolean {
-    if (!this.view.file) return false;
-    
-    // Find corresponding markdown editor
-    const markdownLeaves = this.view.app.workspace.getLeavesOfType('markdown');
-    const matchingLeaf = markdownLeaves.find((leaf) =>
-      leaf.view instanceof MarkdownView && leaf.view.file?.path === this.view.file?.path
-    );
-    
-    if (matchingLeaf && matchingLeaf.view instanceof MarkdownView) {
-      const editor = matchingLeaf.view.editor;
-      if (editor && typeof editor.redo === 'function') {
-        editor.redo();
-        return true;
-      }
-    }
-    return false;
   }
 
   public getNodeOptions(): NodeOptions {

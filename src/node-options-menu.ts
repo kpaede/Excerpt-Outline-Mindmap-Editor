@@ -1,4 +1,4 @@
-import { Setting, TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import { FrontmatterStorage } from './frontmatter-storage';
 
 type ClickHandlerElement = HTMLElement & {
@@ -58,7 +58,7 @@ export class NodeOptionsMenu {
 
   private buildContent() {
     // Header
-    const header = this.container.createEl('h3', { text: 'Node Options' });
+    this.container.createEl('h3', { text: 'Node Options' });
 
     // Node Width Slider
     this.addSliderSetting(

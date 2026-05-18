@@ -1,12 +1,11 @@
-import { Menu, TFile, WorkspaceLeaf } from 'obsidian';
+import { Menu, TFile } from 'obsidian';
 import MindmapPlugin from './main';
 import { VIEW_TYPE_MINDMAP } from './constants';
 
 export function addToggleMindmapMenuItem(
   menu: Menu,
   plugin: MindmapPlugin,
-  file: TFile,
-  leaf?: WorkspaceLeaf
+  file: TFile
 ) {
   const existingMindmapLeaf = plugin.app.workspace
     .getLeavesOfType(VIEW_TYPE_MINDMAP)
