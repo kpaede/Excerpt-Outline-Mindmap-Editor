@@ -138,6 +138,12 @@ Only the filename belongs inside the code block. Options, extra text, and multip
 
 ---
 
+## Mobile support
+
+The plugin offers mobile support. You can navigate, edit, and restructure your mindmaps using touch gestures. Double tap for a node context menu; stay long on a node to pick it up. Everything else works like on the desktop version.
+
+---
+
 ## Libraries
 
 - [Cytoscape.js](https://js.cytoscape.org/) for graph rendering
