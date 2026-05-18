@@ -119,11 +119,21 @@ export async function draw(view: MindmapView): Promise<void> {
   view.sizeMap.clear();
 
   for (const n of flat) {
-    const tmpBox = document.createElement('div');
-    tmpBox.className = 'mindmap-measure-box';
-    
     const nodeOptions = view.getNodeOptions();
     const targetWidth = nodeOptions.nodeWidth;
+    const measurementKey = `${targetWidth}\u0000${n.text}`;
+    const cachedMeasurement = view.measurementCache.get(measurementKey);
+
+    if (cachedMeasurement) {
+      view.sizeMap.set(n.line, { w: cachedMeasurement.w, h: cachedMeasurement.h });
+      if (cachedMeasurement.scaleFactor) {
+        n.scaleFactor = cachedMeasurement.scaleFactor;
+      }
+      continue;
+    }
+
+    const tmpBox = document.createElement('div');
+    tmpBox.className = 'mindmap-measure-box';
     
     // Use CSS variable for measurement max width to avoid inline layout styles
     tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
@@ -258,7 +268,16 @@ export async function draw(view: MindmapView): Promise<void> {
       measuredW = 80;
     }
 
-    view.sizeMap.set(n.line, { w: measuredW, h: measuredH });
+    const measuredSize = { w: measuredW, h: measuredH };
+    view.sizeMap.set(n.line, measuredSize);
+    view.measurementCache.set(measurementKey, {
+      ...measuredSize,
+      scaleFactor: n.scaleFactor,
+    });
+    if (view.measurementCache.size > 1000) {
+      const oldestKey = view.measurementCache.keys().next().value;
+      if (oldestKey) view.measurementCache.delete(oldestKey);
+    }
     measureContainer.removeChild(tmpBox);
   }
 

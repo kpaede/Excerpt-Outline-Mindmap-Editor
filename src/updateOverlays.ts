@@ -420,6 +420,7 @@ function performOverlayUpdate(view: MindmapView): void {
         const srcNodeFromOutline = flatCurrent.find(n => n.line === parseInt(srcLine));
         if (srcNodeFromOutline && srcNodeFromOutline.line !== nodeToUse.line) {
           try {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
             // Use the new command-based move operation
             await view.executeMoveSubtreeCommand(srcNodeFromOutline, nodeToUse, true);
           } catch (error) {
@@ -432,6 +433,7 @@ function performOverlayUpdate(view: MindmapView): void {
         const txtData = e.dataTransfer!.getData('text/plain').trim();
         if (txtData && view.file) {
           try {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
             // Use the new command-based add child text operation
             await view.executeAddChildTextCommand(nodeToUse, txtData);
           } catch (error) {

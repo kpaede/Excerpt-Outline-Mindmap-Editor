@@ -112,6 +112,7 @@ export class MindmapView extends TextFileView {
    * Wird von draw() gefüllt und später in updateOverlays() verwendet.
    */
   public sizeMap: Map<number, { w: number; h: number }> = new Map();
+  public measurementCache: Map<string, { w: number; h: number; scaleFactor?: number }> = new Map();
 
   /**
    * Layout-Optionen, die sich über das Modal ändern lassen.
@@ -1361,6 +1362,7 @@ export class MindmapView extends TextFileView {
     
     // Clear size map to force remeasurement with new options
     this.sizeMap.clear();
+    this.measurementCache.clear();
     // Trigger full redraw
     void this.draw();
   }
