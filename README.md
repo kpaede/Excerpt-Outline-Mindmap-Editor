@@ -108,7 +108,9 @@ Zoom, layout, node, and general options are stored in the file frontmatter, so d
 - Right-click a node and choose **Edit node** to edit it from the context menu.
 - Use the hover controls or the context menu to choose **Add child** or **Add sibling**.
 - Newly created child or sibling nodes enter edit mode automatically so you can start typing right away.
-- While editing a node, text wraps across multiple lines. **Enter** saves; **Shift + Enter** inserts a line break.
+- While editing a node, text wraps visually across multiple lines. **Enter** saves. Hard line breaks inside a node are not supported and are removed from imported text.
+- While editing a node, **Cmd/Ctrl + Delete** or **Cmd/Ctrl + Backspace** deletes the node, using the same child-confirmation flow as the delete button.
+- Pressing **Escape** in a newly created node without children removes that new node again.
 
 ### Move and restructure nodes
 

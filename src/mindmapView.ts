@@ -56,6 +56,11 @@ export interface MindmapViewState {
   file?: string;
 }
 
+interface SelectionSnapshot {
+  line: number;
+  text: string;
+}
+
 export function createDefaultLayoutOptions() {
   return {
     rankDir: 'TB' as 'TB' | 'BT' | 'LR' | 'RL',
@@ -101,6 +106,7 @@ export class MindmapView extends TextFileView {
   private suppressNextEmptyClick: boolean = false;
   private mindmapClipboardText: string | null = null;
   private pendingCutNodeLines: Set<number> = new Set();
+  private selectionHistory: SelectionSnapshot[] = [];
   private zoomSaveTimeout: number | null = null;
   private boxStartX: number = 0;
   private boxStartY: number = 0;
@@ -473,6 +479,7 @@ export class MindmapView extends TextFileView {
   private async deleteNodesKeepingChildren(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
+    const restoreSelection = this.getSelectionRestoreCandidate(new Set(nodes.map((node) => node.line)));
     const beforeState = this.data;
     const newDoc = await deleteMultipleNodesKeepChildren(this.app, this.file, nodes);
 
@@ -489,9 +496,10 @@ export class MindmapView extends TextFileView {
 
     await this.applyDocIncrementalWithCommand(newDoc, command);
     this.selectedNodeLines.clear();
+    this.restoreSelectionAfterDeletion(restoreSelection);
   }
 
-  private async deleteNodesWithConfirmation(nodes: OutlineNode[]): Promise<void> {
+  public async deleteNodesWithConfirmation(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
     const selectedLines = new Set(nodes.map((node) => node.line));
@@ -552,6 +560,21 @@ export class MindmapView extends TextFileView {
 
   private getNodeByLine(nodeLine: number): OutlineNode | null {
     return this.getFlatNodes().find((node) => node.line === nodeLine) ?? null;
+  }
+
+  public normalizeNodeText(text: string, notice: boolean = true): string {
+    if (!/[\r\n]/.test(text)) return text.trim();
+
+    const normalized = text
+      .replace(/\r?\n+/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .trim();
+
+    if (notice) {
+      new Notice('Line breaks inside a node were removed.');
+    }
+
+    return normalized;
   }
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
@@ -985,6 +1008,7 @@ export class MindmapView extends TextFileView {
   public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {
     if (!this.file) return;
     
+    newText = this.normalizeNodeText(newText);
     const beforeState = this.data;
     const newDoc = await writeNode(this.app, this.file, node, newText);
     
@@ -1006,6 +1030,7 @@ export class MindmapView extends TextFileView {
   public async executeDeleteNodeCommand(node: OutlineNode): Promise<void> {
     if (!this.file) return;
 
+    const restoreSelection = this.getSelectionRestoreCandidate(new Set([node.line]));
     const beforeState = this.data;
     const newDoc = await deleteNode(this.app, this.file, node);
 
@@ -1018,11 +1043,14 @@ export class MindmapView extends TextFileView {
     };
 
     await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.selectedNodeLines.clear();
+    this.restoreSelectionAfterDeletion(restoreSelection);
   }
 
   public async executeDeleteMultipleNodesCommand(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
+    const restoreSelection = this.getSelectionRestoreCandidate(new Set(nodes.map((node) => node.line)));
     const beforeState = this.data;
     const newDoc = await deleteMultipleNodes(this.app, this.file, nodes);
 
@@ -1036,10 +1064,12 @@ export class MindmapView extends TextFileView {
 
     await this.applyDocIncrementalWithCommand(newDoc, command);
     this.selectedNodeLines.clear();
+    this.restoreSelectionAfterDeletion(restoreSelection);
   }
   public async executeDeleteNodeKeepChildrenCommand(node: OutlineNode): Promise<void> {
     if (!this.file) return;
     
+    const restoreSelection = this.getSelectionRestoreCandidate(new Set([node.line]));
     const beforeState = this.data;
     const newDoc = await deleteNodeKeepChildren(this.app, this.file, node);
     
@@ -1052,6 +1082,8 @@ export class MindmapView extends TextFileView {
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.selectedNodeLines.clear();
+    this.restoreSelectionAfterDeletion(restoreSelection);
   }
 
   public async executeMoveSubtreeCommand(sourceNode: OutlineNode, targetNode: OutlineNode, insertAsChild: boolean): Promise<void> {
@@ -1080,6 +1112,9 @@ export class MindmapView extends TextFileView {
   public async executeAddChildTextCommand(parentNode: OutlineNode, text: string): Promise<void> {
     if (!this.file) return;
     
+    text = this.normalizeNodeText(text);
+    if (!text) return;
+
     const beforeState = this.data;
     const newDoc = await addChildText(this.app, this.file, parentNode, text);
     
@@ -1298,9 +1333,51 @@ export class MindmapView extends TextFileView {
       this.selectedNodeLines.clear();
     }
     this.selectedNodeLines.add(nodeLine);
+    this.rememberSelectedNode(nodeLine);
     this.updateSelectionStyling();
 
     this.wrapper?.focus();
+  }
+
+  private rememberSelectedNode(nodeLine: number): void {
+    const node = this.getNodeByLine(nodeLine);
+    if (!node) return;
+
+    const last = this.selectionHistory[this.selectionHistory.length - 1];
+    if (last?.line === node.line && last.text === node.text) return;
+
+    this.selectionHistory.push({ line: node.line, text: node.text });
+    if (this.selectionHistory.length > 30) {
+      this.selectionHistory.shift();
+    }
+  }
+
+  private getSelectionRestoreCandidate(excludedLines: Set<number>): SelectionSnapshot | null {
+    for (let i = this.selectionHistory.length - 1; i >= 0; i--) {
+      const candidate = this.selectionHistory[i];
+      if (!excludedLines.has(candidate.line)) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private restoreSelectionAfterDeletion(candidate: SelectionSnapshot | null): void {
+    if (!candidate) return;
+
+    requestAnimationFrame(() => {
+      const nodes = this.getFlatNodes();
+      const exact = nodes.find((node) => node.line === candidate.line && node.text === candidate.text);
+      const sameText = nodes.find((node) => node.text === candidate.text);
+      const previousByLine = [...nodes].reverse().find((node) => node.line <= candidate.line);
+      const fallback = nodes[0];
+      const nodeToSelect = exact ?? sameText ?? previousByLine ?? fallback;
+
+      if (nodeToSelect) {
+        this.selectNode(nodeToSelect.line);
+      }
+    });
   }
 
   public deselectNode(nodeLine: number): void {
@@ -1459,7 +1536,7 @@ export class MindmapView extends TextFileView {
     });
   }
 
-  public async enterEditModeForNodeByLine(nodeLine: number): Promise<void> {
+  public async enterEditModeForNodeByLine(nodeLine: number, isNewNode: boolean = false): Promise<void> {
     for (let i = 0; i < 60; i++) {
       const overlay = this.wrapper?.querySelector(`[data-overlay][data-node-line="${nodeLine}"]`) as HTMLElement | null;
       if (overlay && !this.isUpdatingOverlays) {
@@ -1473,7 +1550,7 @@ export class MindmapView extends TextFileView {
         if (this.pendingEditNodeLine === nodeLine) {
           this.pendingEditNodeLine = null;
         }
-        startNodeEditing(overlay, node, this);
+        startNodeEditing(overlay, node, this, { isNewNode });
         return;
       }
 
@@ -1492,7 +1569,7 @@ export class MindmapView extends TextFileView {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            void this.enterEditModeForNodeByLine(nodeLine);
+            void this.enterEditModeForNodeByLine(nodeLine, true);
           });
         });
       });

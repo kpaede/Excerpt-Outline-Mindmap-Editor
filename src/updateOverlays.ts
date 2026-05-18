@@ -9,7 +9,8 @@ import { Notice } from 'obsidian';
 export function startNodeEditing(
   box: HTMLElement,
   nodeToUse: import('./util').OutlineNode,
-  view: MindmapView
+  view: MindmapView,
+  options: { isNewNode?: boolean } = {}
 ): void {
   if (box.classList.contains('editing')) return;
 
@@ -34,15 +35,26 @@ export function startNodeEditing(
   };
 
   let finished = false;
-  const finish = async (save: boolean) => {
-    if (finished) return;
-    finished = true;
-
-    const newText = input.value.trim();
+  const closeEditor = () => {
     if (box.contains(input)) box.removeChild(input);
     if (md) md.classList.remove('mm-hidden');
     box.classList.remove('editing');
     box.draggable = true;
+  };
+
+  const deleteCurrentNode = async () => {
+    if (finished) return;
+    finished = true;
+    closeEditor();
+    await view.deleteNodesWithConfirmation([nodeToUse]);
+  };
+
+  const finish = async (save: boolean) => {
+    if (finished) return;
+    finished = true;
+
+    const newText = view.normalizeNodeText(input.value);
+    closeEditor();
 
     if (save && newText !== nodeToUse.text && view.file) {
       await view.executeEditNodeCommand(nodeToUse, newText);
@@ -57,9 +69,19 @@ export function startNodeEditing(
     if (ev.key === 'Enter' && !ev.shiftKey) {
       ev.preventDefault();
       void finish(true);
+    } else if (ev.key === 'Enter' && ev.shiftKey) {
+      ev.preventDefault();
+      new Notice('Line breaks inside a node are not supported.');
+    } else if ((ev.metaKey || ev.ctrlKey) && (ev.key === 'Delete' || ev.key === 'Backspace')) {
+      ev.preventDefault();
+      void deleteCurrentNode();
     } else if (ev.key === 'Escape') {
       ev.preventDefault();
-      void finish(false);
+      if (options.isNewNode && nodeToUse.children.length === 0) {
+        void deleteCurrentNode();
+      } else {
+        void finish(false);
+      }
     }
   });
   ['pointerdown', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'dragstart'].forEach((eventName) => {
@@ -595,7 +617,7 @@ function performOverlayUpdate(view: MindmapView): void {
     view.pendingEditNodeLine = null;
     view.clearSelection();
     requestAnimationFrame(() => {
-      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view);
+      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view, { isNewNode: true });
     });
   }
 }
