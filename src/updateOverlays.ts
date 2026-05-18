@@ -160,7 +160,6 @@ function performOverlayUpdate(view: MindmapView): void {
   view.wrapper.querySelectorAll('[data-overlay]').forEach((e) => e.remove());
 
   const css = getComputedStyle(document.documentElement);
-  const border = css.getPropertyValue('--background-modifier-border').trim() || '#888';
   const txt = css.getPropertyValue('--text-normal').trim() || '#000';
   const font = css.getPropertyValue('--font-family').trim() || 'inherit';
   const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
@@ -237,7 +236,7 @@ function performOverlayUpdate(view: MindmapView): void {
     box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
     box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
     box.style.setProperty('--mindmap-zoom', String(zoom));
-    box.style.setProperty('--mindmap-border', border);
+    box.style.setProperty('--mindmap-border', '#000000');
     box.style.setProperty('--mindmap-bg', bg);
     box.style.setProperty('--mindmap-color', txt);
     if (font) {

@@ -428,26 +428,35 @@ If your plugin does not need CSS, delete this file.
   display: none;
 }
 
-.checkbox-toggle {
+.mindmap-wrapper .checkbox-toggle {
   position: absolute;
   top: -10px;
   left: -10px;
   width: 24px;
   height: 24px;
-  border-radius: 4px;
-  border: 1px solid var(--mindmap-border, rgba(0,0,0,0.1));
-  background: var(--mindmap-bg, #ffffff);
-  color: var(--text-muted);
+  min-width: 24px;
+  min-height: 24px;
+  border: none !important;
+  border-radius: 0;
+  background: var(--mindmap-bg, #ffffff) !important;
+  color: #000000;
   display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 0;
-  box-shadow: none;
+  padding: 0 !important;
+  box-shadow: none !important;
+  appearance: none;
+  --button-shadow: none;
+  --button-shadow-hover: none;
 }
 
-.checkbox-toggle:hover {
-  color: var(--text-normal);
+.mindmap-wrapper .checkbox-toggle:hover,
+.mindmap-wrapper .checkbox-toggle:focus,
+.mindmap-wrapper .checkbox-toggle:active {
+  color: #000000;
+  background: var(--mindmap-bg, #ffffff) !important;
+  box-shadow: none !important;
 }
 
 .mindmap-overlay.has-checkbox .checkbox-toggle,
@@ -457,6 +466,7 @@ If your plugin does not need CSS, delete this file.
 
 .mindmap-overlay.checkbox-checked {
   background: rgba(128, 128, 128, 0.12);
+  border-color: var(--text-muted);
   color: var(--text-muted);
 }
 
@@ -467,32 +477,47 @@ If your plugin does not need CSS, delete this file.
 }
 
 .mindmap-overlay.checkbox-checked .checkbox-toggle {
-  background: var(--mindmap-bg, #ffffff);
-  border-color: var(--mindmap-border, rgba(0,0,0,0.1));
+  background: var(--mindmap-bg, #ffffff) !important;
+  border-color: transparent;
   color: var(--text-muted);
 }
 
-.mindmap-zotero-badge {
+.mindmap-wrapper .mindmap-zotero-badge {
   position: absolute;
   bottom: -10px;
   right: -10px;
   width: 24px;
   height: 24px;
-  border: 1px solid var(--mindmap-border, rgba(0,0,0,0.1));
-  border-radius: 4px;
-  background: var(--mindmap-bg, #ffffff);
-  color: var(--text-muted);
+  min-width: 24px;
+  min-height: 24px;
+  border: none !important;
+  border-radius: 0;
+  background: var(--mindmap-bg, #ffffff) !important;
+  color: #000000;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: none;
-  padding: 0;
+  box-shadow: none !important;
+  padding: 0 !important;
+  appearance: none;
+  --button-shadow: none;
+  --button-shadow-hover: none;
 }
 
-.mindmap-zotero-badge:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
+.mindmap-wrapper .mindmap-zotero-badge:hover,
+.mindmap-wrapper .mindmap-zotero-badge:focus,
+.mindmap-wrapper .mindmap-zotero-badge:active {
+  color: #000000;
+  background: var(--mindmap-bg, #ffffff) !important;
+  box-shadow: none !important;
+}
+
+.mindmap-overlay.checkbox-checked .mindmap-zotero-badge,
+.mindmap-overlay.checkbox-checked .mindmap-zotero-badge:hover,
+.mindmap-overlay.checkbox-checked .mindmap-zotero-badge:focus,
+.mindmap-overlay.checkbox-checked .mindmap-zotero-badge:active {
+  color: var(--text-muted);
 }
 
 /* DnD and visual helpers (moved from dnd-css.ts) */
@@ -676,7 +701,7 @@ body div.layout-options-modal {
   width: var(--mindmap-box-width, 200px);
   height: var(--mindmap-box-height, 60px);
   padding: 6px 10px 22px;
-  border: 1px solid var(--mindmap-border, rgba(0,0,0,0.1));
+  border: 1px solid var(--mindmap-border, #000000);
   border-radius: 4px;
   background: var(--mindmap-bg, #ffffff);
   color: var(--mindmap-color, #000000);

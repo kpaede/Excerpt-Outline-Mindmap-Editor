@@ -340,8 +340,8 @@ export async function draw(view: MindmapView): Promise<void> {
         {
           selector: 'edge',
           style: {
-            width: 2,
-            'line-color': 'rgba(120,120,120,.75)',
+            width: 1,
+            'line-color': '#000000',
             'curve-style': 'straight',
           },
         },

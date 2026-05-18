@@ -148,7 +148,6 @@ async function renderOverlays(
   wrapper.querySelectorAll('[data-mindmap-eome-overlay]').forEach((overlay) => overlay.remove());
 
   const css = getComputedStyle(document.documentElement);
-  const border = css.getPropertyValue('--background-modifier-border').trim() || '#888';
   const txt = css.getPropertyValue('--text-normal').trim() || '#000';
   const font = css.getPropertyValue('--font-family').trim() || 'inherit';
   const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
@@ -168,7 +167,7 @@ async function renderOverlays(
     box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
     box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
     box.style.setProperty('--mindmap-zoom', String(zoom));
-    box.style.setProperty('--mindmap-border', border);
+    box.style.setProperty('--mindmap-border', '#000000');
     box.style.setProperty('--mindmap-bg', bg);
     box.style.setProperty('--mindmap-color', txt);
     box.style.setProperty('--mindmap-font', font);
@@ -277,8 +276,8 @@ export async function renderMindmapEomeEmbed(
       {
         selector: 'edge',
         style: {
-          width: 2,
-          'line-color': 'rgba(120,120,120,.75)',
+          width: 1,
+          'line-color': '#000000',
           'curve-style': 'straight',
         },
       },
