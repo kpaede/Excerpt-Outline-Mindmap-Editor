@@ -80,9 +80,11 @@ You can still explicitly open any mindmap file as regular Markdown from the plug
 ### Navigate the canvas
 
 - Use two fingers on the trackpad to move/pan across the mindmap.
+- Hold the middle mouse button and drag to move/pan across the mindmap.
 - Use the trackpad pinch gesture to zoom in and out.
 - Use the toolbar's fit-to-view button to refit the whole mindmap into the visible area.
 - Mouse-dragging empty canvas space is reserved for box selection, not canvas movement.
+- Navigate via the arrow keys when a node is selected.
 
 ### Toolbar and settings
 

@@ -465,21 +465,22 @@ If your plugin does not need CSS, delete this file.
 }
 
 .mindmap-overlay.checkbox-checked {
+  --mindmap-checked-color: color-mix(in srgb, var(--mindmap-color, var(--text-normal)) 52%, var(--mindmap-bg, var(--background-primary)) 48%);
   background: rgba(128, 128, 128, 0.12);
-  border-color: var(--text-muted);
-  color: var(--text-muted);
+  border-color: var(--mindmap-checked-color);
+  color: var(--mindmap-checked-color);
 }
 
 .mindmap-overlay.checkbox-checked .markdown-rendered,
 .mindmap-overlay.checkbox-checked .markdown-rendered * {
   color: inherit;
-  opacity: 0.88;
+  opacity: 1;
 }
 
 .mindmap-overlay.checkbox-checked .checkbox-toggle {
   background: var(--mindmap-bg, #ffffff) !important;
   border-color: transparent;
-  color: var(--text-muted);
+  color: var(--mindmap-checked-color);
 }
 
 .mindmap-wrapper .mindmap-zotero-badge {
@@ -517,7 +518,7 @@ If your plugin does not need CSS, delete this file.
 .mindmap-overlay.checkbox-checked .mindmap-zotero-badge:hover,
 .mindmap-overlay.checkbox-checked .mindmap-zotero-badge:focus,
 .mindmap-overlay.checkbox-checked .mindmap-zotero-badge:active {
-  color: var(--text-muted);
+  color: var(--mindmap-checked-color);
 }
 
 /* DnD and visual helpers (moved from dnd-css.ts) */

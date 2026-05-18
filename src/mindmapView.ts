@@ -103,6 +103,7 @@ export class MindmapView extends TextFileView {
   private isBoxSelecting: boolean = false;
   private isBoxSelectionInitialized: boolean = false;
   private isViewportWheelInitialized: boolean = false;
+  private isMiddleMousePanning: boolean = false;
   private hasDraggedSelectionBox: boolean = false;
   private suppressNextEmptyClick: boolean = false;
   private mindmapClipboardText: string | null = null;
@@ -111,6 +112,8 @@ export class MindmapView extends TextFileView {
   private zoomSaveTimeout: number | null = null;
   private boxStartX: number = 0;
   private boxStartY: number = 0;
+  private middlePanLastX: number = 0;
+  private middlePanLastY: number = 0;
 
   /**
    * Map von OutlineNode.line → gemessene Breite/Höhe (in px).
@@ -270,6 +273,59 @@ export class MindmapView extends TextFileView {
   private initViewportWheelControls(): void {
     if (this.isViewportWheelInitialized) return;
     this.isViewportWheelInitialized = true;
+
+    this.wrapper.addEventListener('mousedown', (event) => {
+      if (event.button !== 1 || !this.cy) return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest(
+          '.vertical-toolbar, button, a, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
+        )
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      this.isMiddleMousePanning = true;
+      this.middlePanLastX = event.clientX;
+      this.middlePanLastY = event.clientY;
+      this.wrapper.classList.add('is-middle-mouse-panning');
+      this.wrapper.focus();
+    }, { capture: true });
+
+    this.wrapper.addEventListener('auxclick', (event) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true });
+
+    window.addEventListener('mousemove', (event) => {
+      if (!this.isMiddleMousePanning || !this.cy) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      this.cy.panBy({
+        x: event.clientX - this.middlePanLastX,
+        y: event.clientY - this.middlePanLastY,
+      });
+
+      this.middlePanLastX = event.clientX;
+      this.middlePanLastY = event.clientY;
+    }, { capture: true });
+
+    window.addEventListener('mouseup', (event) => {
+      if (!this.isMiddleMousePanning || event.button !== 1) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      this.isMiddleMousePanning = false;
+      this.wrapper.classList.remove('is-middle-mouse-panning');
+    }, { capture: true });
 
     this.wrapper.addEventListener('wheel', (event) => {
       if (!this.cy) return;
