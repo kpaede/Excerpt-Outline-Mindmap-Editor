@@ -186,7 +186,7 @@ export class MindmapView extends TextFileView {
       const target = e.target as HTMLElement | null;
       if (
         target?.closest(
-          '.mindmap-overlay, .vertical-toolbar, button, a, input, select, textarea, [contenteditable="true"]'
+          '.mindmap-overlay, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
         )
       ) {
         return;
@@ -211,7 +211,7 @@ export class MindmapView extends TextFileView {
       const target = e.target as HTMLElement | null;
       if (
         target?.closest(
-          '.mindmap-overlay, .vertical-toolbar, button, a, input, select, textarea, [contenteditable="true"]'
+          '.mindmap-overlay, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
         )
       ) {
         return;
@@ -320,7 +320,7 @@ export class MindmapView extends TextFileView {
       const target = event.target as HTMLElement | null;
       if (
         target?.closest(
-          '.vertical-toolbar, button, a, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
+          '.vertical-toolbar, .node-editor, .cm-editor, button, a, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
         )
       ) {
         return;
@@ -373,9 +373,13 @@ export class MindmapView extends TextFileView {
       const target = event.target as HTMLElement | null;
       if (
         target?.closest(
-          '.vertical-toolbar, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
+          '.vertical-toolbar, .node-editor, .cm-editor, input, textarea, select, pre, code, iframe, video, audio, [contenteditable="true"]'
         )
       ) {
+        if (target.closest('.node-editor, .cm-editor')) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         return;
       }
 
@@ -436,12 +440,35 @@ export class MindmapView extends TextFileView {
     };
 
     const resetTouchState = () => {
+      for (const pointerId of this.touchViewportPointers.keys()) {
+        try {
+          if (this.wrapper.hasPointerCapture(pointerId)) {
+            this.wrapper.releasePointerCapture(pointerId);
+          }
+        } catch {
+          // Pointer capture can already be gone when iOS cancels a gesture.
+        }
+      }
       this.touchViewportPointers.clear();
       this.touchPinchLastDistance = null;
       this.touchPinchLastCenter = null;
       this.touchPanLastPoint = null;
       this.touchGestureMode = null;
-      this.wrapper.classList.remove('is-touch-pinching');
+      const wasPanning = this.wrapper.classList.contains('is-touch-panning');
+      const wasViewportGesture =
+        wasPanning ||
+        this.wrapper.classList.contains('is-touch-pinching') ||
+        this.wrapper.classList.contains('is-touch-dragging');
+      this.wrapper.classList.remove('is-touch-pinching', 'is-touch-panning');
+      if (wasPanning) {
+        this.wrapper.classList.add('is-touch-pan-suppressed');
+        window.setTimeout(() => {
+          this.wrapper?.classList.remove('is-touch-pan-suppressed');
+        }, 220);
+      }
+      if (wasViewportGesture) {
+        requestAnimationFrame(() => this.updateOverlays());
+      }
     };
 
     const resetGestureState = () => {
@@ -449,7 +476,7 @@ export class MindmapView extends TextFileView {
       this.touchPinchLastCenter = null;
       this.touchPanLastPoint = null;
       this.touchGestureMode = null;
-      this.wrapper.classList.remove('is-touch-pinching');
+      this.wrapper.classList.remove('is-touch-pinching', 'is-touch-panning');
     };
 
     this.wrapper.addEventListener('mindmap-touch-drag-start', (event) => {
@@ -466,8 +493,13 @@ export class MindmapView extends TextFileView {
     this.wrapper.addEventListener('pointerdown', (event) => {
       if (event.pointerType !== 'touch') return;
 
+      if (document.querySelector('.mindmap-mobile-editor')) {
+        resetTouchState();
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
-      if (target?.closest('.vertical-toolbar, input, textarea, select, iframe, video, audio, [contenteditable="true"]')) {
+      if (target?.closest('.vertical-toolbar, button, a, input, textarea, select, iframe, video, audio, [contenteditable="true"]')) {
         return;
       }
 
@@ -478,6 +510,13 @@ export class MindmapView extends TextFileView {
       }
 
       this.touchViewportPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (!this.wrapper.hasPointerCapture(event.pointerId)) {
+        try {
+          this.wrapper.setPointerCapture(event.pointerId);
+        } catch {
+          // Some WebViews reject capture if the pointer is already cancelled.
+        }
+      }
       const gesturePointers = getGesturePointers();
 
       if (gesturePointers.length >= 2) {
@@ -488,6 +527,7 @@ export class MindmapView extends TextFileView {
         this.touchGestureMode = 'pinch';
         this.wrapper.classList.add('is-touch-pinching');
         this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-pinch-start'));
+        this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-gesture-start'));
         event.preventDefault();
       } else if (gesturePointers.length === 1 && event.pointerId !== this.activeTouchDragPointerId) {
         this.touchGestureMode = 'pan';
@@ -497,6 +537,11 @@ export class MindmapView extends TextFileView {
 
     this.wrapper.addEventListener('pointermove', (event) => {
       if (event.pointerType !== 'touch' || !this.touchViewportPointers.has(event.pointerId)) return;
+
+      if (document.querySelector('.mindmap-mobile-editor')) {
+        resetTouchState();
+        return;
+      }
 
       this.touchViewportPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       event.preventDefault();
@@ -527,9 +572,27 @@ export class MindmapView extends TextFileView {
           this.cy &&
           this.touchPanLastPoint
         ) {
+          const deltaX = event.clientX - this.touchPanLastPoint.x;
+          const deltaY = event.clientY - this.touchPanLastPoint.y;
+
+          if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+            if (!this.wrapper.classList.contains('is-touch-panning')) {
+              this.wrapper.classList.add('is-touch-panning');
+              this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-pan-start'));
+              this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-gesture-start'));
+            }
+            if (!this.wrapper.hasPointerCapture(event.pointerId)) {
+              try {
+                this.wrapper.setPointerCapture(event.pointerId);
+              } catch {
+                // Some WebViews reject capture after pointer cancellation.
+              }
+            }
+          }
+
           this.cy.panBy({
-            x: event.clientX - this.touchPanLastPoint.x,
-            y: event.clientY - this.touchPanLastPoint.y,
+            x: deltaX,
+            y: deltaY,
           });
           this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-viewport-change'));
         }
@@ -571,6 +634,14 @@ export class MindmapView extends TextFileView {
 
     const endPointer = (event: PointerEvent) => {
       if (event.pointerType !== 'touch') return;
+
+      try {
+        if (this.wrapper.hasPointerCapture(event.pointerId)) {
+          this.wrapper.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // Ignore stale pointer capture after cancelled gestures.
+      }
 
       this.touchViewportPointers.delete(event.pointerId);
       const gesturePointers = getGesturePointers();
@@ -620,6 +691,17 @@ export class MindmapView extends TextFileView {
     const targetNode = contextNode ?? (this.selectedNodeLines.size === 1 ? selectedNodes[0] : null);
     const menu = new Menu();
 
+    if (targetNode) {
+      menu.addItem((item) => {
+        item
+          .setTitle('Edit node')
+          .setIcon('edit-3')
+          .onClick(() => void this.enterEditModeForNodeByLine(targetNode.line));
+      });
+
+      if (copyCount > 0) menu.addSeparator();
+    }
+
     if (copyCount > 0) {
       menu.addItem((item) => {
         item
@@ -644,8 +726,6 @@ export class MindmapView extends TextFileView {
     }
 
     if (targetNode) {
-      if (copyCount > 0) menu.addSeparator();
-
       menu.addItem((item) => {
         item
           .setTitle('Add child')
@@ -658,13 +738,6 @@ export class MindmapView extends TextFileView {
           .setTitle('Add sibling')
           .setIcon('git-pull-request-create')
           .onClick(() => void this.executeAddSiblingCommand(targetNode));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle('Edit node')
-          .setIcon('edit-3')
-          .onClick(() => void this.enterEditModeForNodeByLine(targetNode.line));
       });
 
       menu.addItem((item) => {
@@ -889,7 +962,7 @@ export class MindmapView extends TextFileView {
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
     const target = event.target as HTMLElement | null;
-    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (target?.closest('.node-editor, .cm-editor, input, textarea, select, [contenteditable="true"]')) return;
 
     if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       if (this.selectedNodeLines.size === 1) {
@@ -1760,7 +1833,9 @@ export class MindmapView extends TextFileView {
     if (!this.cy) return;
 
     const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), zoomFactor));
-    const roundedZoom = Number(nextZoom.toFixed(3));
+    const roundedZoom = this.isTouchDevice
+      ? Number((Math.round(nextZoom * 100) / 100).toFixed(2))
+      : Number(nextZoom.toFixed(3));
 
     if (renderedPosition) {
       this.cy.zoom({ level: roundedZoom, renderedPosition });

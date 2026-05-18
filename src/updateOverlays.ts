@@ -6,6 +6,7 @@ import { MindmapView } from './mindmapView';
 import { DeleteNodeModal, DeleteOption } from "./delete-node-modal";
 import { Notice } from 'obsidian';
 import type { ChildInsertPosition, SiblingInsertPosition } from './mindmap-file';
+import { createEmbeddableMarkdownEditor } from './embeddable-markdown-editor';
 
 type DropIntent =
   | { kind: 'sibling'; siblingInsertPosition: SiblingInsertPosition }
@@ -74,32 +75,20 @@ function startMobileNodeEditing(
   const panel = editor.createDiv({ cls: 'mindmap-mobile-editor-panel' });
   panel.createDiv({ cls: 'mindmap-mobile-editor-title', text: 'Edit node' });
 
-  const input = document.createElement('textarea');
-  input.className = 'mindmap-mobile-editor-textarea';
-  input.value = nodeToUse.text;
-  input.placeholder = 'Edit node';
-  input.rows = 5;
-  input.spellcheck = true;
-  panel.appendChild(input);
-
-  const actions = panel.createDiv({ cls: 'mindmap-mobile-editor-actions' });
-  const cancelButton = actions.createEl('button', { text: 'Cancel' });
-  const saveButton = actions.createEl('button', { text: 'Save' });
-  saveButton.addClass('mod-cta');
+  const inputContainer = document.createElement('div');
+  inputContainer.className = 'mindmap-mobile-editor-textarea';
+  inputContainer.style.overflow = 'auto';
+  inputContainer.style.width = '100%';
+  panel.appendChild(inputContainer);
 
   let finished = false;
-
-  const closeEditor = () => {
-    editor.remove();
-    box.classList.remove('editing');
-    box.draggable = false;
-  };
+  let markdownEditor: ReturnType<typeof createEmbeddableMarkdownEditor> | null = null;
 
   const finish = async (save: boolean) => {
     if (finished) return;
     finished = true;
 
-    const newText = view.normalizeNodeText(input.value);
+    const newText = view.normalizeNodeText(markdownEditor?.value ?? nodeToUse.text);
     closeEditor();
 
     if (save && newText !== nodeToUse.text && view.file) {
@@ -113,6 +102,62 @@ function startMobileNodeEditing(
     }
   };
 
+  const updatePanelMaxHeight = () => {
+    const visualViewport = window.visualViewport;
+    const visualHeight = visualViewport
+      ? Math.min(visualViewport.height, window.innerHeight, document.documentElement.clientHeight || window.innerHeight)
+      : Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight);
+    const offsetTop = visualViewport?.offsetTop ?? 0;
+    const mobileSheetCap = Math.max(260, Math.round(window.innerHeight * 0.58));
+    const viewportHeight = Math.max(160, Math.min(visualHeight, mobileSheetCap));
+
+    editor.style.height = `${viewportHeight}px`;
+    editor.style.top = `${offsetTop}px`;
+    editor.style.bottom = 'auto';
+
+    if (viewportHeight < 450) {
+      editor.style.paddingTop = '12px';
+      editor.style.paddingBottom = '12px';
+      editor.style.alignItems = 'center';
+    } else {
+      editor.style.paddingTop = '';
+      editor.style.paddingBottom = '8px';
+      editor.style.alignItems = '';
+    }
+
+    const overlayTop = parseFloat(getComputedStyle(editor).paddingTop) || 0;
+    const overlayBottom = parseFloat(getComputedStyle(editor).paddingBottom) || 0;
+    
+    const maxPanelHeight = Math.max(120, viewportHeight - overlayTop - overlayBottom);
+    panel.style.maxHeight = `${maxPanelHeight}px`;
+    panel.style.height = `${maxPanelHeight}px`;
+
+    const maxTextareaHeight = maxPanelHeight - actions.offsetHeight - 52;
+    inputContainer.style.maxHeight = `${Math.max(48, maxTextareaHeight)}px`;
+  };
+
+  const actions = panel.createDiv({ cls: 'mindmap-mobile-editor-actions' });
+  const cancelButton = actions.createEl('button', { text: 'Cancel' });
+  const saveButton = actions.createEl('button', { text: 'Save' });
+  saveButton.addClass('mod-cta');
+  updatePanelMaxHeight();
+
+  const detachViewportListeners = () => {
+    window.removeEventListener('resize', updatePanelMaxHeight);
+    window.removeEventListener('orientationchange', updatePanelMaxHeight);
+    window.visualViewport?.removeEventListener('resize', updatePanelMaxHeight);
+    window.visualViewport?.removeEventListener('scroll', updatePanelMaxHeight);
+  };
+
+  const closeEditor = () => {
+    detachViewportListeners();
+    markdownEditor?.destroy();
+    markdownEditor = null;
+    editor.remove();
+    box.classList.remove('editing');
+    box.draggable = false;
+  };
+
   editor.addEventListener('pointerdown', (event) => {
     event.stopPropagation();
   });
@@ -124,15 +169,7 @@ function startMobileNodeEditing(
 
     event.stopPropagation();
   });
-  input.addEventListener('keydown', (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-      event.preventDefault();
-      void finish(true);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      void finish(false);
-    }
-  });
+
   cancelButton.addEventListener('click', (event) => {
     event.preventDefault();
     void finish(false);
@@ -143,10 +180,32 @@ function startMobileNodeEditing(
   });
 
   document.body.appendChild(editor);
+  window.addEventListener('resize', updatePanelMaxHeight);
+  window.addEventListener('orientationchange', updatePanelMaxHeight);
+  window.visualViewport?.addEventListener('resize', updatePanelMaxHeight);
+  window.visualViewport?.addEventListener('scroll', updatePanelMaxHeight);
 
   requestAnimationFrame(() => {
-    input.focus({ preventScroll: true });
-    input.select();
+    markdownEditor = createEmbeddableMarkdownEditor(view.app, inputContainer, {
+      value: nodeToUse.text,
+      placeholder: 'Edit node',
+      cls: 'mindmap-mobile-editor-cm',
+      file: view.file,
+      onEscape: () => void finish(false),
+      onEnter: (_editor, mod) => {
+        if (mod) {
+          void finish(true);
+          return true;
+        }
+        return false;
+      }
+    });
+
+    updatePanelMaxHeight();
+    markdownEditor.activate();
+    markdownEditor.activeCM?.focus();
+    window.setTimeout(updatePanelMaxHeight, 250);
+    window.setTimeout(updatePanelMaxHeight, 600);
   });
 }
 
@@ -169,24 +228,24 @@ export function startNodeEditing(
   const md = box.querySelector('div[data-text]') as HTMLElement;
   if (md) md.classList.add('mm-hidden');
 
-  const input = document.createElement('textarea');
-  input.className = 'node-editor';
-  input.value = nodeToUse.text;
-  input.placeholder = 'Edit node';
-  input.rows = 1;
-  input.spellcheck = true;
-  // Appearance is driven by CSS variables set on the overlay container
+  const editorHost = document.createElement('div');
+  editorHost.className = 'node-editor node-editor-host';
+  // Appearance is driven by CSS variables set on the overlay container.
 
-  box.appendChild(input);
+  box.appendChild(editorHost);
 
   const resizeEditor = () => {
-    input.style.height = 'auto';
-    input.style.height = `${input.scrollHeight}px`;
+    const scroller = editorHost.querySelector('.cm-scroller') as HTMLElement | null;
+    if (!scroller) return;
+
+    editorHost.style.height = 'auto';
+    editorHost.style.height = `${Math.max(box.clientHeight - 22, scroller.scrollHeight)}px`;
   };
 
   let finished = false;
   const closeEditor = () => {
-    if (box.contains(input)) box.removeChild(input);
+    markdownEditor.destroy();
+    if (box.contains(editorHost)) box.removeChild(editorHost);
     if (md) md.classList.remove('mm-hidden');
     box.classList.remove('editing');
     box.draggable = !view.wrapper.classList.contains('is-touch-device');
@@ -203,7 +262,7 @@ export function startNodeEditing(
     if (finished) return;
     finished = true;
 
-    const newText = view.normalizeNodeText(input.value);
+    const newText = view.normalizeNodeText(markdownEditor.value);
     closeEditor();
 
     if (save && newText !== nodeToUse.text && view.file) {
@@ -215,32 +274,52 @@ export function startNodeEditing(
     }
   };
 
-  input.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && !ev.shiftKey) {
-      ev.preventDefault();
+  const markdownEditor = createEmbeddableMarkdownEditor(view.app, editorHost, {
+    value: nodeToUse.text,
+    placeholder: 'Edit node',
+    cls: 'node-editor-cm',
+    file: view.file,
+    singleLine: true,
+    cursorLocation: {
+      anchor: 0,
+      head: nodeToUse.text.length,
+    },
+    onEnter: (_editor, _mod, shift) => {
+      if (shift) {
+        new Notice('Line breaks inside a node are not supported.');
+        return true;
+      }
+
       void finish(true);
-    } else if (ev.key === 'Enter' && ev.shiftKey) {
-      ev.preventDefault();
-      new Notice('Line breaks inside a node are not supported.');
-    } else if ((ev.metaKey || ev.ctrlKey) && (ev.key === 'Delete' || ev.key === 'Backspace')) {
-      ev.preventDefault();
-      void deleteCurrentNode();
-    } else if (ev.key === 'Escape') {
-      ev.preventDefault();
+      return true;
+    },
+    onEscape: () => {
       if (options.isNewNode && nodeToUse.children.length === 0) {
         void deleteCurrentNode();
       } else {
         void finish(false);
       }
-    }
+    },
+    onBlur: () => void finish(true),
+    onChange: () => resizeEditor(),
   });
-  ['pointerdown', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'dragstart'].forEach((eventName) => {
-    input.addEventListener(eventName, (event) => {
+
+  editorHost.addEventListener('keydown', (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && (ev.key === 'Delete' || ev.key === 'Backspace')) {
+      ev.preventDefault();
+      void deleteCurrentNode();
+    }
+  }, { capture: true });
+
+  ['click', 'dblclick', 'dragstart'].forEach((eventName) => {
+    editorHost.addEventListener(eventName, (event) => {
       event.stopPropagation();
     });
   });
-  input.addEventListener('input', resizeEditor);
-  input.addEventListener('blur', () => void finish(true));
+  editorHost.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true, passive: false });
 
   requestAnimationFrame(() => {
     resizeEditor();
@@ -260,8 +339,8 @@ export function startNodeEditing(
       ancestor = ancestor.parentElement;
     }
 
-    input.focus({ preventScroll: true });
-    input.select();
+    markdownEditor.activeCM?.focus();
+    markdownEditor.activate();
 
     scrollContainers.forEach(({ element, left, top }) => {
       element.scrollLeft = left;
@@ -273,7 +352,7 @@ export function startNodeEditing(
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
 
-  if (view.wrapper.querySelector('.node-editor')) {
+  if (view.wrapper.querySelector('.node-editor') || document.querySelector('.mindmap-mobile-editor')) {
     return;
   }
 
@@ -286,11 +365,60 @@ export function updateOverlays(view: MindmapView): void {
   // Use requestAnimationFrame to batch overlay updates
   requestAnimationFrame(() => {
     try {
+      const isTouchViewportGesture =
+        view.wrapper.classList.contains('is-touch-panning') ||
+        view.wrapper.classList.contains('is-touch-pinching') ||
+        view.wrapper.classList.contains('is-touch-dragging');
+
+      if (isTouchViewportGesture && updateOverlayGeometry(view)) {
+        return;
+      }
+
       performOverlayUpdate(view);
     } finally {
       view.isUpdatingOverlays = false;
     }
   });
+}
+
+function updateOverlayGeometry(view: MindmapView): boolean {
+  if (!view.cy) return false;
+
+  const overlays = new Map<number, HTMLElement>();
+  view.wrapper.querySelectorAll<HTMLElement>('[data-overlay][data-node-line]').forEach((overlay) => {
+    const line = Number(overlay.dataset.nodeLine);
+    if (!Number.isNaN(line)) {
+      overlays.set(line, overlay);
+    }
+  });
+
+  if (overlays.size === 0 || overlays.size !== view.cy.nodes().length) {
+    return false;
+  }
+
+  const zoom = view.cy.zoom();
+
+  for (const node of view.cy.nodes()) {
+    const outlineNode = node.data('node') as import('./util').OutlineNode | undefined;
+    if (!outlineNode || typeof outlineNode.line !== 'number') {
+      return false;
+    }
+
+    const overlay = overlays.get(outlineNode.line);
+    const dims = view.sizeMap.get(outlineNode.line);
+    if (!overlay || !dims) {
+      return false;
+    }
+
+    const position = node.renderedPosition();
+    overlay.style.setProperty('--mindmap-left', `${position.x}px`);
+    overlay.style.setProperty('--mindmap-top', `${position.y}px`);
+    overlay.style.setProperty('--mindmap-box-width', `${dims.w}px`);
+    overlay.style.setProperty('--mindmap-box-height', `${dims.h}px`);
+    overlay.style.setProperty('--mindmap-zoom', String(zoom));
+  }
+
+  return true;
 }
 
 function performOverlayUpdate(view: MindmapView): void {
@@ -396,11 +524,22 @@ function performOverlayUpdate(view: MindmapView): void {
     checkboxToggle.setAttribute('aria-label', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
     checkboxToggle.setAttribute('title', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
     setIcon(checkboxToggle, nodeToUse.checkbox === 'checked' ? 'square-check-big' : 'square');
-    checkboxToggle.addEventListener('click', async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+    const toggleCheckbox = async () => {
       if (!view.file) return;
       await view.toggleNodeCheckbox(nodeToUse);
+    };
+    checkboxToggle.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    checkboxToggle.addEventListener('pointerup', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void toggleCheckbox();
+    });
+    checkboxToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
     });
     box.appendChild(checkboxToggle);
 
@@ -737,11 +876,15 @@ function performOverlayUpdate(view: MindmapView): void {
       let touchDragAbortController: AbortController | null = null;
       let touchDragLastPoint: { clientX: number; clientY: number } | null = null;
       let touchDragPointerId: number | null = null;
+      let longPressAbortController: AbortController | null = null;
+      let touchDragGhostSize: { width: number; height: number } | null = null;
 
       const clearLongPressTimer = () => {
         if (longPressTimer === null) return;
         window.clearTimeout(longPressTimer);
         longPressTimer = null;
+        longPressAbortController?.abort();
+        longPressAbortController = null;
       };
 
       const clearTouchDropTarget = () => {
@@ -772,6 +915,7 @@ function performOverlayUpdate(view: MindmapView): void {
         touchDragAbortController = null;
         touchDragLastPoint = null;
         touchDragPointerId = null;
+        touchDragGhostSize = null;
       };
 
       const moveTouchDragGhost = (event: PointerEvent) => {
@@ -783,9 +927,17 @@ function performOverlayUpdate(view: MindmapView): void {
       const updateTouchDragGhostScale = () => {
         if (!touchDragGhost) return;
 
-        const boxRect = box.getBoundingClientRect();
-        touchDragGhost.style.setProperty('--touch-drag-width', `${Math.max(80, Math.round(boxRect.width * 0.92))}px`);
-        touchDragGhost.style.setProperty('--touch-drag-height', `${Math.max(40, Math.round(boxRect.height * 0.92))}px`);
+        const size = touchDragGhostSize ?? (() => {
+          const boxRect = box.getBoundingClientRect();
+          touchDragGhostSize = {
+            width: Math.max(80, Math.round(boxRect.width * 0.92)),
+            height: Math.max(40, Math.round(boxRect.height * 0.92)),
+          };
+          return touchDragGhostSize;
+        })();
+
+        touchDragGhost.style.setProperty('--touch-drag-width', `${size.width}px`);
+        touchDragGhost.style.setProperty('--touch-drag-height', `${size.height}px`);
       };
 
       const updateTouchDropTarget = (event: DropPointer) => {
@@ -906,15 +1058,19 @@ function performOverlayUpdate(view: MindmapView): void {
           return;
         }
 
-        event.preventDefault();
-        event.stopPropagation();
-
         touchStartX = event.clientX;
         touchStartY = event.clientY;
         clearLongPressTimer();
+        longPressAbortController = new AbortController();
+        view.wrapper.addEventListener('mindmap-touch-gesture-start', clearLongPressTimer, {
+          signal: longPressAbortController.signal,
+        });
 
         longPressTimer = window.setTimeout(() => {
-          if (view.wrapper.classList.contains('is-touch-pinching')) {
+          if (
+            view.wrapper.classList.contains('is-touch-pinching') ||
+            view.wrapper.classList.contains('is-touch-panning')
+          ) {
             clearLongPressTimer();
             return;
           }
@@ -943,7 +1099,10 @@ function performOverlayUpdate(view: MindmapView): void {
           return;
         }
 
-        if (!touchDragActive && (deltaX > 10 || deltaY > 10)) {
+        if (
+          !touchDragActive &&
+          (deltaX > 3 || deltaY > 3 || view.wrapper.classList.contains('is-touch-panning'))
+        ) {
           clearLongPressTimer();
           return;
         }
@@ -971,6 +1130,27 @@ function performOverlayUpdate(view: MindmapView): void {
         }
 
         const target = event.target as HTMLElement;
+        const tapDeltaX = Math.abs(event.clientX - touchStartX);
+        const tapDeltaY = Math.abs(event.clientY - touchStartY);
+        const checkboxHitPadding = 22;
+        const checkboxRect = checkboxToggle.getBoundingClientRect();
+        const isNearCheckbox =
+          hasCheckbox &&
+          tapDeltaX <= 10 &&
+          tapDeltaY <= 10 &&
+          event.clientX >= checkboxRect.left - checkboxHitPadding &&
+          event.clientX <= checkboxRect.right + checkboxHitPadding &&
+          event.clientY >= checkboxRect.top - checkboxHitPadding &&
+          event.clientY <= checkboxRect.bottom + checkboxHitPadding;
+
+        if (isNearCheckbox) {
+          event.preventDefault();
+          event.stopPropagation();
+          suppressNextClick = true;
+          await toggleCheckbox();
+          return;
+        }
+
         if (
           !hadPendingLongPress ||
           target.closest('button, a, input, select, textarea, iframe, video, audio, [contenteditable="true"]')
@@ -1014,10 +1194,13 @@ function performOverlayUpdate(view: MindmapView): void {
 
     box.addEventListener('wheel', (e) => {
       const target = e.target as HTMLElement;
-      if (
-        box.classList.contains('editing') ||
-        target.closest('input, textarea, select, pre, code, iframe, video, audio')
-      ) {
+      if (box.classList.contains('editing')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      if (target.closest('input, textarea, select, pre, code, iframe, video, audio')) {
         return;
       }
 
@@ -1049,7 +1232,11 @@ function performOverlayUpdate(view: MindmapView): void {
     }, { passive: false });
 
     box.addEventListener('click', (e) => {
-      if (view.wrapper.classList.contains('is-touch-dragging')) {
+      if (
+        view.wrapper.classList.contains('is-touch-dragging') ||
+        view.wrapper.classList.contains('is-touch-panning') ||
+        view.wrapper.classList.contains('is-touch-pan-suppressed')
+      ) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -1077,6 +1264,10 @@ function performOverlayUpdate(view: MindmapView): void {
       if (view.wrapper.classList.contains('is-touch-dragging')) {
         e.preventDefault();
         e.stopPropagation();
+        return;
+      }
+
+      if (box.classList.contains('editing')) {
         return;
       }
 

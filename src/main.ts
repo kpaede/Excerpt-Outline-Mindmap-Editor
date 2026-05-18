@@ -14,6 +14,9 @@ import { renderMindmapEomeEmbed } from './embed';
 
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();
+  private autoOpenTimer: number | null = null;
+  private autoOpenRunning = false;
+  private autoOpenQueued = false;
 
   async onload() {
     this.registerView(
@@ -68,7 +71,7 @@ export default class MindmapPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('file-open', (file) => {
         if (file instanceof TFile) {
-          void this.openMarkedFileAsMindmapOnOpen(file);
+          this.scheduleOpenedFileMindmapAutoOpen(file);
         }
       })
     );
@@ -150,34 +153,79 @@ export default class MindmapPlugin extends Plugin {
     }
   }
 
-  private async openMarkedFileAsMindmapOnOpen(file: TFile): Promise<void> {
+  private scheduleOpenedFileMindmapAutoOpen(file: TFile): void {
     if (file.extension !== 'md') return;
 
-    if (this.suppressNextAutoOpen.has(file.path)) {
-      this.suppressNextAutoOpen.delete(file.path);
+    if (this.autoOpenTimer !== null) {
+      window.clearTimeout(this.autoOpenTimer);
+      this.autoOpenTimer = null;
+    }
+
+    this.autoOpenTimer = window.setTimeout(() => {
+      this.autoOpenTimer = null;
+      void this.openMarkedOpenedFileAsMindmap(file);
+    }, 80);
+  }
+
+  private async openMarkedOpenedFileAsMindmap(file: TFile, attempt: number = 0): Promise<void> {
+    if (this.autoOpenRunning) {
+      this.autoOpenQueued = true;
       return;
     }
 
-    const activeView = this.app.workspace.activeLeaf?.view;
-    if (!(activeView instanceof MarkdownView) || activeView.file?.path !== file.path) return;
+    this.autoOpenRunning = true;
+    try {
+      const activeLeaf = this.app.workspace.activeLeaf;
+      if (!activeLeaf || !this.leafHasMarkdownFileState(activeLeaf, file)) {
+        if (attempt < 5) {
+          window.setTimeout(() => {
+            void this.openMarkedOpenedFileAsMindmap(file, attempt + 1);
+          }, 80);
+        }
+        return;
+      }
+      if (this.suppressNextAutoOpen.has(file.path)) return;
+      if (!(await this.hasMindmapFrontmatterMarker(file))) return;
 
-    if (!(await this.hasFilledMindmapFrontmatter(file))) return;
-
-    await this.openMindmapReplacingLeaf(file);
+      await activeLeaf.setViewState({
+        type: VIEW_TYPE_MINDMAP,
+        state: {
+          file: file.path,
+        },
+        active: true,
+      });
+    } finally {
+      this.autoOpenRunning = false;
+      if (this.autoOpenQueued) {
+        this.autoOpenQueued = false;
+        window.setTimeout(() => {
+          void this.openMarkedOpenedFileAsMindmap(file, attempt + 1);
+        }, 100);
+      }
+    }
   }
 
-  private async hasFilledMindmapFrontmatter(file: TFile): Promise<boolean> {
+  private leafHasMarkdownFileState(leaf: WorkspaceLeaf, file: TFile): boolean {
+    const viewState = leaf.getViewState();
+    if (viewState.type === 'markdown' && viewState.state?.file === file.path) {
+      return true;
+    }
+
+    const view = leaf.view;
+    return view instanceof MarkdownView && view.file?.path === file.path;
+  }
+
+  private async hasMindmapFrontmatterMarker(file: TFile): Promise<boolean> {
     const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
     if (frontmatter && Object.prototype.hasOwnProperty.call(frontmatter, 'excerpt-outline-mindmap')) {
-      return String(frontmatter['excerpt-outline-mindmap'] ?? '').trim().length > 0;
+      return true;
     }
 
     const contents = await this.app.vault.cachedRead(file);
     const match = contents.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
     if (!match) return false;
 
-    const keyMatch = match[1].match(/^excerpt-outline-mindmap:\s*(.*)$/m);
-    return !!keyMatch?.[1]?.trim();
+    return /^excerpt-outline-mindmap(?:\s*:|$)/m.test(match[1]);
   }
 
   private getWorkspaceLeaf(split: boolean): WorkspaceLeaf {

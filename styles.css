@@ -395,6 +395,62 @@ If your plugin does not need CSS, delete this file.
   padding: 6px 10px 0;
 }
 
+.node-editor-host {
+  min-height: calc(100% - 22px);
+  max-height: calc(100% - 6px);
+  padding: 0;
+  position: absolute;
+  overflow: hidden;
+}
+
+.node-editor-host .markdown-source-view,
+.node-editor-host .cm-editor,
+.node-editor-host .cm-scroller {
+  min-height: 100%;
+  background: transparent;
+}
+
+.node-editor-host .markdown-source-view {
+  position: relative;
+}
+
+.node-editor-host .cm-editor {
+  border: none;
+  outline: none;
+  box-shadow: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.node-editor-host .cm-focused {
+  outline: none !important;
+}
+
+.node-editor-host .cm-scroller {
+  overflow: hidden;
+  font-family: var(--mindmap-font, inherit);
+  line-height: 1.35;
+}
+
+.node-editor-host .cm-content {
+  padding: 6px 10px 0;
+  color: var(--mindmap-color, var(--text-normal));
+  caret-color: var(--mindmap-color, var(--text-normal));
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.node-editor-host .cm-line {
+  padding: 0;
+}
+
+.node-editor-host .cm-gutters {
+  display: none;
+}
+
 /* Node controls (hidden by default, shown when overlay has .hovering) */
 .node-controls {
   position: absolute;
@@ -912,6 +968,87 @@ body div.layout-options-modal {
   font-family: var(--mindmap-font, inherit);
 }
 
+.mindmap-mobile-editor {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 1800;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(72px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  background: rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.mindmap-mobile-editor-panel {
+  width: min(680px, 100%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  padding: 12px;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mindmap-mobile-editor-title {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.mindmap-mobile-editor-textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  box-sizing: border-box;
+}
+
+.mindmap-mobile-editor-textarea .markdown-source-view {
+  position: relative;
+}
+
+.mindmap-mobile-editor-cm,
+.mindmap-mobile-editor-cm .cm-editor,
+.mindmap-mobile-editor-cm .cm-scroller {
+  min-height: 100%;
+}
+
+.mindmap-mobile-editor-cm .cm-scroller {
+  overflow: auto;
+}
+
+.mindmap-mobile-editor-cm .cm-content {
+  padding: 10px 12px;
+}
+
+.mindmap-mobile-editor-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mindmap-mobile-editor-actions button {
+  min-height: 42px;
+}
+
+body .suggestion-container {
+  z-index: 2600;
+}
+
 
 .mindmap-wrapper.is-box-selecting .mindmap-overlay {
     pointer-events: none;
@@ -1054,6 +1191,18 @@ body div.layout-options-modal {
 .mindmap-wrapper.is-touch-device .mindmap-overlay {
   touch-action: none;
   user-select: none;
+  transform: translate3d(-50%, -50%, 0) scale(var(--mindmap-zoom, 1));
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform, left, top;
+  outline: 1px solid transparent;
+}
+
+.mindmap-wrapper.is-touch-device .mindmap-overlay .markdown-rendered {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0) scale(var(--mindmap-scale, 1));
+  will-change: transform;
 }
 
 .mindmap-wrapper.is-touch-device [data-overlay],
@@ -1098,68 +1247,26 @@ body div.layout-options-modal {
 
 .mindmap-wrapper.is-touch-device .checkbox-toggle,
 .mindmap-wrapper.is-touch-device .mindmap-zotero-badge {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
 }
 
-.mindmap-mobile-editor {
-  position: fixed;
-  inset: 0;
-  z-index: 11000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: calc(var(--mindmap-mobile-toolbar-top, 64px) + 58px) 12px 12px;
-  background: rgba(0, 0, 0, 0.22);
+.mindmap-wrapper.is-touch-device .checkbox-toggle {
+  top: -10px;
+  left: -10px;
 }
 
-.mindmap-mobile-editor-panel {
-  width: min(100%, 560px);
-  max-height: calc(100vh - var(--mindmap-mobile-toolbar-top, 64px) - 82px);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  background: var(--background-primary);
-  color: var(--text-normal);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+.mindmap-wrapper.is-touch-device .mindmap-zotero-badge {
+  right: -10px;
+  bottom: -10px;
 }
 
-.mindmap-mobile-editor-title {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.mindmap-mobile-editor-textarea {
-  width: 100%;
-  min-height: 140px;
-  max-height: 42vh;
-  resize: vertical;
-  padding: 10px 12px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  background: var(--background-primary);
-  color: var(--text-normal);
-  caret-color: var(--text-normal);
-  font: inherit;
-  line-height: 1.35;
-  box-sizing: border-box;
-}
-
-.mindmap-mobile-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.mindmap-mobile-editor-actions button {
-  min-height: 42px;
-  padding: 8px 14px;
+.mindmap-wrapper.is-touch-device .checkbox-toggle svg,
+.mindmap-wrapper.is-touch-device .mindmap-zotero-badge svg {
+  width: 20px;
+  height: 20px;
 }
 
 @media (pointer: coarse), (max-width: 700px) {
