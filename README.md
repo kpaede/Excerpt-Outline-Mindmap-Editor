@@ -35,7 +35,7 @@ There is no proprietary format and no external storage.
 - Keyboard Navigation (Spatial and Hierarchical)
 - you can select various nodes at once
 - Read-only mindmap embeds via `mindmap-eome` code blocks
-- Files marked with `excerpt-outline-mindmap` frontmatter open directly in the mindmap view
+- With the frontmatter key `excerpt-outline-mindmap`, the file opens directly in the mindmap view.
 
 ---
 
@@ -62,17 +62,13 @@ Mindmap files are regular Markdown files made from indented list items:
 
 The plugin does not use a custom file format. If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible.
 
-### Open marked files as mindmaps automatically
+### Frontmatter storage
 
-Add `excerpt-outline-mindmap` to a Markdown file's frontmatter to make Obsidian open that file directly in the mindmap view:
+Mindmap display settings are stored in the file's `excerpt-outline-mindmap` frontmatter key.
 
-```yaml
----
-excerpt-outline-mindmap:
----
-```
+When this key contains stored mindmap settings, the file opens directly in the mindmap view when you open the file. This is only checked at file-open time. The plugin does not react to typing, metadata updates, or normal editing inside an already open Obsidian Markdown editor.
 
-The same frontmatter key is also used to store mindmap layout and display settings for the file.
+You can still explicitly open any mindmap file as regular Markdown from the plugin menu.
 
 ---
 
@@ -91,11 +87,12 @@ The vertical toolbar provides:
 
 - **Undo** and **Redo**
 - **Fit to view**
-- **Layout options** for direction, spacing, ranking, and related graph layout settings
+- A clickable **zoom percentage** with a dedicated zoom slider
+- **Layout options** for direction, alignment, spacing, ranking, and resetting layout settings
 - **Node options** such as node width
 - **General settings**, including keyboard navigation mode
 
-Layout and general options are stored in the file frontmatter, so different mindmaps can keep different visual settings.
+Zoom, layout, node, and general options are stored in the file frontmatter, so different mindmaps can keep different visual settings.
 
 ### Select nodes
 
@@ -111,6 +108,7 @@ Layout and general options are stored in the file frontmatter, so different mind
 - Right-click a node and choose **Edit node** to edit it from the context menu.
 - Use the hover controls or the context menu to choose **Add child** or **Add sibling**.
 - Newly created child or sibling nodes enter edit mode automatically so you can start typing right away.
+- While editing a node, text wraps across multiple lines. **Enter** saves; **Shift + Enter** inserts a line break.
 
 ### Move and restructure nodes
 
@@ -140,12 +138,22 @@ Right-click a node to open the context menu. Available actions include:
 
 - **Arrow keys** navigate through nodes.
 - The currently selected node is centered automatically while navigating with the arrow keys.
+- **Enter** edits the selected node.
+- **Cmd/Ctrl + Arrow Down** adds a child to the selected node.
+- **Cmd/Ctrl + Shift + Arrow Down** adds a sibling after the selected node.
 - **Cmd/Ctrl + C** copies the selected node or selected nodes.
 - **Cmd/Ctrl + X** cuts the selected node or selected nodes.
 - **Cmd/Ctrl + V** pastes onto the currently selected node.
 - **Delete**/**Backspace** deletes the selected node or selected nodes.
 
 When deleting nodes that have unselected children, the plugin asks whether to delete the full subtree or only the selected/current node while keeping its children.
+
+### Layout and zoom
+
+- Select **Layout options** from the toolbar to adjust rank direction, left/right alignment, node separation, rank separation, spacing factor, and ranker.
+- Use **Reset layout options** to remove stored layout settings from the file frontmatter and return to defaults.
+- Select the zoom percentage in the toolbar to open the zoom menu.
+- Zoom changes are stored as `zoomFactor` in the file frontmatter.
 
 ### Embed a mindmap in another note
 

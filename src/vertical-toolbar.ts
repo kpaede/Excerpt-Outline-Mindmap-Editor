@@ -5,6 +5,7 @@ import type { MindmapView } from './mindmapView';
 import { LayoutOptionsMenu } from './layout-options-menu';
 import { NodeOptionsMenu, NodeOptions } from './node-options-menu';
 import { GeneralSettingsMenu, GeneralSettings } from './general-settings-menu';
+import { ZoomOptionsMenu } from './zoom-options-menu';
 
 export class VerticalToolbar {
   private container: HTMLDivElement;
@@ -12,6 +13,8 @@ export class VerticalToolbar {
   private currentNodeMenu: NodeOptionsMenu | null = null;
   private currentLayoutMenu: LayoutOptionsMenu | null = null;
   private currentGeneralMenu: GeneralSettingsMenu | null = null;
+  private currentZoomMenu: ZoomOptionsMenu | null = null;
+  private zoomIndicator?: HTMLButtonElement;
 
   private nodeOptions: NodeOptions = {
     nodeWidth: 300
@@ -56,6 +59,11 @@ export class VerticalToolbar {
       this.view.fitToView();
     };
 
+    this.zoomIndicator = this.container.createEl('button', { cls: 'mindmap-zoom-indicator' });
+    this.zoomIndicator.setAttribute('type', 'button');
+    this.zoomIndicator.addEventListener('click', () => this.openZoomOptions(this.zoomIndicator!));
+    this.setZoomFactor(this.view.layoutOptions.zoomFactor ?? 1);
+
     // Separator
     const separator = this.container.createDiv({ cls: 'toolbar-separator' });
     
@@ -88,6 +96,8 @@ export class VerticalToolbar {
   }
 
   private openGeneralSettings(buttonEl: HTMLElement) {
+    this.closeZoomOptions();
+
     if (this.currentGeneralMenu) {
       this.currentGeneralMenu.close();
       this.currentGeneralMenu = null;
@@ -105,6 +115,8 @@ export class VerticalToolbar {
   }
 
   private openLayoutOptions(buttonEl: HTMLElement) {
+    this.closeZoomOptions();
+
     // Close existing menu if open
     if (this.currentLayoutMenu) {
       this.currentLayoutMenu.close();
@@ -119,6 +131,8 @@ export class VerticalToolbar {
   }
 
   private openNodeOptions(buttonEl: HTMLElement) {
+    this.closeZoomOptions();
+
     // Close existing menu if open
     if (this.currentNodeMenu) {
       this.currentNodeMenu.close();
@@ -137,8 +151,48 @@ export class VerticalToolbar {
     );
   }
 
+  private openZoomOptions(buttonEl: HTMLElement) {
+    if (this.currentZoomMenu) {
+      if (this.currentZoomMenu.isOpen()) {
+        this.currentZoomMenu.close();
+        this.currentZoomMenu = null;
+        return;
+      }
+      this.currentZoomMenu = null;
+    }
+
+    if (this.currentLayoutMenu) {
+      this.currentLayoutMenu.close();
+      this.currentLayoutMenu = null;
+    }
+    if (this.currentNodeMenu) {
+      this.currentNodeMenu.close();
+      this.currentNodeMenu = null;
+    }
+    if (this.currentGeneralMenu) {
+      this.currentGeneralMenu.close();
+      this.currentGeneralMenu = null;
+    }
+
+    this.currentZoomMenu = new ZoomOptionsMenu(buttonEl, this.view);
+  }
+
+  private closeZoomOptions(): void {
+    if (!this.currentZoomMenu) return;
+
+    this.currentZoomMenu.close();
+    this.currentZoomMenu = null;
+  }
+
   private undoButton?: HTMLElement;
   private redoButton?: HTMLElement;
+
+  public setZoomFactor(zoomFactor: number): void {
+    if (!this.zoomIndicator) return;
+
+    this.zoomIndicator.textContent = `${Math.round(zoomFactor * 100)}%`;
+    this.zoomIndicator.setAttribute('aria-label', `Zoom ${Math.round(zoomFactor * 100)}%`);
+  }
 
   public updateUndoRedoButtons(): void {
     if (this.undoButton) {

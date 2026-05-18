@@ -48,13 +48,38 @@ export interface LayoutOptions {
   rankSep?: number;
   marginx?: number;
   marginy?: number;
-  acyciler?: 'greedy';
+  acyclicer?: 'greedy';
   ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   spacingFactor?: number;
+  zoomFactor?: number;
 }
 
 export interface MindmapViewState {
   file?: string;
+}
+
+export function createDefaultLayoutOptions() {
+  return {
+    rankDir: 'TB' as 'TB' | 'BT' | 'LR' | 'RL',
+    align: undefined as 'UL' | 'UR' | 'DL' | 'DR' | undefined,
+    nodeSep: 50,
+    edgeSep: 10,
+    rankSep: 50,
+    marginx: 0,
+    marginy: 0,
+    acyclicer: undefined as 'greedy' | undefined,
+    ranker: 'network-simplex' as 'network-simplex' | 'tight-tree' | 'longest-path',
+    nodeWidth: 100,
+    nodeHeight: 40,
+    edgeMinLen: 1,
+    edgeWeight: 1,
+    edgeWidth: 0,
+    edgeHeight: 0,
+    edgeLabelPos: 'r' as 'l' | 'c' | 'r',
+    edgeLabelOffset: 10,
+    spacingFactor: 1.0,
+    zoomFactor: undefined as number | undefined,
+  };
 }
 
 export class MindmapView extends TextFileView {
@@ -78,6 +103,7 @@ export class MindmapView extends TextFileView {
   private suppressNextEmptyClick: boolean = false;
   private mindmapClipboardText: string | null = null;
   private pendingCutNodeLines: Set<number> = new Set();
+  private zoomSaveTimeout: number | null = null;
   private boxStartX: number = 0;
   private boxStartY: number = 0;
 
@@ -90,26 +116,7 @@ export class MindmapView extends TextFileView {
   /**
    * Layout-Optionen, die sich über das Modal ändern lassen.
    */
-  public layoutOptions = {
-    rankDir: 'TB' as 'TB' | 'BT' | 'LR' | 'RL',
-    align: undefined as 'UL' | 'UR' | 'DL' | 'DR' | undefined,
-    nodeSep: 50,
-    edgeSep: 10,
-    rankSep: 50,
-    marginx: 0,
-    marginy: 0,
-    acyciler: undefined as 'greedy' | undefined,
-    ranker: 'network-simplex' as 'network-simplex' | 'tight-tree' | 'longest-path',
-    nodeWidth: 100,
-    nodeHeight: 40,
-    edgeMinLen: 1,
-    edgeWeight: 1,
-    edgeWidth: 0,
-    edgeHeight: 0,
-    edgeLabelPos: 'r' as 'l' | 'c' | 'r',
-    edgeLabelOffset: 10,
-    spacingFactor: 1.0,
-  };
+  public layoutOptions = createDefaultLayoutOptions();
 
   /**
    * Diese Methode wrappers die freie Funktion aus updateOverlays.ts
@@ -279,12 +286,9 @@ export class MindmapView extends TextFileView {
         const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), currentZoom * zoomFactor));
         const containerRect = this.cy.container()?.getBoundingClientRect();
 
-        this.cy.zoom({
-          level: nextZoom,
-          renderedPosition: {
-            x: containerRect ? event.clientX - containerRect.left : event.clientX,
-            y: containerRect ? event.clientY - containerRect.top : event.clientY,
-          },
+        this.setZoomFactor(nextZoom, true, {
+          x: containerRect ? event.clientX - containerRect.left : event.clientX,
+          y: containerRect ? event.clientY - containerRect.top : event.clientY,
         });
         return;
       }
@@ -554,6 +558,30 @@ export class MindmapView extends TextFileView {
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    if ((event.metaKey || event.ctrlKey) && event.key === 'ArrowDown') {
+      if (this.selectedNodeLines.size === 1) {
+        event.preventDefault();
+        const selectedNode = this.getNodeByLine(Array.from(this.selectedNodeLines)[0]);
+        if (selectedNode) {
+          if (event.shiftKey) {
+            void this.executeAddSiblingCommand(selectedNode);
+          } else {
+            void this.executeAddChildCommand(selectedNode);
+          }
+        }
+      }
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (this.selectedNodeLines.size === 1) {
+        event.preventDefault();
+        const selectedNodeLine = Array.from(this.selectedNodeLines)[0];
+        void this.enterEditModeForNodeByLine(selectedNodeLine);
+      }
+      return;
+    }
 
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
@@ -1013,7 +1041,7 @@ export class MindmapView extends TextFileView {
       rankSep: L.rankSep,
       marginx: L.marginx,
       marginy: L.marginy,
-      acyciler: L.acyciler,
+      acyclicer: L.acyclicer,
       ranker: L.ranker,
       fit: false,
       padding: 30,
@@ -1030,6 +1058,7 @@ export class MindmapView extends TextFileView {
     if (!this.cy) return;
     this.cy.fit(this.cy.elements(), 50);
     this.cy.center(this.cy.elements());
+    this.rememberCurrentZoom(true);
   }
 
   async onLoadFile(file: TFile): Promise<void> {
@@ -1058,9 +1087,10 @@ export class MindmapView extends TextFileView {
       if (typeof mindmapData.rankSep === 'number') layoutUpdates.rankSep = mindmapData.rankSep;
       if (typeof mindmapData.marginx === 'number') layoutUpdates.marginx = mindmapData.marginx;
       if (typeof mindmapData.marginy === 'number') layoutUpdates.marginy = mindmapData.marginy;
-      if (mindmapData.acyciler) layoutUpdates.acyciler = mindmapData.acyciler;
+      if (mindmapData.acyclicer) layoutUpdates.acyclicer = mindmapData.acyclicer;
       if (mindmapData.ranker) layoutUpdates.ranker = mindmapData.ranker;
       if (typeof mindmapData.spacingFactor === 'number') layoutUpdates.spacingFactor = mindmapData.spacingFactor;
+      if (typeof mindmapData.zoomFactor === 'number') layoutUpdates.zoomFactor = mindmapData.zoomFactor;
       
       if (Object.keys(layoutUpdates).length > 0) {
         this.layoutOptions = { ...this.layoutOptions, ...layoutUpdates };
@@ -1348,6 +1378,84 @@ export class MindmapView extends TextFileView {
     }
     
     this.relayout();
+  }
+
+  public async resetLayoutOptions(): Promise<void> {
+    const zoomFactor = this.layoutOptions.zoomFactor;
+    this.layoutOptions = {
+      ...createDefaultLayoutOptions(),
+      zoomFactor,
+    };
+
+    if (this.file) {
+      try {
+        await this.frontmatterStorage.resetLayoutOptions(this.file);
+      } catch (error) {
+        console.error('Failed to reset layout options in frontmatter:', error);
+      }
+    }
+
+    this.relayout();
+  }
+
+  public setZoomFactor(
+    zoomFactor: number,
+    save: boolean = true,
+    renderedPosition?: { x: number; y: number }
+  ): void {
+    if (!this.cy) return;
+
+    const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), zoomFactor));
+    const roundedZoom = Number(nextZoom.toFixed(3));
+
+    if (renderedPosition) {
+      this.cy.zoom({ level: roundedZoom, renderedPosition });
+    } else {
+      const containerRect = this.cy.container()?.getBoundingClientRect();
+      this.cy.zoom({
+        level: roundedZoom,
+        renderedPosition: {
+          x: containerRect ? containerRect.width / 2 : 0,
+          y: containerRect ? containerRect.height / 2 : 0,
+        },
+      });
+    }
+
+    this.layoutOptions.zoomFactor = roundedZoom;
+    this.toolbar?.setZoomFactor(roundedZoom);
+
+    if (save) {
+      this.queueZoomFactorSave(roundedZoom);
+    }
+  }
+
+  public rememberCurrentZoom(save: boolean = false): void {
+    if (!this.cy) return;
+
+    const zoomFactor = Number(this.cy.zoom().toFixed(3));
+    this.layoutOptions.zoomFactor = zoomFactor;
+    this.toolbar?.setZoomFactor(zoomFactor);
+
+    if (save) {
+      this.queueZoomFactorSave(zoomFactor);
+    }
+  }
+
+  private queueZoomFactorSave(zoomFactor: number): void {
+    if (this.zoomSaveTimeout !== null) {
+      window.clearTimeout(this.zoomSaveTimeout);
+    }
+
+    this.zoomSaveTimeout = window.setTimeout(async () => {
+      this.zoomSaveTimeout = null;
+      if (!this.file || !this.frontmatterStorage) return;
+
+      try {
+        await this.frontmatterStorage.updateLayoutOptions(this.file, { zoomFactor });
+      } catch (error) {
+        console.error('Failed to save zoom factor to frontmatter:', error);
+      }
+    }, 350);
   }
 
   public setNodeOptions(options: NodeOptions) {

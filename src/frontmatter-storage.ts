@@ -18,9 +18,10 @@ export interface ExcerptOutlineMindmapData {
   rankSep?: number;
   marginx?: number;
   marginy?: number;
-  acyciler?: 'greedy';
+  acyclicer?: 'greedy';
   ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   spacingFactor?: number;
+  zoomFactor?: number;
 }
 
 export class FrontmatterStorage {
@@ -53,8 +54,8 @@ export class FrontmatterStorage {
       if (!key || value === undefined) return;
 
       const trimmedKey = key.trim();
-      const trimmedValue = value.trim();
-      const dataKey = trimmedKey as keyof ExcerptOutlineMindmapData;
+      let trimmedValue = value.trim();
+      const normalizedKey = trimmedKey === 'acyciler' ? 'acyclicer' : trimmedKey;
 
       if (
         trimmedKey === 'nodeWidth' ||
@@ -63,21 +64,30 @@ export class FrontmatterStorage {
         trimmedKey === 'rankSep' ||
         trimmedKey === 'marginx' ||
         trimmedKey === 'marginy' ||
-        trimmedKey === 'spacingFactor'
+        trimmedKey === 'spacingFactor' ||
+        trimmedKey === 'zoomFactor'
       ) {
         const numValue = parseFloat(trimmedValue);
         if (!isNaN(numValue)) {
           typedResult[trimmedKey] = numValue;
         }
       } else {
-        typedResult[trimmedKey] = trimmedValue;
+        if (normalizedKey === 'align') {
+          if (trimmedValue === 'DL') trimmedValue = 'UL';
+          if (trimmedValue === 'DR') trimmedValue = 'UR';
+        }
+        typedResult[normalizedKey] = trimmedValue;
       }
     });
 
     return result;
   }
 
-  private async saveMindmapData(file: TFile, data: ExcerptOutlineMindmapData): Promise<void> {
+  private async saveMindmapData(
+    file: TFile,
+    data: ExcerptOutlineMindmapData,
+    preserveEmptyMarker: boolean = false
+  ): Promise<void> {
     const fileManager = this.app.fileManager as {
       processFrontMatter?: (file: TFile, processor: (frontmatter: Record<string, unknown>) => void) => Promise<void>;
     } | null;
@@ -89,6 +99,8 @@ export class FrontmatterStorage {
         await fileManager.processFrontMatter(file, (frontmatter) => {
           if (hasData) {
             frontmatter['excerpt-outline-mindmap'] = this.encodeToString(data);
+          } else if (preserveEmptyMarker) {
+            frontmatter['excerpt-outline-mindmap'] = '';
           } else {
             delete frontmatter['excerpt-outline-mindmap'];
           }
@@ -106,14 +118,21 @@ export class FrontmatterStorage {
             } else {
               fmText = `${fmText}\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n`;
             }
+          } else if (preserveEmptyMarker) {
+            if (/^excerpt-outline-mindmap:/m.test(fmText)) {
+              fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, 'excerpt-outline-mindmap:\n');
+            } else {
+              fmText = `${fmText}\nexcerpt-outline-mindmap:\n`;
+            }
           } else {
             fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, '');
           }
 
           const newContents = contents.replace(fmMatch[0], `---\n${fmText}---\n`);
           await this.app.vault.modify(file, newContents);
-        } else if (hasData) {
-          const fm = `---\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n---\n\n`;
+        } else if (hasData || preserveEmptyMarker) {
+          const value = hasData ? ` ${this.encodeToString(data)}` : '';
+          const fm = `---\nexcerpt-outline-mindmap:${value}\n---\n\n`;
           await this.app.vault.modify(file, fm + contents);
         }
       }
@@ -150,6 +169,26 @@ export class FrontmatterStorage {
     });
 
     await this.saveMindmapData(file, currentData as ExcerptOutlineMindmapData);
+  }
+
+  async resetLayoutOptions(file: TFile): Promise<void> {
+    const cache = this.app.metadataCache.getFileCache(file);
+    const hadMindmapMarker = !!cache?.frontmatter &&
+      Object.prototype.hasOwnProperty.call(cache.frontmatter, 'excerpt-outline-mindmap');
+    const currentData = await this.loadMindmapData(file);
+
+    delete currentData.rankDir;
+    delete currentData.align;
+    delete currentData.nodeSep;
+    delete currentData.edgeSep;
+    delete currentData.rankSep;
+    delete currentData.marginx;
+    delete currentData.marginy;
+    delete currentData.acyclicer;
+    delete currentData.ranker;
+    delete currentData.spacingFactor;
+
+    await this.saveMindmapData(file, currentData, hadMindmapMarker);
   }
 
   async updateGeneralSettings(file: TFile, generalSettings: GeneralSettings): Promise<void> {

@@ -20,7 +20,9 @@ export class LayoutOptionsMenu {
 
     // Position relative to anchor element
     const rect = anchorEl.getBoundingClientRect();
-    menu.style.setProperty('--menu-left', `${rect.left + window.scrollX - 340}px`);
+    const menuWidth = 460;
+    const left = Math.max(12, Math.min(rect.left + window.scrollX - menuWidth - 12, window.scrollX + window.innerWidth - menuWidth - 12));
+    menu.style.setProperty('--menu-left', `${left}px`);
     menu.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
 
     this.buildMenuContent(menu);
@@ -56,17 +58,15 @@ export class LayoutOptionsMenu {
     this.addDropdownSetting(
       container,
       'Alignment',
-      'Alignment for rank nodes',
+      'Bias node alignment within each rank',
       {
         none: 'none',
-        UL: 'UL (Up-Left)',
-        UR: 'UR (Up-Right)',
-        DL: 'DL (Down-Left)',
-        DR: 'DR (Down-Right)',
+        UL: 'Left',
+        UR: 'Right',
       },
       opts.align ?? 'none',
       async (value) => {
-        const alignValue = value === 'none' ? undefined : (value as 'UL' | 'UR' | 'DL' | 'DR');
+        const alignValue = value === 'none' ? undefined : (value as 'UL' | 'UR');
         opts.align = alignValue;
         this.view.relayout();
         await this.view.updateLayoutOptions({ align: alignValue });
@@ -92,31 +92,18 @@ export class LayoutOptionsMenu {
       }
     );
 
-    // Sliders - make all callbacks async and save to frontmatter
+    // Sliders - make all callbacks async and save to frontmatter.
+    // Edge separation and graph margins are intentionally omitted here:
+    // with our straight, unlabeled edges and centered viewport they have no useful visible effect.
     this.addSliderSetting(container, 'Node Separation', 'Pixels between adjacent nodes horizontally', 0, 300, 10, () => opts.nodeSep, async (v) => { 
       opts.nodeSep = v; 
       this.view.relayout(); 
       await this.saveToFrontmatter({ nodeSep: v }); 
     });
-    this.addSliderSetting(container, 'Edge Separation', 'Pixels between edges horizontally', 0, 200, 5, () => opts.edgeSep, async (v) => { 
-      opts.edgeSep = v; 
-      this.view.relayout(); 
-      await this.saveToFrontmatter({ edgeSep: v }); 
-    });
     this.addSliderSetting(container, 'Rank Separation', 'Pixels between ranks vertically', 0, 300, 10, () => opts.rankSep, async (v) => { 
       opts.rankSep = v; 
       this.view.relayout(); 
       await this.saveToFrontmatter({ rankSep: v }); 
-    });
-    this.addSliderSetting(container, 'Margin X', 'Pixels of margin left/right', 0, 100, 5, () => opts.marginx, async (v) => { 
-      opts.marginx = v; 
-      this.view.relayout(); 
-      await this.saveToFrontmatter({ marginx: v }); 
-    });
-    this.addSliderSetting(container, 'Margin Y', 'Pixels of margin top/bottom', 0, 100, 5, () => opts.marginy, async (v) => { 
-      opts.marginy = v; 
-      this.view.relayout(); 
-      await this.saveToFrontmatter({ marginy: v }); 
     });
     this.addSliderSetting(container, 'Spacing Factor', 'Overall spacing multiplier', 0.5, 3.0, 0.1, () => opts.spacingFactor, async (v) => { 
       opts.spacingFactor = v; 
@@ -124,7 +111,13 @@ export class LayoutOptionsMenu {
       await this.saveToFrontmatter({ spacingFactor: v }); 
     });
 
-    // Close button
+    const resetBtn = container.createEl('button', { text: 'Reset layout options' });
+    resetBtn.addClass('fullwidth-button', 'layout-reset-button');
+    resetBtn.addEventListener('click', async () => {
+      await this.view.resetLayoutOptions();
+      this.close();
+    });
+
     const closeBtn = container.createEl('button', { text: 'Close' });
     closeBtn.addClass('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
@@ -165,7 +158,8 @@ export class LayoutOptionsMenu {
     max: number,
     step: number,
     getValue: () => number,
-    setValue: (v: number) => Promise<void>
+    setValue: (v: number) => Promise<void>,
+    formatValue: (v: number) => string = (v) => String(v)
   ): void {
     const settingEl = container.createDiv({ cls: 'setting-item' });
     
@@ -181,12 +175,15 @@ export class LayoutOptionsMenu {
     slider.step = String(step);
     slider.value = String(getValue());
     
-    const valueEl = controlEl.createEl('span', { text: String(getValue()) });
+    const valueEl = controlEl.createEl('span', {
+      text: formatValue(getValue()),
+      cls: 'setting-item-value',
+    });
     
     slider.addEventListener('input', async () => {
       const newVal = Number(slider.value);
       await setValue(newVal);
-      valueEl.textContent = String(newVal);
+      valueEl.textContent = formatValue(newVal);
     });
   }
 

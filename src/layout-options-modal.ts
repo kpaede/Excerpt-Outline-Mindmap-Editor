@@ -72,22 +72,20 @@ export class LayoutOptionsModal extends Modal {
     // ──────────── 2) Alignment ────────────
     new Setting(contentEl)
       .setName('Alignment')
-      .setDesc('Alignment for rank nodes (UL, UR, DL, DR, none)')
+      .setDesc('Alignment bias for rank nodes')
       .addDropdown((dropdown: DropdownComponent) => {
         const choices: Record<string, string> = {
           none: 'none',
-          UL: 'UL (Up-Left)',
-          UR: 'UR (Up-Right)',
-          DL: 'DL (Down-Left)',
-          DR: 'DR (Down-Right)',
+          UL: 'Left',
+          UR: 'Right',
         };
         Object.entries(choices).forEach(([key, label]) => {
           dropdown.addOption(key, label);
         });
         // Standardwert auf UL setzen, falls undefined
-        dropdown.setValue(opts.align ?? 'UL');
+        dropdown.setValue(opts.align === 'DR' ? 'UR' : opts.align === 'DL' ? 'UL' : opts.align ?? 'UL');
         dropdown.onChange((value) => {
-          opts.align = value === 'none' ? undefined : (value as 'UL' | 'UR' | 'DL' | 'DR');
+          opts.align = value === 'none' ? undefined : (value as 'UL' | 'UR');
           this.view.relayout();
           this.saveLayoutOptions();
         });
@@ -105,9 +103,9 @@ export class LayoutOptionsModal extends Modal {
         Object.entries(choices).forEach(([key, label]) => {
           dropdown.addOption(key, label);
         });
-        dropdown.setValue(opts.acyciler ?? 'none');
+        dropdown.setValue(opts.acyclicer ?? 'none');
         dropdown.onChange((value) => {
-          opts.acyciler = value === 'none' ? undefined : 'greedy';
+          opts.acyclicer = value === 'none' ? undefined : 'greedy';
           this.view.relayout();
           this.saveLayoutOptions();
         });

@@ -31,13 +31,19 @@ export function startNodeEditing(
   const md = box.querySelector('div[data-text]') as HTMLElement;
   if (md) md.classList.add('mm-hidden');
 
-  const input = document.createElement('input');
-  input.type = 'text';
+  const input = document.createElement('textarea');
   input.className = 'node-editor';
   input.value = nodeToUse.text;
+  input.rows = 1;
+  input.spellcheck = true;
   // Appearance is driven by CSS variables set on the overlay container
 
   box.appendChild(input);
+
+  const resizeEditor = () => {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  };
 
   let finished = false;
   const finish = async (save: boolean) => {
@@ -53,10 +59,14 @@ export function startNodeEditing(
     if (save && newText !== nodeToUse.text && view.file) {
       await view.executeEditNodeCommand(nodeToUse, newText);
     }
+
+    if (save) {
+      view.selectNode(nodeToUse.line);
+    }
   };
 
   input.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter') {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
       ev.preventDefault();
       void finish(true);
     } else if (ev.key === 'Escape') {
@@ -64,9 +74,17 @@ export function startNodeEditing(
       void finish(false);
     }
   });
+  ['pointerdown', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'dragstart'].forEach((eventName) => {
+    input.addEventListener(eventName, (event) => {
+      event.stopPropagation();
+    });
+  });
+  input.addEventListener('input', resizeEditor);
   input.addEventListener('blur', () => void finish(true));
 
   requestAnimationFrame(() => {
+    resizeEditor();
+
     const scrollContainers: Array<{ element: HTMLElement; left: number; top: number }> = [];
     let ancestor: HTMLElement | null = box.parentElement;
 
@@ -95,7 +113,7 @@ export function startNodeEditing(
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
 
-  if (view.wrapper.querySelector('input.node-editor')) {
+  if (view.wrapper.querySelector('.node-editor')) {
     return;
   }
 

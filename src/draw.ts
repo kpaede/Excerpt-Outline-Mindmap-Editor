@@ -298,7 +298,7 @@ export async function draw(view: MindmapView): Promise<void> {
     rankSep: L.rankSep,
     marginx: L.marginx,
     marginy: L.marginy,
-    acyciler: L.acyciler,
+    acyclicer: L.acyclicer,
     ranker: L.ranker,
     fit: false,
     padding: 20,
@@ -342,10 +342,17 @@ export async function draw(view: MindmapView): Promise<void> {
 
     view.cy.on('layoutstop', () => {
       if (!view.firstFitDone) {
-        view.cy!.fit(view.cy!.elements(), 50);
         view.cy!.center(view.cy!.elements());
+        if (typeof view.layoutOptions.zoomFactor === 'number') {
+          view.setZoomFactor(view.layoutOptions.zoomFactor, false);
+        } else {
+          view.cy!.fit(view.cy!.elements(), 50);
+          view.cy!.center(view.cy!.elements());
+          view.rememberCurrentZoom(false);
+        }
         view.firstFitDone = true;
       }
+      view.rememberCurrentZoom(false);
       view.updateOverlays();
     });
 
