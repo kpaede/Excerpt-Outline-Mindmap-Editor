@@ -653,7 +653,8 @@ export class MindmapView extends TextFileView {
   };
 
   public generalSettings: GeneralSettings = {
-    keyboardNavigation: 'hierarchical'
+    keyboardNavigation: 'hierarchical',
+    showCheckboxesOnHover: false,
   };
 
   private nodeOptions: NodeOptions = {
@@ -914,6 +915,10 @@ export class MindmapView extends TextFileView {
         this.generalSettings.keyboardNavigation = mindmapData.keyboardNavigation;
       }
 
+      if (typeof mindmapData.showCheckboxesOnHover === 'boolean') {
+        this.generalSettings.showCheckboxesOnHover = mindmapData.showCheckboxesOnHover;
+      }
+
       // Load node width from frontmatter (flat structure)
       if (typeof mindmapData.nodeWidth === 'number') {
         this.nodeOptions.nodeWidth = mindmapData.nodeWidth;
@@ -1003,6 +1008,37 @@ export class MindmapView extends TextFileView {
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
     this.scheduleEditModeForNodeByLine(newSiblingLine);
+  }
+
+  public async toggleNodeCheckbox(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+
+    let desiredText = node.text;
+    if (node.checkbox === 'checked') {
+      desiredText = `[ ] ${node.text}`;
+    } else if (node.checkbox === 'unchecked') {
+      desiredText = `[x] ${node.text}`;
+    } else {
+      desiredText = `[x] ${node.text}`;
+    }
+
+    desiredText = this.normalizeNodeText(desiredText, false);
+    const beforeState = this.data;
+    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+
+    const command: import('./command-history').MindmapCommand = {
+      type: 'toggle-checkbox',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(node),
+      metadata: {
+        checkboxBefore: node.checkbox,
+        checkboxAfter: node.checkbox === 'checked' ? 'unchecked' : 'checked',
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
   }
 
   public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {

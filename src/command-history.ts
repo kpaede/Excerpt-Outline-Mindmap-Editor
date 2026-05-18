@@ -2,7 +2,7 @@ import { App, TFile } from 'obsidian';
 import { OutlineNode } from './util';
 
 export interface MindmapCommand {
-  type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text';
+  type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text' | 'toggle-checkbox';
   timestamp: number;
   beforeState: string;
   afterState: string;

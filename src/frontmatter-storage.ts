@@ -6,6 +6,7 @@ import { GeneralSettings } from './general-settings-menu';
 export interface ExcerptOutlineMindmapData {
   // General options
   keyboardNavigation?: 'hierarchical' | 'spatial';
+  showCheckboxesOnHover?: boolean;
 
   // Node options
   nodeWidth?: number;
@@ -76,7 +77,11 @@ export class FrontmatterStorage {
           if (trimmedValue === 'DL') trimmedValue = 'UL';
           if (trimmedValue === 'DR') trimmedValue = 'UR';
         }
-        typedResult[normalizedKey] = trimmedValue;
+        if (trimmedValue === 'true' || trimmedValue === 'false') {
+          typedResult[normalizedKey] = trimmedValue === 'true';
+        } else {
+          typedResult[normalizedKey] = trimmedValue;
+        }
       }
     });
 
@@ -196,6 +201,10 @@ export class FrontmatterStorage {
 
     if (generalSettings.keyboardNavigation) {
       currentData.keyboardNavigation = generalSettings.keyboardNavigation;
+    }
+
+    if (typeof generalSettings.showCheckboxesOnHover === 'boolean') {
+      currentData.showCheckboxesOnHover = generalSettings.showCheckboxesOnHover;
     }
 
     await this.saveMindmapData(file, currentData);

@@ -246,6 +246,27 @@ function performOverlayUpdate(view: MindmapView): void {
     box.style.setProperty('--mindmap-font-size', '16px');
     box.style.setProperty('--mindmap-box-shadow', '0 1px 3px rgba(0,0,0,.08)');
 
+    const hasCheckbox = nodeToUse.checkbox !== 'none';
+    const isCheckboxHoverable = !hasCheckbox && view.generalSettings.showCheckboxesOnHover;
+
+    box.classList.toggle('has-checkbox', hasCheckbox);
+    box.classList.toggle('checkbox-hoverable', isCheckboxHoverable);
+    box.classList.toggle('checkbox-checked', nodeToUse.checkbox === 'checked');
+
+    const checkboxToggle = document.createElement('button');
+    checkboxToggle.type = 'button';
+    checkboxToggle.className = 'checkbox-toggle';
+    checkboxToggle.setAttribute('aria-label', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
+    checkboxToggle.setAttribute('title', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
+    setIcon(checkboxToggle, nodeToUse.checkbox === 'checked' ? 'check-circle' : 'circle');
+    checkboxToggle.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!view.file) return;
+      await view.toggleNodeCheckbox(nodeToUse);
+    });
+    box.appendChild(checkboxToggle);
+
     if (view.selectedNodeLines.has(nodeToUse.line)) {
       box.classList.add('selected');
     }

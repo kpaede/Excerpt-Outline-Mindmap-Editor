@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { TFile, Setting, ToggleComponent } from 'obsidian';
 import { FrontmatterStorage } from './frontmatter-storage';
 
 type ClickHandlerElement = HTMLElement & {
@@ -12,6 +12,7 @@ interface GeneralSettingsView {
 
 export interface GeneralSettings {
   keyboardNavigation: 'hierarchical' | 'spatial';
+  showCheckboxesOnHover?: boolean;
 }
 
 /**
@@ -62,6 +63,25 @@ export class GeneralSettingsMenu {
         this.onSave(this.settings);
       }
     );
+
+    new Setting(this.container)
+      .setName('Show checkbox toggle on non-checkbox nodes')
+      .setDesc('Display a checkbox icon when hovering over nodes that are not already task list items.')
+      .addToggle((toggle: ToggleComponent) =>
+        toggle
+          .setValue(this.settings.showCheckboxesOnHover ?? false)
+          .onChange(async (value: boolean) => {
+            this.settings.showCheckboxesOnHover = value;
+            this.onSave(this.settings);
+            if (this.view?.file && this.view?.frontmatterStorage) {
+              try {
+                await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
+              } catch (error) {
+                console.error('Failed to save general settings to frontmatter:', error);
+              }
+            }
+          })
+      );
 
     const closeBtn = this.container.createEl('button', { text: 'Close' });
     closeBtn.classList.add('fullwidth-button');

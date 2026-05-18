@@ -1,6 +1,8 @@
 import { Modal, App, Setting } from 'obsidian';
 import { TFile } from 'obsidian';
 
+export type CheckboxState = 'checked' | 'unchecked' | 'none';
+
 export interface OutlineNode {
   text: string;
   indent: string;
@@ -8,7 +10,20 @@ export interface OutlineNode {
   line: number;
   endLine: number;
   children: OutlineNode[];
+  checkbox: CheckboxState;
   scaleFactor?: number;
+}
+
+export function parseCheckboxState(text: string): { checkbox: CheckboxState; text: string } {
+  const match = text.match(/^\[( |x|X)\]\s+(.*)$/);
+  if (!match) {
+    return { checkbox: 'none', text };
+  }
+
+  return {
+    checkbox: match[1].toLowerCase() === 'x' ? 'checked' : 'unchecked',
+    text: match[2],
+  };
 }
 
 export function parseOutline(markdown: string): OutlineNode[] {
@@ -41,11 +56,8 @@ export function parseOutline(markdown: string): OutlineNode[] {
     const marker = match[2];
     let text = match[3] || '';
 
-    // Remove checkbox markup if present
-    if (text.match(/^\[.\]\s/)) {
-      const checkboxToken = text.substring(0, 4);
-      text = text.substring(checkboxToken.length);
-    }
+    const parsedCheckbox = parseCheckboxState(text);
+    text = parsedCheckbox.text;
 
     const node: OutlineNode = {
       text: text,
@@ -54,6 +66,7 @@ export function parseOutline(markdown: string): OutlineNode[] {
       line: i,
       endLine: i, // Will be updated after parsing all children
       children: [],
+      checkbox: parsedCheckbox.checkbox,
     };
 
     // Clean up stacks when we move to a shallower or equal level

@@ -33,6 +33,8 @@ There is no proprietary format and no external storage.
 - There is a Context Menu via Right Click
 - Copy, Paste, Cut and Duplicate via Context Menu and Shortcuts
 - Keyboard Navigation (Spatial and Hierarchical)
+- Task list support: nodes with `- [ ]` and `- [x]` are recognized and can be toggled directly in the mindmap
+- Checked nodes are visually marked as completed with a light gray overlay and muted text color
 - you can select various nodes at once
 - Read-only mindmap embeds via `mindmap-eome` code blocks
 - With the frontmatter key `excerpt-outline-mindmap`, the file opens directly in the mindmap view.
@@ -108,6 +110,8 @@ Zoom, layout, node, and general options are stored in the file frontmatter, so d
 - Right-click a node and choose **Edit node** to edit it from the context menu.
 - Use the hover controls or the context menu to choose **Add child** or **Add sibling**.
 - Newly created child or sibling nodes enter edit mode automatically so you can start typing right away.
+- Task list nodes show a checkbox icon at the top-left corner of the node box and can be toggled directly from the mindmap.
+- Non-task nodes can optionally show a hover checkbox if enabled in General Settings, which converts them into checklist items when clicked.
 - While editing a node, text wraps visually across multiple lines. **Enter** saves. Hard line breaks inside a node are not supported and are removed from imported text.
 - While editing a node, **Cmd/Ctrl + Delete** or **Cmd/Ctrl + Backspace** deletes the node, using the same child-confirmation flow as the delete button.
 - Pressing **Escape** in a newly created node without children removes that new node again.
