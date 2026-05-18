@@ -258,7 +258,7 @@ function performOverlayUpdate(view: MindmapView): void {
     checkboxToggle.className = 'checkbox-toggle';
     checkboxToggle.setAttribute('aria-label', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
     checkboxToggle.setAttribute('title', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
-    setIcon(checkboxToggle, nodeToUse.checkbox === 'checked' ? 'check-circle' : 'circle');
+    setIcon(checkboxToggle, nodeToUse.checkbox === 'checked' ? 'square-check-big' : 'square');
     checkboxToggle.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
