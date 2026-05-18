@@ -6,6 +6,18 @@ import { MindmapView } from './mindmapView';
 import { DeleteNodeModal, DeleteOption } from "./delete-node-modal";
 import { Notice } from 'obsidian';
 
+function getPrimaryZoteroLink(text: string): string | null {
+  const links: string[] = [];
+  const linkRegex = /\]\((zotero:\/\/[^)\s]+(?:\([^)]*\)[^)\s]*)?)\)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    links.push(match[1]);
+  }
+
+  return links.find((link) => /^zotero:\/\/open-/i.test(link)) ?? links[0] ?? null;
+}
+
 export function startNodeEditing(
   box: HTMLElement,
   nodeToUse: import('./util').OutlineNode,
@@ -240,6 +252,26 @@ function performOverlayUpdate(view: MindmapView): void {
 
     if (view.pendingEditNodeLine === nodeToUse.line) {
       pendingEdit = { box, node: nodeToUse };
+    }
+
+    const primaryZoteroLink = getPrimaryZoteroLink(nodeToUse.text);
+    if (primaryZoteroLink) {
+      const zoteroBadge = document.createElement('button');
+      zoteroBadge.className = 'mindmap-zotero-badge';
+      zoteroBadge.setAttribute('type', 'button');
+      zoteroBadge.setAttribute('aria-label', 'Open Zotero source');
+      zoteroBadge.setAttribute('title', 'Open Zotero source');
+      zoteroBadge.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <polygon fill="currentColor" points="13.863 2.73 13.027 1 2.137 1 2.137 3.8 2.137 3.921 8.822 3.921 1.289 13.233 2.137 15 13.863 15 13.863 12.142 13.863 12.021 6.448 12.021 13.863 2.73"/>
+        </svg>
+      `;
+      zoteroBadge.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(primaryZoteroLink, '_blank');
+      });
+      box.appendChild(zoteroBadge);
     }
 
     // Update content (always recreate)

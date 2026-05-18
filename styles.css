@@ -432,6 +432,29 @@ If your plugin does not need CSS, delete this file.
   display: block;
 }
 
+.mindmap-zotero-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.mindmap-zotero-badge:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
 /* DnD and visual helpers (moved from dnd-css.ts) */
 .mindmap-wrapper [data-overlay] * {
   -webkit-user-drag: none;
