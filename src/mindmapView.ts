@@ -42,6 +42,10 @@ import { FrontmatterStorage } from './frontmatter-storage';
 import { CommandHistory } from './command-history';
 import { GeneralSettings } from './general-settings-menu';
 
+function sortByMarkdownOrder(a: any, b: any): number {
+  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
+}
+
 export interface LayoutOptions {
   rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
   align?: 'UL' | 'UR' | 'DL' | 'DR';
@@ -964,6 +968,7 @@ export class MindmapView extends TextFileView {
       padding: 30,
       nodeDimensionsIncludeLabels: false,
       spacingFactor: L.spacingFactor,
+      sort: sortByMarkdownOrder,
     } as unknown as import('cytoscape').LayoutOptions;
 
     // Don't reset firstFitDone - preserve current zoom level

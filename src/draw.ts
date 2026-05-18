@@ -9,6 +9,10 @@ import { MindmapView } from './mindmapView';
 
 cytoscape.use(dagre);
 
+function sortByMarkdownOrder(a: any, b: any): number {
+  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
+}
+
 /**
  * Wait for all async content to finish rendering
  */
@@ -276,6 +280,9 @@ export async function draw(view: MindmapView): Promise<void> {
   document.body.removeChild(measureContainer);
 
   const els: ElementDefinition[] = [];
+  const orderByLine = new Map<number, number>();
+  flat.forEach((node, index) => orderByLine.set(node.line, index));
+
   for (const n of flat) {
     const dims = view.sizeMap.get(n.line)!;
     els.push({
@@ -284,6 +291,7 @@ export async function draw(view: MindmapView): Promise<void> {
         node: n,
         width: dims.w,
         height: dims.h,
+        order: orderByLine.get(n.line) ?? n.line,
       },
     });
   }
@@ -294,6 +302,7 @@ export async function draw(view: MindmapView): Promise<void> {
           id: `e${p.line}-${c.line}`,
           source: `n${p.line}`,
           target: `n${c.line}`,
+          order: orderByLine.get(c.line) ?? c.line,
         },
       });
     });
@@ -315,6 +324,7 @@ export async function draw(view: MindmapView): Promise<void> {
     padding: 20,
     nodeDimensionsIncludeLabels: false,
     spacingFactor: L.spacingFactor,
+    sort: sortByMarkdownOrder,
   } as unknown as LayoutOptions;
 
   if (!view.cy) {

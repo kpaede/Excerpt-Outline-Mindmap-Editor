@@ -14,6 +14,10 @@ import { isOutlineCompatible, OutlineNode, parseOutline } from './util';
 
 cytoscape.use(dagre);
 
+function sortByMarkdownOrder(a: any, b: any): number {
+  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
+}
+
 function getEmbedFileName(source: string): string | null {
   const lines = source
     .split(/\r?\n/)
@@ -107,6 +111,8 @@ async function measureNodes(
 
 function buildElements(flat: OutlineNode[], sizeMap: Map<number, { w: number; h: number }>): ElementDefinition[] {
   const elements: ElementDefinition[] = [];
+  const orderByLine = new Map<number, number>();
+  flat.forEach((node, index) => orderByLine.set(node.line, index));
 
   flat.forEach((node) => {
     const dims = sizeMap.get(node.line);
@@ -118,6 +124,7 @@ function buildElements(flat: OutlineNode[], sizeMap: Map<number, { w: number; h:
         node,
         width: dims.w,
         height: dims.h,
+        order: orderByLine.get(node.line) ?? node.line,
       },
     });
   });
@@ -129,6 +136,7 @@ function buildElements(flat: OutlineNode[], sizeMap: Map<number, { w: number; h:
           id: `e${parent.line}-${child.line}`,
           source: `n${parent.line}`,
           target: `n${child.line}`,
+          order: orderByLine.get(child.line) ?? child.line,
         },
       });
     });
@@ -251,6 +259,7 @@ export async function renderMindmapEomeEmbed(
     padding: 24,
     nodeDimensionsIncludeLabels: false,
     spacingFactor: 1,
+    sort: sortByMarkdownOrder,
   } as unknown as LayoutOptions;
 
   const cy = cytoscape({
