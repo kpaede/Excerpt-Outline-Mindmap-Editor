@@ -1232,12 +1232,14 @@ export class MindmapView extends TextFileView {
     this.updateMobileToolbarPlacement();
     window.addEventListener('resize', this.updateOverlays);
     window.addEventListener('resize', this.updateMobileToolbarPlacement);
+    window.addEventListener('orientationchange', this.updateMobileToolbarPlacement);
     window.visualViewport?.addEventListener('resize', this.updateMobileToolbarPlacement);
   }
 
   async onClose(): Promise<void> {
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.updateMobileToolbarPlacement);
+    window.removeEventListener('orientationchange', this.updateMobileToolbarPlacement);
     window.visualViewport?.removeEventListener('resize', this.updateMobileToolbarPlacement);
     document.documentElement.style.removeProperty('--mindmap-mobile-toolbar-top');
     this.cy?.destroy();
