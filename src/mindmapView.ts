@@ -6,6 +6,7 @@ import {
   TFile,
   Menu,
   Notice,
+  Platform,
 } from 'obsidian';
 import { Core, type NodeSingular } from 'cytoscape';
 
@@ -127,7 +128,27 @@ export class MindmapView extends TextFileView {
   private touchPanLastPoint: { x: number; y: number } | null = null;
   private touchGestureMode: 'pan' | 'pinch' | null = null;
   private activeTouchDragPointerId: number | null = null;
+  private mobileToolbarPlacementTimeouts: number[] = [];
+  private orientationMediaQuery: MediaQueryList | null = null;
+  private screenOrientation: ScreenOrientation | null = null;
+  private handleMenuDismissPointerDown = (event: Event): void => {
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest(
+        '.vertical-toolbar, .layout-options-menu, .node-options-menu, .general-settings-menu, .zoom-options-menu'
+      )
+    ) {
+      return;
+    }
+
+    this.toolbar?.closeMenus();
+  };
+
   private readonly isTouchDevice: boolean =
+    Platform.isMobile ||
+    Platform.isMobileApp ||
+    Platform.isPhone ||
+    Platform.isTablet ||
     typeof navigator !== 'undefined' && (
       navigator.maxTouchPoints > 0 ||
       window.matchMedia?.('(pointer: coarse)').matches
@@ -164,13 +185,105 @@ export class MindmapView extends TextFileView {
   }
 
   private updateMobileToolbarPlacement = (): void => {
-    if (!this.wrapper || !this.isTouchDevice) return;
+    if (!this.wrapper) return;
 
-    const rect = this.wrapper.getBoundingClientRect();
-    const visualTop = window.visualViewport?.offsetTop ?? 0;
-    const top = Math.max(rect.top + 8, visualTop + 56);
-    this.wrapper.style.setProperty('--mindmap-mobile-toolbar-top', `${Math.round(top)}px`);
-    document.documentElement.style.setProperty('--mindmap-mobile-toolbar-top', `${Math.round(top)}px`);
+    const toolbar = this.wrapper.querySelector<HTMLElement>('.vertical-toolbar');
+    this.wrapper.classList.remove('uses-side-toolbar', 'mindmap-toolbar-side', 'mindmap-toolbar-top');
+    delete this.wrapper.dataset.toolbarPlacement;
+    delete this.wrapper.dataset.toolbarMetrics;
+    [document.documentElement, document.body].forEach((element) => {
+      element.classList.remove('mindmap-touch-toolbar');
+      element.classList.remove('mindmap-toolbar-side');
+      element.classList.remove('mindmap-toolbar-top');
+      delete element.dataset.mindmapToolbarPlacement;
+    });
+    this.wrapper.style.removeProperty('--mindmap-mobile-toolbar-top');
+    this.wrapper.style.removeProperty('--mindmap-visual-height');
+    this.wrapper.style.removeProperty('--mindmap-visual-width');
+    document.documentElement.style.removeProperty('--mindmap-mobile-toolbar-top');
+    document.documentElement.style.removeProperty('--mindmap-visual-height');
+    document.documentElement.style.removeProperty('--mindmap-visual-width');
+    toolbar?.removeAttribute('style');
+    delete toolbar?.dataset.placement;
+    delete toolbar?.dataset.metrics;
+  };
+
+  public refreshMobileToolbarPlacement(): void {
+    this.scheduleMobileToolbarPlacementUpdate();
+  }
+
+  private readViewportWidth(): number {
+    const candidates = [
+      window.visualViewport?.width,
+      window.innerWidth,
+      document.documentElement.clientWidth,
+    ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+    return Math.round(candidates[0] ?? 0);
+  }
+
+  private readViewportHeight(): number {
+    const candidates = [
+      window.visualViewport?.height,
+      window.innerHeight,
+      document.documentElement.clientHeight,
+    ].filter((value): value is number => typeof value === 'number' && value > 0);
+
+    return Math.round(candidates[0] ?? 0);
+  }
+
+  private shouldUseSideToolbar(viewportWidth: number, viewportHeight: number): boolean {
+    const aspectVotes: boolean[] = [];
+    const votes: boolean[] = [];
+
+    const addAspectVote = (width?: number, height?: number): void => {
+      if (typeof width !== 'number' || typeof height !== 'number') return;
+      if (width <= 0 || height <= 0) return;
+      if (Math.abs(width - height) < 24) return;
+      aspectVotes.push(width > height);
+    };
+
+    addAspectVote(window.visualViewport?.width, window.visualViewport?.height);
+    addAspectVote(window.innerWidth, window.innerHeight);
+    addAspectVote(document.documentElement.clientWidth, document.documentElement.clientHeight);
+    addAspectVote(viewportWidth, viewportHeight);
+
+    const sideAspectVotes = aspectVotes.filter(Boolean).length;
+    const topAspectVotes = aspectVotes.length - sideAspectVotes;
+    if (sideAspectVotes !== topAspectVotes) return sideAspectVotes > topAspectVotes;
+
+    const legacyWindow = window as Window & { orientation?: number };
+    const legacyOrientation = typeof legacyWindow.orientation === 'number' ? legacyWindow.orientation : null;
+    if (legacyOrientation !== null) {
+      votes.push(Math.abs(legacyOrientation) === 90);
+    }
+
+    const screenType = window.screen.orientation?.type;
+    if (screenType?.startsWith('landscape')) votes.push(true);
+    if (screenType?.startsWith('portrait')) votes.push(false);
+
+    if (this.orientationMediaQuery) {
+      votes.push(this.orientationMediaQuery.matches);
+    }
+
+    const liveOrientationQuery = window.matchMedia?.('(orientation: landscape)');
+    if (liveOrientationQuery) {
+      votes.push(liveOrientationQuery.matches);
+    }
+
+    const sideVotes = votes.filter(Boolean).length;
+    const topVotes = votes.length - sideVotes;
+    if (sideVotes !== topVotes) return sideVotes > topVotes;
+
+    return viewportWidth > viewportHeight;
+  }
+
+  private scheduleMobileToolbarPlacementUpdate = (): void => {
+    this.updateMobileToolbarPlacement();
+    this.mobileToolbarPlacementTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    this.mobileToolbarPlacementTimeouts = [80, 250, 600].map((delay) =>
+      window.setTimeout(this.updateMobileToolbarPlacement, delay)
+    );
   };
 
   private initBoxSelection(): void {
@@ -209,6 +322,14 @@ export class MindmapView extends TextFileView {
       if (e.button !== 0) return;
 
       const target = e.target as HTMLElement | null;
+      if (
+        !target?.closest(
+          '.vertical-toolbar, .layout-options-menu, .node-options-menu, .general-settings-menu, .zoom-options-menu'
+        )
+      ) {
+        this.toolbar?.closeMenus();
+      }
+
       if (
         target?.closest(
           '.mindmap-overlay, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
@@ -499,6 +620,9 @@ export class MindmapView extends TextFileView {
       }
 
       const target = event.target as HTMLElement | null;
+      if (!target?.closest('.vertical-toolbar, .layout-options-menu, .node-options-menu, .general-settings-menu, .zoom-options-menu')) {
+        this.toolbar?.closeMenus();
+      }
       if (target?.closest('.vertical-toolbar, button, a, input, textarea, select, iframe, video, audio, [contenteditable="true"]')) {
         return;
       }
@@ -1222,26 +1346,62 @@ export class MindmapView extends TextFileView {
 
     // Styling for markdown-rendered content moved to `styles.css` for proper theming.
 
-    this.toolbar = new VerticalToolbar(this);
-
     if (this.file) {
       this.data = await this.app.vault.read(this.file);
       await this.draw();
     }
 
-    this.updateMobileToolbarPlacement();
+    this.scheduleMobileToolbarPlacementUpdate();
     window.addEventListener('resize', this.updateOverlays);
-    window.addEventListener('resize', this.updateMobileToolbarPlacement);
-    window.addEventListener('orientationchange', this.updateMobileToolbarPlacement);
-    window.visualViewport?.addEventListener('resize', this.updateMobileToolbarPlacement);
+    window.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
+    window.addEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
+    window.visualViewport?.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
+    window.visualViewport?.addEventListener('scroll', this.scheduleMobileToolbarPlacementUpdate);
+    this.orientationMediaQuery = window.matchMedia?.('(orientation: landscape)') ?? null;
+    if (this.orientationMediaQuery) {
+      if (this.orientationMediaQuery.addEventListener) {
+        this.orientationMediaQuery.addEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
+      } else {
+        this.orientationMediaQuery.addListener(this.scheduleMobileToolbarPlacementUpdate);
+      }
+    }
+    this.screenOrientation = window.screen.orientation ?? null;
+    this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
+    document.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
+    document.addEventListener('touchstart', this.handleMenuDismissPointerDown, true);
   }
 
   async onClose(): Promise<void> {
     window.removeEventListener('resize', this.updateOverlays);
-    window.removeEventListener('resize', this.updateMobileToolbarPlacement);
-    window.removeEventListener('orientationchange', this.updateMobileToolbarPlacement);
-    window.visualViewport?.removeEventListener('resize', this.updateMobileToolbarPlacement);
+    window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
+    window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
+    window.visualViewport?.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
+    window.visualViewport?.removeEventListener('scroll', this.scheduleMobileToolbarPlacementUpdate);
+    if (this.orientationMediaQuery) {
+      if (this.orientationMediaQuery.removeEventListener) {
+        this.orientationMediaQuery.removeEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
+      } else {
+        this.orientationMediaQuery.removeListener(this.scheduleMobileToolbarPlacementUpdate);
+      }
+      this.orientationMediaQuery = null;
+    }
+    this.screenOrientation?.removeEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
+    this.screenOrientation = null;
+    document.removeEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
+    document.removeEventListener('touchstart', this.handleMenuDismissPointerDown, true);
+    this.mobileToolbarPlacementTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    this.mobileToolbarPlacementTimeouts = [];
+    [document.documentElement, document.body].forEach((element) => {
+      element.classList.remove('mindmap-touch-toolbar');
+      element.classList.remove('mindmap-toolbar-side');
+      element.classList.remove('mindmap-toolbar-top');
+      delete element.dataset.mindmapToolbarPlacement;
+    });
+    this.wrapper?.classList.remove('mindmap-toolbar-side', 'mindmap-toolbar-top');
+    this.wrapper?.querySelector<HTMLElement>('.vertical-toolbar')?.removeAttribute('style');
     document.documentElement.style.removeProperty('--mindmap-mobile-toolbar-top');
+    document.documentElement.style.removeProperty('--mindmap-visual-height');
+    document.documentElement.style.removeProperty('--mindmap-visual-width');
     this.cy?.destroy();
     
     // Clean up CSS when last mindmap view closes

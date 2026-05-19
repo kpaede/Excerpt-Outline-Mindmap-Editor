@@ -98,6 +98,8 @@ If your plugin does not need CSS, delete this file.
   position: absolute;
   left: var(--menu-left, 0);
   top: var(--menu-top, 0);
+  width: 320px;
+  max-width: calc(100vw - 24px);
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -1270,83 +1272,6 @@ body .suggestion-container {
 }
 
 @media (pointer: coarse), (max-width: 700px) {
-  .vertical-toolbar {
-    position: fixed;
-    top: var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top)));
-    right: auto;
-    left: 50%;
-    bottom: auto;
-    transform: translateX(-50%);
-    flex-direction: row;
-    align-items: center;
-    max-width: calc(100vw - 24px);
-    overflow-x: auto;
-    padding: 8px;
-    gap: 6px;
-    border: 1px solid var(--background-modifier-border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-    z-index: 2000;
-  }
-
-  .vertical-toolbar button,
-  .clickable-icon {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
-  }
-
-  .vertical-toolbar .toolbar-separator {
-    width: 1px;
-    height: 28px;
-    margin: 0 2px;
-  }
-
-  .vertical-toolbar .mindmap-zoom-indicator {
-    width: 54px;
-    height: 42px;
-    min-width: 54px;
-    min-height: 42px;
-    font-size: 12px;
-  }
-
-  .layout-options-menu,
-  .node-options-menu,
-  .general-settings-menu,
-  .zoom-options-menu {
-    left: max(12px, env(safe-area-inset-left)) !important;
-    right: max(12px, env(safe-area-inset-right));
-    top: calc(var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top))) + 58px) !important;
-    width: auto;
-    max-width: none;
-    max-height: calc(100vh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    overflow-y: auto;
-  }
-
-  .layout-options-menu .setting-item,
-  .node-options-menu .setting-item,
-  .general-settings-menu .setting-item,
-  .zoom-options-menu .setting-item {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .layout-options-menu .setting-item-control,
-  .node-options-menu .setting-item-control,
-  .general-settings-menu .setting-item-control,
-  .zoom-options-menu .setting-item-control {
-    width: 100%;
-  }
-
-  .layout-options-menu input[type="range"],
-  .node-options-menu input[type="range"],
-  .zoom-options-menu input[type="range"] {
-    min-width: 0;
-    width: 100%;
-  }
-
   .fullwidth-button,
   .zoom-options-actions button,
   .mindmap-empty-button {
@@ -1375,70 +1300,368 @@ body .suggestion-container {
   }
 }
 
-@media (pointer: coarse) and (orientation: landscape), (pointer: coarse) and (min-width: 768px) {
-  .vertical-toolbar {
-    top: var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top)));
-    right: max(8px, env(safe-area-inset-right));
-    left: auto;
-    transform: none;
-    flex-direction: column;
-    max-width: none;
-    max-height: calc(100vh - var(--mindmap-mobile-toolbar-top, max(8px, env(safe-area-inset-top))) - max(8px, env(safe-area-inset-bottom)));
-    overflow-x: visible;
-    overflow-y: auto;
+/* Authoritative touch-toolbar layout. Keep this after older responsive rules. */
+:root.mindmap-touch-toolbar .vertical-toolbar,
+body.mindmap-touch-toolbar .vertical-toolbar {
+  position: fixed !important;
+  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) !important;
+  bottom: auto !important;
+  --mindmap-menu-max-width: calc(var(--mindmap-visual-width, 100vw) - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
+  box-sizing: border-box;
+  padding: 8px;
+  gap: 6px;
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  z-index: 2000;
+}
+
+:root.mindmap-touch-toolbar .vertical-toolbar button,
+:root.mindmap-touch-toolbar .vertical-toolbar .clickable-icon,
+body.mindmap-touch-toolbar .vertical-toolbar button,
+body.mindmap-touch-toolbar .vertical-toolbar .clickable-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+}
+
+:root.mindmap-touch-toolbar .vertical-toolbar .mindmap-zoom-indicator,
+body.mindmap-touch-toolbar .vertical-toolbar .mindmap-zoom-indicator {
+  height: 42px;
+  min-height: 42px;
+  font-size: 12px;
+}
+
+:root.mindmap-toolbar-top .vertical-toolbar,
+body.mindmap-toolbar-top .vertical-toolbar {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  flex-direction: row !important;
+  align-items: center;
+  max-width: var(--mindmap-menu-max-width);
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+:root.mindmap-toolbar-top .vertical-toolbar .toolbar-separator,
+body.mindmap-toolbar-top .vertical-toolbar .toolbar-separator {
+  width: 1px !important;
+  height: 28px !important;
+  margin: 0 2px !important;
+}
+
+:root.mindmap-toolbar-top .vertical-toolbar .mindmap-zoom-indicator,
+body.mindmap-toolbar-top .vertical-toolbar .mindmap-zoom-indicator {
+  width: 54px;
+  min-width: 54px;
+}
+
+:root.mindmap-toolbar-side .vertical-toolbar,
+body.mindmap-toolbar-side .vertical-toolbar {
+  left: auto !important;
+  right: max(8px, env(safe-area-inset-right)) !important;
+  transform: none !important;
+  flex-direction: column !important;
+  align-items: center;
+  max-width: none;
+  max-height: calc(var(--mindmap-visual-height, 100vh) - max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+:root.mindmap-toolbar-side .vertical-toolbar .toolbar-separator,
+body.mindmap-toolbar-side .vertical-toolbar .toolbar-separator {
+  width: 100% !important;
+  height: 1px !important;
+  margin: 2px 0 !important;
+}
+
+:root.mindmap-toolbar-side .vertical-toolbar .mindmap-zoom-indicator,
+body.mindmap-toolbar-side .vertical-toolbar .mindmap-zoom-indicator {
+  width: 42px;
+  min-width: 42px;
+}
+
+:root.mindmap-touch-toolbar .layout-options-menu,
+:root.mindmap-touch-toolbar .node-options-menu,
+:root.mindmap-touch-toolbar .general-settings-menu,
+:root.mindmap-touch-toolbar .zoom-options-menu,
+body.mindmap-touch-toolbar .layout-options-menu,
+body.mindmap-touch-toolbar .node-options-menu,
+body.mindmap-touch-toolbar .general-settings-menu,
+body.mindmap-touch-toolbar .zoom-options-menu {
+  position: fixed !important;
+  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) !important;
+  right: auto !important;
+  --mindmap-menu-max-width: calc(var(--mindmap-visual-width, 100vw) - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
+  box-sizing: border-box;
+  max-height: calc(var(--mindmap-visual-height, 100vh) - max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) - 12px - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+:root.mindmap-toolbar-top .layout-options-menu,
+:root.mindmap-toolbar-top .node-options-menu,
+:root.mindmap-toolbar-top .general-settings-menu,
+:root.mindmap-toolbar-top .zoom-options-menu,
+body.mindmap-toolbar-top .layout-options-menu,
+body.mindmap-toolbar-top .node-options-menu,
+body.mindmap-toolbar-top .general-settings-menu,
+body.mindmap-toolbar-top .zoom-options-menu {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width)) !important;
+  max-width: var(--mindmap-menu-max-width) !important;
+}
+
+:root.mindmap-toolbar-side .layout-options-menu,
+:root.mindmap-toolbar-side .node-options-menu,
+:root.mindmap-toolbar-side .general-settings-menu,
+:root.mindmap-toolbar-side .zoom-options-menu,
+body.mindmap-toolbar-side .layout-options-menu,
+body.mindmap-toolbar-side .node-options-menu,
+body.mindmap-toolbar-side .general-settings-menu,
+body.mindmap-toolbar-side .zoom-options-menu {
+  left: var(--menu-left, 0) !important;
+  transform: none !important;
+  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width)) !important;
+  max-width: var(--mindmap-menu-max-width) !important;
+}
+
+:root.mindmap-touch-toolbar .layout-options-menu,
+body.mindmap-touch-toolbar .layout-options-menu {
+  --mindmap-menu-width: 420px;
+}
+
+:root.mindmap-touch-toolbar .node-options-menu,
+:root.mindmap-touch-toolbar .general-settings-menu,
+:root.mindmap-touch-toolbar .zoom-options-menu,
+body.mindmap-touch-toolbar .node-options-menu,
+body.mindmap-touch-toolbar .general-settings-menu,
+body.mindmap-touch-toolbar .zoom-options-menu {
+  --mindmap-menu-width: 320px;
+}
+
+:root.mindmap-touch-toolbar .layout-options-menu .setting-item,
+:root.mindmap-touch-toolbar .node-options-menu .setting-item,
+:root.mindmap-touch-toolbar .general-settings-menu .setting-item,
+:root.mindmap-touch-toolbar .zoom-options-menu .setting-item,
+body.mindmap-touch-toolbar .layout-options-menu .setting-item,
+body.mindmap-touch-toolbar .node-options-menu .setting-item,
+body.mindmap-touch-toolbar .general-settings-menu .setting-item,
+body.mindmap-touch-toolbar .zoom-options-menu .setting-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+:root.mindmap-touch-toolbar .layout-options-menu .setting-item-control,
+:root.mindmap-touch-toolbar .node-options-menu .setting-item-control,
+:root.mindmap-touch-toolbar .general-settings-menu .setting-item-control,
+:root.mindmap-touch-toolbar .zoom-options-menu .setting-item-control,
+body.mindmap-touch-toolbar .layout-options-menu .setting-item-control,
+body.mindmap-touch-toolbar .node-options-menu .setting-item-control,
+body.mindmap-touch-toolbar .general-settings-menu .setting-item-control,
+body.mindmap-touch-toolbar .zoom-options-menu .setting-item-control {
+  width: 100%;
+}
+
+:root.mindmap-toolbar-side .layout-options-menu .setting-item,
+body.mindmap-toolbar-side .layout-options-menu .setting-item {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(210px, 1.25fr);
+  align-items: center;
+  gap: 14px;
+}
+
+:root.mindmap-toolbar-side .node-options-menu .setting-item,
+:root.mindmap-toolbar-side .general-settings-menu .setting-item,
+:root.mindmap-toolbar-side .zoom-options-menu .setting-item,
+body.mindmap-toolbar-side .node-options-menu .setting-item,
+body.mindmap-toolbar-side .general-settings-menu .setting-item,
+body.mindmap-toolbar-side .zoom-options-menu .setting-item {
+  flex-direction: row;
+  align-items: center;
+}
+
+:root.mindmap-toolbar-side .layout-options-menu .setting-item-control,
+:root.mindmap-toolbar-side .node-options-menu .setting-item-control,
+:root.mindmap-toolbar-side .general-settings-menu .setting-item-control,
+:root.mindmap-toolbar-side .zoom-options-menu .setting-item-control,
+body.mindmap-toolbar-side .layout-options-menu .setting-item-control,
+body.mindmap-toolbar-side .node-options-menu .setting-item-control,
+body.mindmap-toolbar-side .general-settings-menu .setting-item-control,
+body.mindmap-toolbar-side .zoom-options-menu .setting-item-control {
+  width: auto;
+}
+
+/* Lineage-style toolbar placement: local absolute controls in the view. */
+.mindmap-wrapper .vertical-toolbar {
+  right: var(--size-4-2, 8px) !important;
+  top: var(--size-4-2, 8px) !important;
+  left: auto !important;
+  bottom: auto !important;
+  position: absolute !important;
+  z-index: 2000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--size-4-2, 8px) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.mindmap-wrapper .vertical-toolbar .buttons-group {
+  border-radius: var(--radius-s, 4px);
+  overflow: hidden;
+  box-shadow: var(--input-shadow);
+  display: flex;
+  background-color: var(--interactive-normal);
+}
+
+.mindmap-wrapper .vertical-toolbar .buttons-group--vertical {
+  flex-direction: column !important;
+}
+
+.mindmap-wrapper .vertical-toolbar .controls-toggle {
+  display: none;
+}
+
+.mindmap-wrapper .vertical-toolbar button,
+.mindmap-wrapper .vertical-toolbar .clickable-icon {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 8px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.mindmap-wrapper .vertical-toolbar .mindmap-zoom-indicator {
+  width: 42px !important;
+  height: 34px !important;
+  min-width: 42px !important;
+  min-height: 34px !important;
+}
+
+.mindmap-wrapper .vertical-toolbar .mindmap-toolbar-toggle {
+  align-items: center;
+  justify-content: center;
+}
+
+.mindmap-wrapper .vertical-toolbar .mindmap-toolbar-menu-icon {
+  width: 18px;
+  height: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mindmap-wrapper .vertical-toolbar .mindmap-toolbar-menu-icon span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.mindmap-wrapper .vertical-toolbar .toolbar-separator {
+  width: 100% !important;
+  height: 1px !important;
+  margin: 0 !important;
+}
+
+body.is-mobile .mindmap-wrapper .vertical-toolbar .controls-toggle,
+.is-mobile .mindmap-wrapper .vertical-toolbar .controls-toggle {
+  display: flex;
+}
+
+body.is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-visible='false'],
+.is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-visible='false'] {
+  display: none !important;
+}
+
+@media (orientation: landscape) {
+  body.is-mobile .mindmap-wrapper .vertical-toolbar,
+  .is-mobile .mindmap-wrapper .vertical-toolbar {
+    top: max(32px, calc(env(safe-area-inset-top) + 16px)) !important;
+    right: max(var(--size-4-2, 8px), env(safe-area-inset-right)) !important;
+  }
+}
+
+.layout-options-menu.mindmap-mobile-options-menu,
+.node-options-menu.mindmap-mobile-options-menu,
+.general-settings-menu.mindmap-mobile-options-menu,
+.zoom-options-menu.mindmap-mobile-options-menu {
+  z-index: 2100 !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mindmap-mobile-options-menu h3,
+.mindmap-mobile-options-menu .layout-options-menu-title {
+  margin: 0 0 10px !important;
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+
+.mindmap-mobile-options-menu .setting-item {
+  display: grid !important;
+  grid-template-columns: minmax(104px, 0.85fr) minmax(150px, 1.15fr) !important;
+  gap: 8px 12px !important;
+  align-items: center !important;
+  padding: 8px 0 !important;
+  min-height: 0 !important;
+}
+
+.mindmap-mobile-options-menu .setting-item-info,
+.mindmap-mobile-options-menu .setting-item-control {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.mindmap-mobile-options-menu .setting-item-name {
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+.mindmap-mobile-options-menu .setting-item-description {
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.mindmap-mobile-options-menu select,
+.mindmap-mobile-options-menu input[type='range'] {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.mindmap-mobile-options-menu button.fullwidth-button,
+.mindmap-mobile-options-menu .fullwidth-button {
+  margin-top: 8px !important;
+}
+
+@media (orientation: portrait) {
+  .mindmap-mobile-options-menu .setting-item {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
   }
 
-  .vertical-toolbar .toolbar-separator {
-    width: 100%;
-    height: 1px;
-    margin: 2px 0;
-  }
-
-  .vertical-toolbar .mindmap-zoom-indicator {
-    width: 42px;
-    min-width: 42px;
-  }
-
-  .layout-options-menu,
-  .node-options-menu,
-  .general-settings-menu,
-  .zoom-options-menu {
-    left: var(--menu-left, 0) !important;
-    right: auto;
-    top: var(--menu-top, 0) !important;
-    width: min(var(--mindmap-menu-width, 320px), calc(100vw - 24px));
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  }
-
-  .layout-options-menu {
-    --mindmap-menu-width: 460px;
-  }
-
-  .node-options-menu,
-  .general-settings-menu,
-  .zoom-options-menu {
-    --mindmap-menu-width: 320px;
-  }
-
-  .layout-options-menu .setting-item {
-    display: grid;
-    grid-template-columns: minmax(150px, 1fr) minmax(210px, 1.25fr);
-    align-items: center;
-    gap: 14px;
-  }
-
-  .node-options-menu .setting-item,
-  .general-settings-menu .setting-item,
-  .zoom-options-menu .setting-item {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .layout-options-menu .setting-item-control,
-  .node-options-menu .setting-item-control,
-  .general-settings-menu .setting-item-control,
-  .zoom-options-menu .setting-item-control {
-    width: auto;
+  .mindmap-mobile-options-menu .setting-item-control {
+    justify-content: stretch !important;
   }
 }

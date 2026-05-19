@@ -9,12 +9,14 @@ import { ZoomOptionsMenu } from './zoom-options-menu';
 
 export class VerticalToolbar {
   private container: HTMLDivElement;
+  private buttonsGroup: HTMLDivElement;
   private view: MindmapView;
   private currentNodeMenu: NodeOptionsMenu | null = null;
   private currentLayoutMenu: LayoutOptionsMenu | null = null;
   private currentGeneralMenu: GeneralSettingsMenu | null = null;
   private currentZoomMenu: ZoomOptionsMenu | null = null;
   private zoomIndicator?: HTMLButtonElement;
+  private showControls = false;
 
   private nodeOptions: NodeOptions = {
     nodeWidth: 300
@@ -23,13 +25,29 @@ export class VerticalToolbar {
   constructor(view: MindmapView) {
     this.view = view;
     this.container = this.view.wrapper.createDiv({ cls: 'vertical-toolbar' });
+    this.container.addClass('buttons-group');
+    const toggleGroup = this.container.createDiv({ cls: 'buttons-group controls-toggle' });
+    const toggleBtn = toggleGroup.createEl('button');
+    toggleBtn.addClass('clickable-icon', 'mindmap-toolbar-toggle');
+    const menuIcon = toggleBtn.createSpan({ cls: 'mindmap-toolbar-menu-icon' });
+    menuIcon.createSpan();
+    menuIcon.createSpan();
+    menuIcon.createSpan();
+    toggleBtn.setAttribute('aria-label', 'Toggle toolbar');
+    toggleBtn.onclick = () => {
+      this.showControls = !this.showControls;
+      this.buttonsGroup.dataset.visible = String(this.showControls);
+      toggleBtn.classList.toggle('is-active', this.showControls);
+    };
+    this.buttonsGroup = this.container.createDiv({ cls: 'buttons-group toolbar-buttons-group buttons-group--vertical' });
+    this.buttonsGroup.dataset.visible = String(this.showControls);
     // Styles are provided via CSS in styles.css
     this.buildButtons();
   }
 
   private buildButtons() {
     // Undo Button
-    const undoBtn = this.container.createEl('button');
+    const undoBtn = this.buttonsGroup.createEl('button');
     undoBtn.addClass('clickable-icon');
     setIcon(undoBtn, 'undo');
     undoBtn.setAttribute('aria-label', 'Undo');
@@ -38,7 +56,7 @@ export class VerticalToolbar {
     };
 
     // Redo Button  
-    const redoBtn = this.container.createEl('button');
+    const redoBtn = this.buttonsGroup.createEl('button');
     redoBtn.addClass('clickable-icon');
     setIcon(redoBtn, 'redo');
     redoBtn.setAttribute('aria-label', 'Redo');
@@ -51,7 +69,7 @@ export class VerticalToolbar {
     this.redoButton = redoBtn;
 
     // Fit to View Button (styled wie Undo/Redo)
-    const fitBtn = this.container.createEl('button');
+    const fitBtn = this.buttonsGroup.createEl('button');
     fitBtn.addClass('clickable-icon');
     setIcon(fitBtn, 'maximize-2');
     fitBtn.setAttribute('aria-label', 'Fit to View');
@@ -59,16 +77,16 @@ export class VerticalToolbar {
       this.view.fitToView();
     };
 
-    this.zoomIndicator = this.container.createEl('button', { cls: 'mindmap-zoom-indicator' });
+    this.zoomIndicator = this.buttonsGroup.createEl('button', { cls: 'mindmap-zoom-indicator' });
     this.zoomIndicator.setAttribute('type', 'button');
     this.zoomIndicator.addEventListener('click', () => this.openZoomOptions(this.zoomIndicator!));
     this.setZoomFactor(this.view.layoutOptions.zoomFactor ?? 1);
 
     // Separator
-    this.container.createDiv({ cls: 'toolbar-separator' });
+    this.buttonsGroup.createDiv({ cls: 'toolbar-separator' });
     
     // Layout Options Button
-    const layoutBtn = this.container.createEl('button');
+    const layoutBtn = this.buttonsGroup.createEl('button');
     layoutBtn.addClass('clickable-icon');
     setIcon(layoutBtn, 'layout-dashboard');
     layoutBtn.setAttribute('aria-label', 'Layout Options');
@@ -77,7 +95,7 @@ export class VerticalToolbar {
     };
 
     // Node Options Button
-    const nodeBtn = this.container.createEl('button');
+    const nodeBtn = this.buttonsGroup.createEl('button');
     nodeBtn.addClass('clickable-icon');
     setIcon(nodeBtn, 'square');
     nodeBtn.setAttribute('aria-label', 'Node Options');
@@ -86,7 +104,7 @@ export class VerticalToolbar {
     };
 
     // General Settings Button
-    const generalBtn = this.container.createEl('button');
+    const generalBtn = this.buttonsGroup.createEl('button');
     generalBtn.addClass('clickable-icon');
     setIcon(generalBtn, 'settings');
     generalBtn.setAttribute('aria-label', 'General Settings');
@@ -182,6 +200,22 @@ export class VerticalToolbar {
 
     this.currentZoomMenu.close();
     this.currentZoomMenu = null;
+  }
+
+  public closeMenus(): void {
+    if (this.currentLayoutMenu) {
+      this.currentLayoutMenu.close();
+      this.currentLayoutMenu = null;
+    }
+    if (this.currentNodeMenu) {
+      this.currentNodeMenu.close();
+      this.currentNodeMenu = null;
+    }
+    if (this.currentGeneralMenu) {
+      this.currentGeneralMenu.close();
+      this.currentGeneralMenu = null;
+    }
+    this.closeZoomOptions();
   }
 
   private undoButton?: HTMLElement;

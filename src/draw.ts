@@ -89,9 +89,8 @@ export async function draw(view: MindmapView): Promise<void> {
     view.contentEl.empty();
     view.wrapper = view.contentEl.createDiv({ cls: 'mindmap-wrapper' });
     view.prepareWrapper();
-    if (!view.toolbar) {
-      view.toolbar = new VerticalToolbar(view);
-    }
+    view.toolbar = new VerticalToolbar(view);
+    view.refreshMobileToolbarPlacement();
   }
 
   // Only clear overlays on true initial draw

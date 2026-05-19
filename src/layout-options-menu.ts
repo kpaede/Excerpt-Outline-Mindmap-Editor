@@ -1,4 +1,5 @@
 import type { MindmapView, LayoutOptions } from './mindmapView';
+import { applyMobileMenuPosition } from './menu-positioning';
 
 export class LayoutOptionsMenu {
   private menu: HTMLDivElement;
@@ -26,7 +27,35 @@ export class LayoutOptionsMenu {
     menu.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
 
     this.buildMenuContent(menu);
+    this.applyMobilePosition(menu, left, menuWidth);
+    applyMobileMenuPosition(menu, menuWidth);
     return menu;
+  }
+
+  private applyMobilePosition(menu: HTMLElement, left: number, menuWidth: number): void {
+    if (!document.body.classList.contains('mindmap-touch-toolbar')) return;
+
+    const visualViewport = window.visualViewport;
+    const viewportWidth = Math.round(visualViewport?.width || document.documentElement.clientWidth || window.innerWidth);
+    const viewportHeight = Math.round(visualViewport?.height || document.documentElement.clientHeight || window.innerHeight);
+    const top = 8;
+    const maxWidth = Math.max(180, viewportWidth - 24);
+
+    menu.style.position = 'fixed';
+    menu.style.top = `${top}px`;
+    menu.style.right = 'auto';
+    menu.style.width = `${Math.min(menuWidth, maxWidth)}px`;
+    menu.style.maxWidth = `${maxWidth}px`;
+    menu.style.maxHeight = `${Math.max(160, viewportHeight - top - 12)}px`;
+    menu.style.overflowY = 'auto';
+
+    if (document.body.classList.contains('mindmap-toolbar-side')) {
+      menu.style.left = `${Math.max(12, Math.min(left, viewportWidth - Math.min(menuWidth, maxWidth) - 12))}px`;
+      menu.style.transform = 'none';
+    } else {
+      menu.style.left = '50%';
+      menu.style.transform = 'translateX(-50%)';
+    }
   }
 
   private buildMenuContent(container: HTMLElement): void {

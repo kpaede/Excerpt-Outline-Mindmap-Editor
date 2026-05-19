@@ -1,5 +1,6 @@
 import { TFile } from 'obsidian';
 import { FrontmatterStorage } from './frontmatter-storage';
+import { applyMobileMenuPosition } from './menu-positioning';
 
 type ClickHandlerElement = HTMLElement & {
   _clickHandler?: (event: MouseEvent) => void;
@@ -49,11 +50,45 @@ export class NodeOptionsMenu {
 
   private positionMenu() {
     const rect = this.anchorEl.getBoundingClientRect();
+    const menuWidth = 320;
+    const left = Math.max(
+      12,
+      Math.min(rect.left + window.scrollX - menuWidth - 12, window.scrollX + window.innerWidth - menuWidth - 12)
+    );
     
     // Position menu to the left of the button
     // Only set dynamic left/top variables; other layout handled via CSS class
-    this.container.style.setProperty('--menu-left', `${rect.left + window.scrollX - 328}px`);
+    this.container.style.setProperty('--menu-left', `${left}px`);
     this.container.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
+    this.applyMobilePosition(left, menuWidth);
+    applyMobileMenuPosition(this.container, menuWidth);
+  }
+
+  private applyMobilePosition(left: number, menuWidth: number): void {
+    if (!document.body.classList.contains('mindmap-touch-toolbar')) return;
+
+    const visualViewport = window.visualViewport;
+    const viewportWidth = Math.round(visualViewport?.width || document.documentElement.clientWidth || window.innerWidth);
+    const viewportHeight = Math.round(visualViewport?.height || document.documentElement.clientHeight || window.innerHeight);
+    const top = 8;
+    const maxWidth = Math.max(180, viewportWidth - 24);
+    const width = Math.min(menuWidth, maxWidth);
+
+    this.container.style.position = 'fixed';
+    this.container.style.top = `${top}px`;
+    this.container.style.right = 'auto';
+    this.container.style.width = `${width}px`;
+    this.container.style.maxWidth = `${maxWidth}px`;
+    this.container.style.maxHeight = `${Math.max(160, viewportHeight - top - 12)}px`;
+    this.container.style.overflowY = 'auto';
+
+    if (document.body.classList.contains('mindmap-toolbar-side')) {
+      this.container.style.left = `${Math.max(12, Math.min(left, viewportWidth - width - 12))}px`;
+      this.container.style.transform = 'none';
+    } else {
+      this.container.style.left = '50%';
+      this.container.style.transform = 'translateX(-50%)';
+    }
   }
 
   private buildContent() {
