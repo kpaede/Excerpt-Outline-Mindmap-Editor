@@ -1,4 +1,4 @@
-// src/mindmapView.ts
+// src/view/mindmap-view.ts
 
 import {
   TextFileView,
@@ -10,11 +10,11 @@ import {
 } from 'obsidian';
 import { Core, type NodeSingular } from 'cytoscape';
 
-import './dnd-css';
+import '../styles/dnd-css';
 
-import { parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from './util';
-import { VIEW_TYPE_MINDMAP } from './constants';
-import MindmapPlugin from './main';
+import { parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from '../utils/outline';
+import { VIEW_TYPE_MINDMAP } from '../constants';
+import MindmapPlugin from '../main';
 import {
   addChild,
   addSibling,
@@ -33,66 +33,21 @@ import {
   DocString,
   ChildInsertPosition,
   SiblingInsertPosition,
-} from './mindmap-file';
-import { VerticalToolbar } from './vertical-toolbar';
+} from '../domain/mindmap-file';
+import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { draw as drawMindmap } from './draw';
-import { updateOverlays as updateOverlaysFn, startNodeEditing } from './updateOverlays';
-import { NodeOptions } from './node-options-menu';
-import { DeleteNodeModal } from './delete-node-modal';
-import { FrontmatterStorage } from './frontmatter-storage';
-import { CommandHistory } from './command-history';
-import { GeneralSettings } from './general-settings-menu';
+import { updateOverlays as updateOverlaysFn, startNodeEditing } from './update-overlays';
+import { NodeOptions } from '../ui/menus/node-options-menu';
+import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
+import { FrontmatterStorage } from '../storage/frontmatter-storage';
+import { CommandHistory, MindmapCommand } from '../history/command-history';
+import { GeneralSettings } from '../ui/menus/general-settings-menu';
+import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
+import { MindmapViewState, SelectionSnapshot } from './view-state';
+import { sortByMarkdownOrder } from '../utils/cytoscape';
+import { resetToolbarPlacement } from '../ui/toolbar/toolbar-placement';
 
-function sortByMarkdownOrder(a: any, b: any): number {
-  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
-}
-
-export interface LayoutOptions {
-  rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
-  align?: 'UL' | 'UR' | 'DL' | 'DR';
-  nodeSep?: number;
-  edgeSep?: number;
-  rankSep?: number;
-  marginx?: number;
-  marginy?: number;
-  acyclicer?: 'greedy';
-  ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
-  spacingFactor?: number;
-  zoomFactor?: number;
-}
-
-export interface MindmapViewState {
-  file?: string;
-}
-
-interface SelectionSnapshot {
-  line: number;
-  text: string;
-}
-
-export function createDefaultLayoutOptions() {
-  return {
-    rankDir: 'TB' as 'TB' | 'BT' | 'LR' | 'RL',
-    align: undefined as 'UL' | 'UR' | 'DL' | 'DR' | undefined,
-    nodeSep: 50,
-    edgeSep: 10,
-    rankSep: 50,
-    marginx: 0,
-    marginy: 0,
-    acyclicer: undefined as 'greedy' | undefined,
-    ranker: 'network-simplex' as 'network-simplex' | 'tight-tree' | 'longest-path',
-    nodeWidth: 100,
-    nodeHeight: 40,
-    edgeMinLen: 1,
-    edgeWeight: 1,
-    edgeWidth: 0,
-    edgeHeight: 0,
-    edgeLabelPos: 'r' as 'l' | 'c' | 'r',
-    edgeLabelOffset: 10,
-    spacingFactor: 1.0,
-    zoomFactor: undefined as number | undefined,
-  };
-}
+export type { LayoutOptions, MindmapViewState };
 
 export class MindmapView extends TextFileView {
   public file: TFile | null = null;
@@ -186,96 +141,11 @@ export class MindmapView extends TextFileView {
 
   private updateMobileToolbarPlacement = (): void => {
     if (!this.wrapper) return;
-
-    const toolbar = this.wrapper.querySelector<HTMLElement>('.vertical-toolbar');
-    this.wrapper.classList.remove('uses-side-toolbar', 'mindmap-toolbar-side', 'mindmap-toolbar-top');
-    delete this.wrapper.dataset.toolbarPlacement;
-    delete this.wrapper.dataset.toolbarMetrics;
-    [document.documentElement, document.body].forEach((element) => {
-      element.classList.remove('mindmap-touch-toolbar');
-      element.classList.remove('mindmap-toolbar-side');
-      element.classList.remove('mindmap-toolbar-top');
-      delete element.dataset.mindmapToolbarPlacement;
-    });
-    this.wrapper.style.removeProperty('--mindmap-mobile-toolbar-top');
-    this.wrapper.style.removeProperty('--mindmap-visual-height');
-    this.wrapper.style.removeProperty('--mindmap-visual-width');
-    document.documentElement.style.removeProperty('--mindmap-mobile-toolbar-top');
-    document.documentElement.style.removeProperty('--mindmap-visual-height');
-    document.documentElement.style.removeProperty('--mindmap-visual-width');
-    toolbar?.removeAttribute('style');
-    delete toolbar?.dataset.placement;
-    delete toolbar?.dataset.metrics;
+    resetToolbarPlacement(this.wrapper);
   };
 
   public refreshMobileToolbarPlacement(): void {
     this.scheduleMobileToolbarPlacementUpdate();
-  }
-
-  private readViewportWidth(): number {
-    const candidates = [
-      window.visualViewport?.width,
-      window.innerWidth,
-      document.documentElement.clientWidth,
-    ].filter((value): value is number => typeof value === 'number' && value > 0);
-
-    return Math.round(candidates[0] ?? 0);
-  }
-
-  private readViewportHeight(): number {
-    const candidates = [
-      window.visualViewport?.height,
-      window.innerHeight,
-      document.documentElement.clientHeight,
-    ].filter((value): value is number => typeof value === 'number' && value > 0);
-
-    return Math.round(candidates[0] ?? 0);
-  }
-
-  private shouldUseSideToolbar(viewportWidth: number, viewportHeight: number): boolean {
-    const aspectVotes: boolean[] = [];
-    const votes: boolean[] = [];
-
-    const addAspectVote = (width?: number, height?: number): void => {
-      if (typeof width !== 'number' || typeof height !== 'number') return;
-      if (width <= 0 || height <= 0) return;
-      if (Math.abs(width - height) < 24) return;
-      aspectVotes.push(width > height);
-    };
-
-    addAspectVote(window.visualViewport?.width, window.visualViewport?.height);
-    addAspectVote(window.innerWidth, window.innerHeight);
-    addAspectVote(document.documentElement.clientWidth, document.documentElement.clientHeight);
-    addAspectVote(viewportWidth, viewportHeight);
-
-    const sideAspectVotes = aspectVotes.filter(Boolean).length;
-    const topAspectVotes = aspectVotes.length - sideAspectVotes;
-    if (sideAspectVotes !== topAspectVotes) return sideAspectVotes > topAspectVotes;
-
-    const legacyWindow = window as Window & { orientation?: number };
-    const legacyOrientation = typeof legacyWindow.orientation === 'number' ? legacyWindow.orientation : null;
-    if (legacyOrientation !== null) {
-      votes.push(Math.abs(legacyOrientation) === 90);
-    }
-
-    const screenType = window.screen.orientation?.type;
-    if (screenType?.startsWith('landscape')) votes.push(true);
-    if (screenType?.startsWith('portrait')) votes.push(false);
-
-    if (this.orientationMediaQuery) {
-      votes.push(this.orientationMediaQuery.matches);
-    }
-
-    const liveOrientationQuery = window.matchMedia?.('(orientation: landscape)');
-    if (liveOrientationQuery) {
-      votes.push(liveOrientationQuery.matches);
-    }
-
-    const sideVotes = votes.filter(Boolean).length;
-    const topVotes = votes.length - sideVotes;
-    if (sideVotes !== topVotes) return sideVotes > topVotes;
-
-    return viewportWidth > viewportHeight;
   }
 
   private scheduleMobileToolbarPlacementUpdate = (): void => {
@@ -992,7 +862,7 @@ export class MindmapView extends TextFileView {
 
     if (newDoc === beforeState) return;
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'delete-node-keep-children',
       timestamp: Date.now(),
       beforeState,
@@ -1290,7 +1160,7 @@ export class MindmapView extends TextFileView {
   }
 
   // Enhanced applyDocIncremental with command tracking - now the primary method
-  public async applyDocIncrementalWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): Promise<void> {
+  public async applyDocIncrementalWithCommand(d: DocString, command?: MindmapCommand): Promise<void> {
     this.isLocalUpdate = true;
     this.data = d;
     
@@ -1312,7 +1182,7 @@ export class MindmapView extends TextFileView {
   }
 
   // Make this the standard method for all operations
-  public applyDocWithCommand(d: DocString, command?: import('./command-history').MindmapCommand): void {
+  public applyDocWithCommand(d: DocString, command?: MindmapCommand): void {
     void this.applyDocIncrementalWithCommand(d, command);
   }
 
@@ -1391,17 +1261,7 @@ export class MindmapView extends TextFileView {
     document.removeEventListener('touchstart', this.handleMenuDismissPointerDown, true);
     this.mobileToolbarPlacementTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     this.mobileToolbarPlacementTimeouts = [];
-    [document.documentElement, document.body].forEach((element) => {
-      element.classList.remove('mindmap-touch-toolbar');
-      element.classList.remove('mindmap-toolbar-side');
-      element.classList.remove('mindmap-toolbar-top');
-      delete element.dataset.mindmapToolbarPlacement;
-    });
-    this.wrapper?.classList.remove('mindmap-toolbar-side', 'mindmap-toolbar-top');
-    this.wrapper?.querySelector<HTMLElement>('.vertical-toolbar')?.removeAttribute('style');
-    document.documentElement.style.removeProperty('--mindmap-mobile-toolbar-top');
-    document.documentElement.style.removeProperty('--mindmap-visual-height');
-    document.documentElement.style.removeProperty('--mindmap-visual-width');
+    if (this.wrapper) resetToolbarPlacement(this.wrapper);
     this.cy?.destroy();
     
     // Clean up CSS when last mindmap view closes
@@ -1541,7 +1401,7 @@ export class MindmapView extends TextFileView {
     const newChildLine = childInsertPosition === 'first' ? parentNode.line + 1 : parentNode.endLine + 1;
     const newDoc = await addChild(this.app, this.file, parentNode, childInsertPosition);
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-child',
       timestamp: Date.now(),
       beforeState,
@@ -1564,7 +1424,7 @@ export class MindmapView extends TextFileView {
     const newSiblingLine = siblingInsertPosition === 'before' ? node.line : node.endLine + 1;
     const newDoc = await addSibling(this.app, this.file, node, siblingInsertPosition);
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-sibling',
       timestamp: Date.now(),
       beforeState,
@@ -1593,7 +1453,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeNode(this.app, this.file, node, desiredText);
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'toggle-checkbox',
       timestamp: Date.now(),
       beforeState,
@@ -1615,7 +1475,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeNode(this.app, this.file, node, desiredText);
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'edit-node',
       timestamp: Date.now(),
       beforeState,
@@ -1637,7 +1497,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeNode(this.app, this.file, node, desiredText);
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'edit-node',
       timestamp: Date.now(),
       beforeState,
@@ -1658,7 +1518,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[ ] ${node.text}`, false));
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'edit-node',
       timestamp: Date.now(),
       beforeState,
@@ -1679,7 +1539,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[x] ${node.text}`, false));
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'edit-node',
       timestamp: Date.now(),
       beforeState,
@@ -1701,7 +1561,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await writeNode(this.app, this.file, node, newText);
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'edit-node',
       timestamp: Date.now(),
       beforeState,
@@ -1723,7 +1583,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await deleteNode(this.app, this.file, node);
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'delete-node',
       timestamp: Date.now(),
       beforeState,
@@ -1743,7 +1603,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await deleteMultipleNodes(this.app, this.file, nodes);
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'delete-node', // reusing the type for simplicity, or could add delete-multiple-nodes
       timestamp: Date.now(),
       beforeState,
@@ -1762,7 +1622,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await deleteNodeKeepChildren(this.app, this.file, node);
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'delete-node-keep-children',
       timestamp: Date.now(),
       beforeState,
@@ -1799,7 +1659,7 @@ export class MindmapView extends TextFileView {
       return; // No change
     }
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'move-subtree',
       timestamp: Date.now(),
       beforeState,
@@ -1825,7 +1685,7 @@ export class MindmapView extends TextFileView {
     const beforeState = this.data;
     const newDoc = await addChildText(this.app, this.file, parentNode, text, childInsertPosition);
     
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-child-text',
       timestamp: Date.now(),
       beforeState,
@@ -1852,7 +1712,7 @@ export class MindmapView extends TextFileView {
 
     if (newDoc === beforeState) return;
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-sibling',
       timestamp: Date.now(),
       beforeState,
@@ -1872,7 +1732,7 @@ export class MindmapView extends TextFileView {
 
     if (newDoc === beforeState) return;
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-child-text',
       timestamp: Date.now(),
       beforeState,
@@ -1895,7 +1755,7 @@ export class MindmapView extends TextFileView {
       return;
     }
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'move-subtree',
       timestamp: Date.now(),
       beforeState,
@@ -1919,7 +1779,7 @@ export class MindmapView extends TextFileView {
 
     if (newDoc === beforeState) return;
 
-    const command: import('./command-history').MindmapCommand = {
+    const command: MindmapCommand = {
       type: 'add-sibling',
       timestamp: Date.now(),
       beforeState,

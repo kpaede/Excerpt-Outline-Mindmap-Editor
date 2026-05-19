@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { OutlineNode } from './util';
+import { OutlineNode } from '../utils/outline';
 
 export interface MindmapCommand {
   type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text' | 'toggle-checkbox';

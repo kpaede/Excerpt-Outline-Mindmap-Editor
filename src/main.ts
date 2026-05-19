@@ -7,10 +7,10 @@ import {
   View,
 } from 'obsidian';
 import { VIEW_TYPE_MINDMAP } from './constants';
-import { addToggleMindmapMenuItem } from './context-menu';
-import { MindmapView } from './mindmapView';
-import { openInternalLink } from './util';
-import { renderMindmapEomeEmbed } from './embed';
+import { addToggleMindmapMenuItem } from './integration/context-menu';
+import { MindmapView } from './view/mindmap-view';
+import { openInternalLink } from './utils/outline';
+import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();

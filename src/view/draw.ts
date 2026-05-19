@@ -3,15 +3,12 @@ import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
 // @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
-import { parseOutline, OutlineNode, openInternalLink } from './util';
-import { VerticalToolbar } from './vertical-toolbar';
-import { MindmapView } from './mindmapView';
+import { parseOutline, OutlineNode, openInternalLink } from '../utils/outline';
+import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
+import { MindmapView } from './mindmap-view';
+import { sortByMarkdownOrder } from '../utils/cytoscape';
 
 cytoscape.use(dagre);
-
-function sortByMarkdownOrder(a: any, b: any): number {
-  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
-}
 
 /**
  * Wait for all async content to finish rendering

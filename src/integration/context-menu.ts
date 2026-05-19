@@ -1,6 +1,6 @@
 import { Menu, TFile } from 'obsidian';
-import MindmapPlugin from './main';
-import { VIEW_TYPE_MINDMAP } from './constants';
+import MindmapPlugin from '../main';
+import { VIEW_TYPE_MINDMAP } from '../constants';
 
 export function addToggleMindmapMenuItem(
   menu: Menu,

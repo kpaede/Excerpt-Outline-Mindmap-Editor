@@ -1,4 +1,4 @@
-import type { MindmapView } from './mindmapView';
+import type { MindmapView } from '../../view/mindmap-view';
 import { applyMobileMenuPosition } from './menu-positioning';
 
 export class ZoomOptionsMenu {

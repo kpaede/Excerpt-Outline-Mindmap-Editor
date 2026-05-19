@@ -1,4 +1,5 @@
-import type { MindmapView, LayoutOptions } from './mindmapView';
+import type { MindmapView } from '../../view/mindmap-view';
+import type { LayoutOptions } from '../../domain/layout-options';
 import { applyMobileMenuPosition } from './menu-positioning';
 
 export class LayoutOptionsMenu {

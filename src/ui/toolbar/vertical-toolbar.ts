@@ -1,11 +1,11 @@
-// src/vertical-toolbar.ts
+// src/ui/toolbar/vertical-toolbar.ts
 
 import { setIcon } from 'obsidian';
-import type { MindmapView } from './mindmapView';
-import { LayoutOptionsMenu } from './layout-options-menu';
-import { NodeOptionsMenu, NodeOptions } from './node-options-menu';
-import { GeneralSettingsMenu } from './general-settings-menu';
-import { ZoomOptionsMenu } from './zoom-options-menu';
+import type { MindmapView } from '../../view/mindmap-view';
+import { LayoutOptionsMenu } from '../menus/layout-options-menu';
+import { NodeOptionsMenu, NodeOptions } from '../menus/node-options-menu';
+import { GeneralSettingsMenu } from '../menus/general-settings-menu';
+import { ZoomOptionsMenu } from '../menus/zoom-options-menu';
 
 export class VerticalToolbar {
   private container: HTMLDivElement;

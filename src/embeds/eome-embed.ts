@@ -9,14 +9,11 @@ import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
 // @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
-import type MindmapPlugin from './main';
-import { isOutlineCompatible, OutlineNode, parseOutline } from './util';
+import type MindmapPlugin from '../main';
+import { isOutlineCompatible, OutlineNode, parseOutline } from '../utils/outline';
+import { sortByMarkdownOrder } from '../utils/cytoscape';
 
 cytoscape.use(dagre);
-
-function sortByMarkdownOrder(a: any, b: any): number {
-  return (a.data('order') ?? 0) - (b.data('order') ?? 0);
-}
 
 function getEmbedFileName(source: string): string | null {
   const lines = source

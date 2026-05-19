@@ -1,5 +1,5 @@
 import { App, TFile, MarkdownView } from 'obsidian';
-import { OutlineNode } from './util';
+import { OutlineNode } from '../utils/outline';
 
 export type DocString = string;
 export type ChildInsertPosition = 'first' | 'last';

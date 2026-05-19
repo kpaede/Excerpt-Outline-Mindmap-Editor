@@ -1,7 +1,7 @@
 import { App, TFile } from 'obsidian';
-import { NodeOptions } from './node-options-menu';
-import { LayoutOptions } from './mindmapView';
-import { GeneralSettings } from './general-settings-menu';
+import { NodeOptions } from '../ui/menus/node-options-menu';
+import { LayoutOptions } from '../domain/layout-options';
+import { GeneralSettings } from '../ui/menus/general-settings-menu';
 
 export interface ExcerptOutlineMindmapData {
   // General options

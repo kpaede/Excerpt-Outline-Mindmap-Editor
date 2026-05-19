@@ -1,50 +1,44 @@
-import { TFile } from 'obsidian';
-import { FrontmatterStorage } from './frontmatter-storage';
+import { TFile, Setting, ToggleComponent } from 'obsidian';
+import { FrontmatterStorage } from '../../storage/frontmatter-storage';
 import { applyMobileMenuPosition } from './menu-positioning';
 
 type ClickHandlerElement = HTMLElement & {
   _clickHandler?: (event: MouseEvent) => void;
 };
 
-interface NodeOptionsView {
+interface GeneralSettingsView {
   file?: TFile | null;
   frontmatterStorage?: FrontmatterStorage;
 }
 
-export interface NodeOptions {
-  nodeWidth: number;
+export interface GeneralSettings {
+  keyboardNavigation: 'hierarchical' | 'spatial';
+  showCheckboxesOnHover?: boolean;
 }
 
 /**
- * NodeOptionsMenu creates a menu-style interface for node options
+ * GeneralSettingsMenu creates a menu-style interface for general options
  * positioned next to the clicked button
  */
-export class NodeOptionsMenu {
+export class GeneralSettingsMenu {
   private container: HTMLDivElement;
-  private options: NodeOptions;
-  private onSave: (options: NodeOptions) => void;
+  private settings: GeneralSettings;
+  private onSave: (settings: GeneralSettings) => void;
   private anchorEl: HTMLElement;
-  private view?: NodeOptionsView;
+  private view?: GeneralSettingsView;
 
-  constructor(anchorEl: HTMLElement, options: NodeOptions, onSave: (options: NodeOptions) => void, view?: NodeOptionsView) {
+  constructor(anchorEl: HTMLElement, settings: GeneralSettings, onSave: (settings: GeneralSettings) => void, view?: GeneralSettingsView) {
     this.anchorEl = anchorEl;
-    this.options = { ...options };
+    this.settings = { ...settings };
     this.onSave = onSave;
     this.view = view;
     this.createMenu();
   }
 
   private createMenu() {
-    // Create menu container
-    this.container = document.body.createDiv({ cls: 'node-options-menu' });
-    
-    // Position menu relative to anchor element
+    this.container = document.body.createDiv({ cls: 'general-settings-menu' });
     this.positionMenu();
-    
-    // Build menu content
     this.buildContent();
-    
-    // Add click outside handler to close menu
     this.addClickOutsideHandler();
   }
 
@@ -55,9 +49,7 @@ export class NodeOptionsMenu {
       12,
       Math.min(rect.left + window.scrollX - menuWidth - 12, window.scrollX + window.innerWidth - menuWidth - 12)
     );
-    
-    // Position menu to the left of the button
-    // Only set dynamic left/top variables; other layout handled via CSS class
+    // Only set dynamic position variables; other layout handled by CSS
     this.container.style.setProperty('--menu-left', `${left}px`);
     this.container.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
     this.applyMobilePosition(left, menuWidth);
@@ -92,37 +84,52 @@ export class NodeOptionsMenu {
   }
 
   private buildContent() {
-    // Header
-    this.container.createEl('h3', { text: 'Node Options' });
+    this.container.createEl('h3', { text: 'General Settings' });
+    // Header styling provided via CSS
 
-    // Node Width Slider
-    this.addSliderSetting(
-      'Node Width',
-      'Width of nodes in pixels',
-      100,
-      600,
-      10,
-      () => this.options.nodeWidth,
-      (v) => {
-        this.options.nodeWidth = v;
-        this.onSave(this.options);
+    this.addSelectSetting(
+      'Keyboard Navigation',
+      'Choose how arrow keys move the selection.',
+      ['hierarchical', 'spatial'],
+      ['Hierarchical (Tree)', 'Spatial (Visual)'],
+      () => this.settings.keyboardNavigation,
+      (val) => {
+        this.settings.keyboardNavigation = val as 'hierarchical' | 'spatial';
+        this.onSave(this.settings);
       }
     );
 
-    // Close button
+    new Setting(this.container)
+      .setName('Show checkbox toggle on non-checkbox nodes')
+      .setDesc('Display a checkbox icon when hovering over nodes that are not already task list items.')
+      .addToggle((toggle: ToggleComponent) =>
+        toggle
+          .setValue(this.settings.showCheckboxesOnHover ?? false)
+          .onChange(async (value: boolean) => {
+            this.settings.showCheckboxesOnHover = value;
+            this.onSave(this.settings);
+            if (this.view?.file && this.view?.frontmatterStorage) {
+              try {
+                await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
+              } catch (error) {
+                console.error('Failed to save general settings to frontmatter:', error);
+              }
+            }
+          })
+      );
+
     const closeBtn = this.container.createEl('button', { text: 'Close' });
     closeBtn.classList.add('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
   }
 
-  private addSliderSetting(
+  private addSelectSetting(
     label: string,
     desc: string,
-    min: number,
-    max: number,
-    step: number,
-    getValue: () => number,
-    setValue: (v: number) => void
+    options: string[],
+    optionLabels: string[],
+    getValue: () => string,
+    setValue: (v: string) => void
   ) {
     const settingDiv = this.container.createDiv({ cls: 'setting-item' });
     
@@ -131,30 +138,25 @@ export class NodeOptionsMenu {
     labelDiv.createDiv({ text: desc, cls: 'setting-item-description' });
     
     const controlDiv = settingDiv.createDiv({ cls: 'setting-item-control' });
+    const select = controlDiv.createEl('select');
     
-    const slider = controlDiv.createEl('input', { attr: { type: 'range' } }) as HTMLInputElement;
-    slider.min = String(min);
-    slider.max = String(max);
-    slider.step = String(step);
-    slider.value = String(getValue());
-    slider.classList.add('slider-margin-right');
-    
-    const valueEl = controlDiv.createEl('span', { text: `${getValue()}px` });
-    
-    slider.oninput = async () => {
-      const newVal = Number(slider.value);
-      setValue(newVal);
-      valueEl.setText(`${newVal}px`);
-      
-      // Save to frontmatter
+    options.forEach((opt, index) => {
+      const optionEl = select.createEl('option', { value: opt, text: optionLabels[index] });
+      if (opt === getValue()) {
+        optionEl.selected = true;
+      }
+    });
+
+    select.addEventListener('change', async () => {
+      setValue(select.value);
       if (this.view?.file && this.view?.frontmatterStorage) {
         try {
-          await this.view.frontmatterStorage.updateNodeOptions(this.view.file, this.options);
+          await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
         } catch (error) {
-          console.error('Failed to save node options to frontmatter:', error);
+          console.error('Failed to save general settings to frontmatter:', error);
         }
       }
-    };
+    });
   }
 
   private addClickOutsideHandler() {
@@ -164,25 +166,18 @@ export class NodeOptionsMenu {
         this.close();
       }
     };
-    
-    setTimeout(() => {
-      document.addEventListener('click', handler);
-    }, 100);
-    
-    // Store handler for cleanup
+    setTimeout(() => { document.addEventListener('click', handler); }, 100);
     const container = this.container as ClickHandlerElement;
     container._clickHandler = handler;
   }
 
   public close() {
     if (this.container) {
-      // Remove click handler
       const container = this.container as ClickHandlerElement;
       const handler = container._clickHandler;
       if (handler) {
         document.removeEventListener('click', handler);
       }
-      
       this.container.remove();
     }
   }
