@@ -1,10 +1,10 @@
 # Excerpt-Outline-Mindmap-Editor
 
-**Beta warning:** This plugin is still in active development. Bugs, data loss, and instability are still possible.
+**Beta warning:** This plugin is still in active development. Bugs are still possible. Always keep a backup.
 
-Excerpt-Outline-Mindmap-Editor is an Obsidian plugin for working with Markdown outlines as visual mindmaps. It is built around a precise drag-and-drop workflow for restructuring hierarchical notes without leaving the underlying Markdown format.
+Excerpt-Outline-Mindmap-Editor is an Obsidian plugin for working with Markdown outlines as visual mindmaps. It is built around a simple drag-and-drop workflow, that basically rearranges the underlying Markdown bullet points.
 
-It is especially useful for literature excerpting, research notes, and other situations where a plain outline is the right data model, but a spatial view makes the structure easier to understand and reshape.
+It is especially useful for literature excerpting, research notes, and other situations where a spatial view makes it easy to navigate and structure quotes and thoughts. For this reason every node can also be greyed out with checkboxes.
 
 ![](images/screenshot.png)
 
@@ -14,7 +14,7 @@ It is especially useful for literature excerpting, research notes, and other sit
 
 A node in the mindmap is just a Markdown list item. Moving a node changes its position and indentation in the file. There is no custom database, no proprietary mindmap file, and no hidden document format.
 
-This keeps your notes readable in Obsidian's normal editor and compatible with outline-based tools such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).
+This keeps your notes readable in Obsidian's normal editor and compatible with other outline-based tools such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).
 
 ---
 
@@ -26,6 +26,16 @@ The main interaction is dropping one node onto another. The target node is split
 - **Upper right:** insert as sibling after the target
 - **Lower left:** insert as first child of the target
 - **Lower right:** insert as last child of the target
+
+```text
++-------------------+-------------------+
+|   Upper Left:     |   Upper Right:    |
+|  Sibling Before   |   Sibling After   |
++-------------------+-------------------+
+|   Lower Left:     |   Lower Right:    |
+|   First Child     |    Last Child     |
++-------------------+-------------------+
+```
 
 When you move a node, its whole subtree moves with it. The result is written back to the Markdown outline, so the visual operation and the document structure stay in sync.
 
@@ -49,8 +59,8 @@ Mindmap files are regular Markdown files made from indented list items:
 
 ```markdown
 - Parent node
-	- Child node
-		- Grandchild node
+  - Child node
+    - Grandchild node
 - Another parent node
 ```
 
@@ -78,9 +88,10 @@ If the file contains non-outline content outside list items, the mindmap view ma
 ### Editing
 
 - Double-click a node, press **Enter**, or use the context menu to edit.
+- The editor is actually the full Obsidian editor.
 - Newly created child and sibling nodes enter edit mode automatically.
 - Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.
-- Hard line breaks inside a single node are not supported and are removed from imported text.
+- Hard line breaks inside a single node are not supported and are replaced with spaces upon import.
 
 ### Tasks and sources
 
@@ -140,7 +151,7 @@ Only the filename belongs inside the code block. Options, extra text, and multip
 
 ## Mobile support
 
-The plugin offers mobile support. You can navigate, edit, and restructure your mindmaps using touch gestures. Double tap for a node context menu; stay long on a node to pick it up. Everything else works like on the desktop version.
+The plugin offers mobile support. You can navigate, edit, and restructure your mindmaps using touch gestures. Double tap for a node context menu; long-press a node to pick it up. Everything else works like on the desktop version.
 
 ---
 
