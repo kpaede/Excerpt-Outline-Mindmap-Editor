@@ -9,6 +9,25 @@ export function isMoveTargetInsideSourceSubtree(source: OutlineNode, target: Out
   return target.line > source.line && target.line <= source.endLine;
 }
 
+export interface AddChildOptions {
+  inheritParentListType?: boolean;
+}
+
+function childLinePrefix(parent: OutlineNode, inheritParentListType: boolean): string {
+  const marker = inheritParentListType ? parent.marker : '-';
+  const checkboxPrefix = inheritParentListType && parent.checkbox !== 'none' ? ' [ ]' : '';
+  return `${parent.indent}\t${marker}${checkboxPrefix}`;
+}
+
+function preserveExistingCheckboxPrefix(node: OutlineNode, text: string): string {
+  if (node.checkbox === 'none' || /^\[( |x|X)\]\s*/.test(text)) {
+    return text;
+  }
+
+  const checkboxPrefix = node.checkbox === 'checked' ? '[x]' : '[ ]';
+  return text ? `${checkboxPrefix} ${text}` : checkboxPrefix;
+}
+
 async function persistLines(app: App, file: TFile, lines: string[]): Promise<DocString> {
   const newDoc = lines.join('\n');
   let writtenViaEditor = false;
@@ -48,7 +67,8 @@ export async function addChild(
   app: App,
   file: TFile,
   parent: OutlineNode,
-  childInsertPosition: ChildInsertPosition = 'last'
+  childInsertPosition: ChildInsertPosition = 'last',
+  options: AddChildOptions = {}
 ): Promise<DocString> {
   let fileText: string;
   try {
@@ -63,8 +83,7 @@ export async function addChild(
   }
 
   const insertIndex = childInsertPosition === 'first' ? parent.line + 1 : parent.endLine + 1;
-  const childIndent = parent.indent + '\t';
-  const newLine = `${childIndent}- `;
+  const newLine = `${childLinePrefix(parent, options.inheritParentListType ?? false)} `;
   
   lines.splice(insertIndex, 0, newLine);
 
@@ -113,7 +132,7 @@ export async function writeNode(
 
   // Replace the single line with new content
   const prefix = node.indent + node.marker;
-  const newLine = `${prefix} ${txt}`;
+  const newLine = `${prefix} ${preserveExistingCheckboxPrefix(node, txt)}`;
   
   lines[node.line] = newLine;
 
@@ -335,7 +354,8 @@ export async function addChildText(
   file: TFile,
   parent: OutlineNode,
   text: string,
-  childInsertPosition: ChildInsertPosition = 'last'
+  childInsertPosition: ChildInsertPosition = 'last',
+  options: AddChildOptions = {}
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
   const lines = fileText.split(/\r?\n/);
@@ -347,8 +367,7 @@ export async function addChildText(
   const insertIndex = childInsertPosition === 'first' ? parent.line + 1 : parent.endLine + 1;
   
   // Create child with proper indentation
-  const childIndent = parent.indent + '\t';
-  const newLine = `${childIndent}- ${text}`;
+  const newLine = `${childLinePrefix(parent, options.inheritParentListType ?? false)} ${text}`;
   
   lines.splice(insertIndex, 0, newLine);
 

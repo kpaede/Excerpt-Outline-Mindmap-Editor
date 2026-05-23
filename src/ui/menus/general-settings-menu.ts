@@ -14,6 +14,7 @@ interface GeneralSettingsView {
 export interface GeneralSettings {
   keyboardNavigation: 'hierarchical' | 'spatial';
   showCheckboxesOnHover?: boolean;
+  inheritParentListTypeForChildren?: boolean;
 }
 
 /**
@@ -107,6 +108,25 @@ export class GeneralSettingsMenu {
           .setValue(this.settings.showCheckboxesOnHover ?? false)
           .onChange(async (value: boolean) => {
             this.settings.showCheckboxesOnHover = value;
+            this.onSave(this.settings);
+            if (this.view?.file && this.view?.frontmatterStorage) {
+              try {
+                await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
+              } catch (error) {
+                console.error('Failed to save general settings to frontmatter:', error);
+              }
+            }
+          })
+      );
+
+    new Setting(this.container)
+      .setName('Inherit parent type for new children')
+      .setDesc('Create new child nodes with the same bullet or checkbox type as their parent.')
+      .addToggle((toggle: ToggleComponent) =>
+        toggle
+          .setValue(this.settings.inheritParentListTypeForChildren ?? false)
+          .onChange(async (value: boolean) => {
+            this.settings.inheritParentListTypeForChildren = value;
             this.onSave(this.settings);
             if (this.view?.file && this.view?.frontmatterStorage) {
               try {

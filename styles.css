@@ -642,6 +642,13 @@ If your plugin does not need CSS, delete this file.
   border-color: #d68420;
   box-shadow: inset -4px -4px 0 #d68420, 0 0 8px rgba(214, 132, 32, 0.32);
 }
+.mindmap-wrapper .mm-tgt.mm-tgt-child {
+  border-color: #31b549;
+  background-image:
+    linear-gradient(to right, rgba(41, 112, 255, 0.2) 0 50%, rgba(144, 89, 255, 0.2) 50% 100%),
+    linear-gradient(rgba(49, 181, 73, 0.2), rgba(49, 181, 73, 0.2));
+  box-shadow: inset 0 -4px 0 #31b549, 0 0 8px rgba(49, 181, 73, 0.3);
+}
 .mindmap-wrapper .mm-tgt.mm-tgt-invalid {
   cursor: not-allowed;
   border-color: var(--text-error, #e03131);
@@ -678,6 +685,10 @@ If your plugin does not need CSS, delete this file.
 .mindmap-wrapper .mm-tgt.mm-tgt-last-child::after {
   content: "Insert as last child";
   background: #d68420;
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-child::after {
+  content: "Drop as child";
+  background: #31b549;
 }
 .mindmap-wrapper .mm-tgt.mm-tgt-invalid::after {
   content: "Cannot move into own children";

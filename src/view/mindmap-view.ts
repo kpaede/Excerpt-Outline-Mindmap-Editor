@@ -1040,6 +1040,7 @@ export class MindmapView extends TextFileView {
   public generalSettings: GeneralSettings = {
     keyboardNavigation: 'hierarchical',
     showCheckboxesOnHover: false,
+    inheritParentListTypeForChildren: false,
   };
 
   private nodeOptions: NodeOptions = {
@@ -1093,11 +1094,33 @@ export class MindmapView extends TextFileView {
     await this.draw();
   }
 
+  public ensureMindmapWrapper(): void {
+    if (this.wrapper && this.contentEl.contains(this.wrapper)) {
+      return;
+    }
+
+    this.contentEl.empty();
+    this.wrapper = this.contentEl.createDiv({ cls: 'mindmap-wrapper' });
+    this.prepareWrapper();
+  }
+
+  private resetRenderedMindmap(): void {
+    this.cy?.destroy();
+    this.cy = undefined;
+    this.toolbar?.closeMenus();
+    this.toolbar = undefined;
+    this.firstFitDone = false;
+    this.isUpdatingOverlays = false;
+    this.selectionBoxEl = null;
+    this.ensureMindmapWrapper();
+    this.wrapper.empty();
+  }
+
   /** Show empty state UI */
   private showEmptyState(): void {
-    this.contentEl.empty();
+    this.resetRenderedMindmap();
     
-    const container = this.contentEl.createDiv({ cls: 'mindmap-empty-state' });
+    const container = this.wrapper.createDiv({ cls: 'mindmap-empty-state' });
 
     const title = container.createEl('h2', { text: 'Start your mindmap' });
     title.addClass('mindmap-empty-title');
@@ -1112,9 +1135,9 @@ export class MindmapView extends TextFileView {
 
   /** Show incompatible content warning */
   private showIncompatibleWarning(): void {
-    this.contentEl.empty();
+    this.resetRenderedMindmap();
     
-    const container = this.contentEl.createDiv({ cls: 'mindmap-warning-state' });
+    const container = this.wrapper.createDiv({ cls: 'mindmap-warning-state' });
 
     const icon = container.createDiv({ cls: 'mindmap-warning-icon' });
     icon.innerHTML = '⚠️';
@@ -1339,6 +1362,10 @@ export class MindmapView extends TextFileView {
         this.generalSettings.showCheckboxesOnHover = mindmapData.showCheckboxesOnHover;
       }
 
+      if (typeof mindmapData.inheritParentListTypeForChildren === 'boolean') {
+        this.generalSettings.inheritParentListTypeForChildren = mindmapData.inheritParentListTypeForChildren;
+      }
+
       // Load node width from frontmatter (flat structure)
       if (typeof mindmapData.nodeWidth === 'number') {
         this.nodeOptions.nodeWidth = mindmapData.nodeWidth;
@@ -1400,7 +1427,9 @@ export class MindmapView extends TextFileView {
     
     const beforeState = this.data;
     const newChildLine = childInsertPosition === 'first' ? parentNode.line + 1 : parentNode.endLine + 1;
-    const newDoc = await addChild(this.app, this.file, parentNode, childInsertPosition);
+    const newDoc = await addChild(this.app, this.file, parentNode, childInsertPosition, {
+      inheritParentListType: this.generalSettings.inheritParentListTypeForChildren ?? false,
+    });
     
     const command: MindmapCommand = {
       type: 'add-child',
@@ -1689,7 +1718,9 @@ export class MindmapView extends TextFileView {
     if (!text) return;
 
     const beforeState = this.data;
-    const newDoc = await addChildText(this.app, this.file, parentNode, text, childInsertPosition);
+    const newDoc = await addChildText(this.app, this.file, parentNode, text, childInsertPosition, {
+      inheritParentListType: this.generalSettings.inheritParentListTypeForChildren ?? false,
+    });
     
     const command: MindmapCommand = {
       type: 'add-child-text',

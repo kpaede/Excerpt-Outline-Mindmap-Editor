@@ -5,11 +5,19 @@ export type DropIntent =
   | { kind: 'child'; childInsertPosition: ChildInsertPosition };
 
 export type DropPointer = Pick<MouseEvent | DragEvent | PointerEvent, 'clientX' | 'clientY'>;
+export interface DropIntentOptions {
+  targetHasChildren?: boolean;
+}
 
-export function getDropIntent(event: DropPointer, targetBox: HTMLElement): DropIntent {
+export function getDropIntent(
+  event: DropPointer,
+  targetBox: HTMLElement,
+  options: DropIntentOptions = {}
+): DropIntent {
   const rect = targetBox.getBoundingClientRect();
   const relativeY = event.clientY - rect.top;
   const relativeX = event.clientX - rect.left;
+  const targetHasChildren = options.targetHasChildren ?? true;
 
   const isLeft = relativeX < rect.width / 2;
 
@@ -17,20 +25,30 @@ export function getDropIntent(event: DropPointer, targetBox: HTMLElement): DropI
     return { kind: 'sibling', siblingInsertPosition: isLeft ? 'before' : 'after' };
   }
 
+  if (!targetHasChildren) {
+    return { kind: 'child', childInsertPosition: 'last' };
+  }
+
   return { kind: 'child', childInsertPosition: isLeft ? 'first' : 'last' };
 }
 
-export function updateDropPreview(event: DropPointer, targetBox: HTMLElement): DropIntent {
-  const dropIntent = getDropIntent(event, targetBox);
+export function updateDropPreview(
+  event: DropPointer,
+  targetBox: HTMLElement,
+  options: DropIntentOptions = {}
+): DropIntent {
+  const dropIntent = getDropIntent(event, targetBox, options);
+  const targetHasChildren = options.targetHasChildren ?? true;
   targetBox.classList.toggle('mm-tgt-sibling-before', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'before');
   targetBox.classList.toggle('mm-tgt-sibling-after', dropIntent.kind === 'sibling' && dropIntent.siblingInsertPosition === 'after');
-  targetBox.classList.toggle('mm-tgt-first-child', dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'first');
-  targetBox.classList.toggle('mm-tgt-last-child', dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'last');
+  targetBox.classList.toggle('mm-tgt-first-child', targetHasChildren && dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'first');
+  targetBox.classList.toggle('mm-tgt-last-child', targetHasChildren && dropIntent.kind === 'child' && dropIntent.childInsertPosition === 'last');
+  targetBox.classList.toggle('mm-tgt-child', !targetHasChildren && dropIntent.kind === 'child');
   return dropIntent;
 }
 
 export function clearDropPreview(targetBox: HTMLElement): void {
-  targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child', 'mm-tgt-invalid');
+  targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child', 'mm-tgt-child', 'mm-tgt-invalid');
 }
 
 export function getOverlayAtPoint(clientX: number, clientY: number): HTMLElement | null {

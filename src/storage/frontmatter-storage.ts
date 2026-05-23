@@ -7,6 +7,7 @@ export interface ExcerptOutlineMindmapData {
   // General options
   keyboardNavigation?: 'hierarchical' | 'spatial';
   showCheckboxesOnHover?: boolean;
+  inheritParentListTypeForChildren?: boolean;
 
   // Node options
   nodeWidth?: number;
@@ -205,6 +206,10 @@ export class FrontmatterStorage {
 
     if (typeof generalSettings.showCheckboxesOnHover === 'boolean') {
       currentData.showCheckboxesOnHover = generalSettings.showCheckboxesOnHover;
+    }
+
+    if (typeof generalSettings.inheritParentListTypeForChildren === 'boolean') {
+      currentData.inheritParentListTypeForChildren = generalSettings.inheritParentListTypeForChildren;
     }
 
     await this.saveMindmapData(file, currentData);

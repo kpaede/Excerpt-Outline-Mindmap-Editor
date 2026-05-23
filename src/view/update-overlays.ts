@@ -132,7 +132,7 @@ function performOverlayUpdate(view: MindmapView): void {
     }
 
     targetBox.classList.remove('mm-tgt-invalid');
-    return updateDropPreview(event, targetBox);
+    return updateDropPreview(event, targetBox, { targetHasChildren: targetNode.children.length > 0 });
   };
 
   view.cy!.nodes().forEach((n) => {
@@ -371,7 +371,7 @@ function performOverlayUpdate(view: MindmapView): void {
     box.addEventListener('drop', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const dropIntent = getDropIntent(e, box);
+      const dropIntent = getDropIntent(e, box, { targetHasChildren: nodeToUse.children.length > 0 });
       box.classList.remove('mm-tgt');
       clearDropPreview(box);
       dragCounter = 0;
@@ -584,7 +584,9 @@ function performOverlayUpdate(view: MindmapView): void {
 
           touchDropTarget.classList.remove('mm-tgt-invalid');
           touchDragGhost?.classList.add('is-over-target');
-          touchDropIntent = updateDropPreview(event, touchDropTarget);
+          touchDropIntent = updateDropPreview(event, touchDropTarget, {
+            targetHasChildren: targetNode ? targetNode.children.length > 0 : true,
+          });
         }
       };
 
