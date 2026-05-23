@@ -749,6 +749,13 @@ export class MindmapView extends TextFileView {
           .onClick(() => void this.convertNodesToCheckedTask(selectedNodes));
       });
 
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to bullet points` : 'Convert to bullet point')
+          .setIcon('list')
+          .onClick(() => void this.convertNodesToBulletPoint(selectedNodes));
+      });
+
       menu.addSeparator();
 
       menu.addItem((item) => {
@@ -1578,6 +1585,30 @@ export class MindmapView extends TextFileView {
       metadata: {
         oldText: nodes.map((node) => node.text.substring(0, 50)).join(' | '),
         newText: nodes.map((node) => `[x] ${node.text}`.substring(0, 50)).join(' | '),
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async convertNodesToBulletPoint(nodes: OutlineNode[]): Promise<void> {
+    if (!this.file || nodes.length === 0) return;
+
+    const beforeState = this.data;
+    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(node.text, false));
+
+    const command: MindmapCommand = {
+      type: 'edit-node',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
+      metadata: {
+        oldText: nodes.map((node) => {
+          const prefix = node.checkbox === 'checked' ? '[x] ' : node.checkbox === 'unchecked' ? '[ ] ' : '';
+          return `${prefix}${node.text}`.substring(0, 50);
+        }).join(' | '),
+        newText: nodes.map((node) => node.text.substring(0, 50)).join(' | '),
       }
     };
 
