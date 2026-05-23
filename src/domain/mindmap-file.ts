@@ -5,6 +5,10 @@ export type DocString = string;
 export type ChildInsertPosition = 'first' | 'last';
 export type SiblingInsertPosition = 'before' | 'after';
 
+export function isMoveTargetInsideSourceSubtree(source: OutlineNode, target: OutlineNode): boolean {
+  return target.line > source.line && target.line <= source.endLine;
+}
+
 async function persistLines(app: App, file: TFile, lines: string[]): Promise<DocString> {
   const newDoc = lines.join('\n');
   let writtenViaEditor = false;
@@ -267,8 +271,14 @@ export async function moveSubtree(
     return fileText;
   }
 
-  // Extract source subtree
+  // Moving a node relative to one of its own descendants would create an
+  // impossible outline cycle once the source subtree is removed.
   const sourceEnd = subtreeEnd(originalLines, source.line, source.indent);
+  if (target.line > source.line && target.line < sourceEnd) {
+    return fileText;
+  }
+
+  // Extract source subtree
   const sourceLines = originalLines.slice(source.line, sourceEnd);
   
   // Remove source subtree from original position

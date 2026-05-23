@@ -5,6 +5,7 @@ import { DeleteNodeModal, DeleteOption } from "../ui/modals/delete-node-modal";
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
 import { clearDropPreview, DropIntent, DropPointer, getDropIntent, getOverlayAtPoint, updateDropPreview } from './overlay-dnd';
 import { getPrimaryZoteroLink } from '../utils/zotero';
+import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
 
 export { startNodeEditing };
 
@@ -108,6 +109,31 @@ function performOverlayUpdate(view: MindmapView): void {
     box: HTMLElement;
     node: OutlineNode;
   } | null = null;
+  let activeDraggedNodeLine: number | null = null;
+
+  const getCurrentNodeByLine = (line: number): OutlineNode | undefined => flatCurrent.find(n => n.line === line);
+  const isInvalidMoveTarget = (source: OutlineNode, target: OutlineNode): boolean => (
+    source.line === target.line || isMoveTargetInsideSourceSubtree(source, target)
+  );
+  const setInvalidDropPreview = (targetBox: HTMLElement): void => {
+    clearDropPreview(targetBox);
+    targetBox.classList.add('mm-tgt-invalid');
+  };
+  const updateMoveDropPreview = (
+    event: DropPointer,
+    targetBox: HTMLElement,
+    targetNode: OutlineNode,
+    sourceLine: number | null
+  ): DropIntent | null => {
+    const sourceNode = sourceLine === null ? undefined : getCurrentNodeByLine(sourceLine);
+    if (sourceNode && isInvalidMoveTarget(sourceNode, targetNode)) {
+      setInvalidDropPreview(targetBox);
+      return null;
+    }
+
+    targetBox.classList.remove('mm-tgt-invalid');
+    return updateDropPreview(event, targetBox);
+  };
 
   view.cy!.nodes().forEach((n) => {
     const nd = n.data('node') as OutlineNode;
@@ -280,6 +306,7 @@ function performOverlayUpdate(view: MindmapView): void {
         e.dataTransfer!.setData('text/mindmap-scale', String(nodeToUse.scaleFactor));
       }
       
+      activeDraggedNodeLine = nodeToUse.line;
       box.classList.add('mm-src');
 
       const rect = box.getBoundingClientRect();
@@ -307,6 +334,7 @@ function performOverlayUpdate(view: MindmapView): void {
     box.addEventListener('dragend', () => {
       box.classList.remove('mm-src');
       clearDropPreview(box);
+      activeDraggedNodeLine = null;
       dragCounter = 0; // Reset counter
     });
     
@@ -315,7 +343,7 @@ function performOverlayUpdate(view: MindmapView): void {
       e.stopPropagation();
       dragCounter++;
       box.classList.add('mm-tgt');
-      updateDropPreview(e, box);
+      updateMoveDropPreview(e, box, nodeToUse, activeDraggedNodeLine);
     });
     
     box.addEventListener('dragleave', (e) => {
@@ -337,7 +365,7 @@ function performOverlayUpdate(view: MindmapView): void {
       if (!box.classList.contains('mm-tgt')) {
         box.classList.add('mm-tgt');
       }
-      updateDropPreview(e, box);
+      updateMoveDropPreview(e, box, nodeToUse, activeDraggedNodeLine);
     });
     
     box.addEventListener('drop', async (e) => {
@@ -356,6 +384,11 @@ function performOverlayUpdate(view: MindmapView): void {
         
         const srcNodeFromOutline = flatCurrent.find(n => n.line === parseInt(srcLine));
         if (srcNodeFromOutline && srcNodeFromOutline.line !== nodeToUse.line) {
+          if (isInvalidMoveTarget(srcNodeFromOutline, nodeToUse)) {
+            new Notice('Cannot move a node into its own children.');
+            return;
+          }
+
           try {
             await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
             // Use the new command-based move operation
@@ -540,6 +573,16 @@ function performOverlayUpdate(view: MindmapView): void {
         }
 
         if (touchDropTarget) {
+          const targetLine = Number(touchDropTarget.dataset.nodeLine);
+          const targetNode = Number.isNaN(targetLine) ? undefined : getCurrentNodeByLine(targetLine);
+          if (targetNode && isInvalidMoveTarget(nodeToUse, targetNode)) {
+            setInvalidDropPreview(touchDropTarget);
+            touchDropIntent = null;
+            touchDragGhost?.classList.remove('is-over-target');
+            return;
+          }
+
+          touchDropTarget.classList.remove('mm-tgt-invalid');
           touchDragGhost?.classList.add('is-over-target');
           touchDropIntent = updateDropPreview(event, touchDropTarget);
         }

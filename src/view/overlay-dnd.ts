@@ -30,7 +30,7 @@ export function updateDropPreview(event: DropPointer, targetBox: HTMLElement): D
 }
 
 export function clearDropPreview(targetBox: HTMLElement): void {
-  targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child');
+  targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child', 'mm-tgt-invalid');
 }
 
 export function getOverlayAtPoint(clientX: number, clientY: number): HTMLElement | null {

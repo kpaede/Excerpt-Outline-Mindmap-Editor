@@ -642,6 +642,12 @@ If your plugin does not need CSS, delete this file.
   border-color: #d68420;
   box-shadow: inset -4px -4px 0 #d68420, 0 0 8px rgba(214, 132, 32, 0.32);
 }
+.mindmap-wrapper .mm-tgt.mm-tgt-invalid {
+  cursor: not-allowed;
+  border-color: var(--text-error, #e03131);
+  background-image: none;
+  box-shadow: 0 0 8px rgba(224, 49, 49, 0.32);
+}
 .mindmap-wrapper .mm-tgt::after {
   position: absolute;
   top: -20px;
@@ -672,6 +678,10 @@ If your plugin does not need CSS, delete this file.
 .mindmap-wrapper .mm-tgt.mm-tgt-last-child::after {
   content: "Insert as last child";
   background: #d68420;
+}
+.mindmap-wrapper .mm-tgt.mm-tgt-invalid::after {
+  content: "Cannot move into own children";
+  background: var(--text-error, #e03131);
 }
 
 /* Ensure interactive elements within nodes don't interfere with drag */

@@ -33,6 +33,7 @@ import {
   DocString,
   ChildInsertPosition,
   SiblingInsertPosition,
+  isMoveTargetInsideSourceSubtree,
 } from '../domain/mindmap-file';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { draw as drawMindmap } from './draw';
@@ -1643,6 +1644,11 @@ export class MindmapView extends TextFileView {
     siblingInsertPosition: SiblingInsertPosition = 'after'
   ): Promise<void> {
     if (!this.file) return;
+
+    if (isMoveTargetInsideSourceSubtree(sourceNode, targetNode)) {
+      new Notice('Cannot move a node into its own children.');
+      return;
+    }
     
     const beforeState = this.data;
     const newDoc = await moveSubtree(
