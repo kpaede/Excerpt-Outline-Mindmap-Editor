@@ -59,8 +59,8 @@ export function renderHeadingFrames(
 
     if (!bounds) return;
 
-    const padding = 18 + Math.max(0, 6 - section.level);
-    const titleSpace = 30;
+    const padding = 24 + Math.max(0, 6 - section.level) * 6;
+    const titleSpace = 34;
     const width = bounds.right - bounds.left + padding * 2;
     const height = bounds.bottom - bounds.top + padding * 2 + titleSpace;
     const centerX = bounds.left + (bounds.right - bounds.left) / 2;

@@ -1,3 +1,5 @@
+export type HeadingTreeLayout = 'vertical' | 'horizontal';
+
 export interface LayoutOptions {
   rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
   align?: 'UL' | 'UR' | 'DL' | 'DR';
@@ -10,6 +12,7 @@ export interface LayoutOptions {
   ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   spacingFactor?: number;
   zoomFactor?: number;
+  headingTreeLayout?: HeadingTreeLayout;
 }
 
 export function createDefaultLayoutOptions() {
@@ -33,5 +36,6 @@ export function createDefaultLayoutOptions() {
     edgeLabelOffset: 10,
     spacingFactor: 1.0,
     zoomFactor: undefined as number | undefined,
+    headingTreeLayout: 'vertical' as HeadingTreeLayout,
   };
 }

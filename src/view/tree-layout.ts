@@ -1,4 +1,5 @@
 import type { Core } from 'cytoscape';
+import type { HeadingTreeLayout } from '../domain/layout-options';
 import type { OutlineNode } from '../utils/outline';
 
 function collectSubtreeLines(node: OutlineNode, lines: Set<number>): void {
@@ -39,10 +40,11 @@ function getGroupBounds(
   return bounds;
 }
 
-export function stackTopLevelTreesVertically(
+export function arrangeTopLevelTrees(
   cy: Core,
   roots: OutlineNode[],
   sizeMap: Map<number, { w: number; h: number }>,
+  mode: HeadingTreeLayout = 'vertical',
   gap: number = 160
 ): void {
   if (roots.length < 2) return;
@@ -60,11 +62,17 @@ export function stackTopLevelTreesVertically(
   if (groups.length < 2) return;
 
   const targetLeft = Math.min(...groups.map((group) => group.bounds.left));
+  const targetTop = Math.min(...groups.map((group) => group.bounds.top));
   let nextTop = groups[0].bounds.top;
+  let nextLeft = groups[0].bounds.left;
 
   groups.forEach((group) => {
-    const dx = targetLeft - group.bounds.left;
-    const dy = nextTop - group.bounds.top;
+    const dx = mode === 'horizontal'
+      ? nextLeft - group.bounds.left
+      : targetLeft - group.bounds.left;
+    const dy = mode === 'horizontal'
+      ? targetTop - group.bounds.top
+      : nextTop - group.bounds.top;
 
     group.lines.forEach((line) => {
       const node = cy.getElementById(`n${line}`);
@@ -77,6 +85,10 @@ export function stackTopLevelTreesVertically(
       });
     });
 
-    nextTop += group.bounds.bottom - group.bounds.top + gap;
+    if (mode === 'horizontal') {
+      nextLeft += group.bounds.right - group.bounds.left + gap;
+    } else {
+      nextTop += group.bounds.bottom - group.bounds.top + gap;
+    }
   });
 }

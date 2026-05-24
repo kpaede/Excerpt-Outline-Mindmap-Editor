@@ -122,6 +122,23 @@ export class LayoutOptionsMenu {
       }
     );
 
+    this.addDropdownSetting(
+      container,
+      'Tree arrangement',
+      'Place separate heading trees vertically or horizontally',
+      {
+        vertical: 'Vertical',
+        horizontal: 'Horizontal',
+      },
+      opts.headingTreeLayout ?? 'vertical',
+      async (value) => {
+        const headingTreeLayout = value as 'vertical' | 'horizontal';
+        opts.headingTreeLayout = headingTreeLayout;
+        this.view.relayout();
+        await this.view.updateLayoutOptions({ headingTreeLayout });
+      }
+    );
+
     // Sliders - make all callbacks async and save to frontmatter.
     // Edge separation and graph margins are intentionally omitted here:
     // with our straight, unlabeled edges and centered viewport they have no useful visible effect.

@@ -2,6 +2,7 @@ import { App, TFile } from 'obsidian';
 import { NodeOptions } from '../ui/menus/node-options-menu';
 import { LayoutOptions } from '../domain/layout-options';
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
+import type { HeadingTreeLayout } from '../domain/layout-options';
 
 export interface ExcerptOutlineMindmapData {
   // General options
@@ -24,6 +25,7 @@ export interface ExcerptOutlineMindmapData {
   ranker?: 'network-simplex' | 'tight-tree' | 'longest-path';
   spacingFactor?: number;
   zoomFactor?: number;
+  headingTreeLayout?: HeadingTreeLayout;
 }
 
 export class FrontmatterStorage {
@@ -193,6 +195,7 @@ export class FrontmatterStorage {
     delete currentData.acyclicer;
     delete currentData.ranker;
     delete currentData.spacingFactor;
+    delete currentData.headingTreeLayout;
 
     await this.saveMindmapData(file, currentData, hadMindmapMarker);
   }

@@ -7,7 +7,7 @@ import { parseOutline, OutlineNode, openInternalLink } from '../utils/outline';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { MindmapView } from './mindmap-view';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
-import { stackTopLevelTreesVertically } from './tree-layout';
+import { arrangeTopLevelTrees } from './tree-layout';
 
 cytoscape.use(dagre);
 
@@ -360,7 +360,13 @@ export async function draw(view: MindmapView): Promise<void> {
 
     view.cy.on('layoutstop', () => {
       const layoutRoots = view.cy!.scratch('_mindmapRoots') as OutlineNode[] | undefined;
-      stackTopLevelTreesVertically(view.cy!, layoutRoots ?? roots, view.sizeMap, Math.max(160, (view.layoutOptions.rankSep ?? 50) * 3));
+      arrangeTopLevelTrees(
+        view.cy!,
+        layoutRoots ?? roots,
+        view.sizeMap,
+        view.layoutOptions.headingTreeLayout ?? 'vertical',
+        Math.max(160, (view.layoutOptions.rankSep ?? 50) * 3)
+      );
       if (!view.firstFitDone) {
         view.cy!.center(view.cy!.elements());
         if (typeof view.layoutOptions.zoomFactor === 'number') {

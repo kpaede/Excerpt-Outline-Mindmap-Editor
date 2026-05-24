@@ -1239,6 +1239,7 @@ export class MindmapView extends TextFileView {
       if (mindmapData.ranker) layoutUpdates.ranker = mindmapData.ranker;
       if (typeof mindmapData.spacingFactor === 'number') layoutUpdates.spacingFactor = mindmapData.spacingFactor;
       if (typeof mindmapData.zoomFactor === 'number') layoutUpdates.zoomFactor = mindmapData.zoomFactor;
+      if (mindmapData.headingTreeLayout) layoutUpdates.headingTreeLayout = mindmapData.headingTreeLayout;
       
       if (Object.keys(layoutUpdates).length > 0) {
         this.layoutOptions = { ...this.layoutOptions, ...layoutUpdates };

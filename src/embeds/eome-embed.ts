@@ -13,7 +13,7 @@ import type MindmapPlugin from '../main';
 import { isOutlineCompatible, OutlineNode, parseHeadingSections, parseOutline } from '../utils/outline';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { renderHeadingFrames } from '../view/heading-frames';
-import { stackTopLevelTreesVertically } from '../view/tree-layout';
+import { arrangeTopLevelTrees } from '../view/tree-layout';
 
 cytoscape.use(dagre);
 
@@ -298,7 +298,7 @@ export async function renderMindmapEomeEmbed(
   });
 
   cy.on('layoutstop', () => {
-    stackTopLevelTreesVertically(cy, roots, sizeMap, 160);
+    arrangeTopLevelTrees(cy, roots, sizeMap, 'vertical', 160);
     cy.fit(cy.elements(), 28);
     cy.center(cy.elements());
     void renderOverlays(plugin, file, wrapper, cy, flat, sizeMap);
