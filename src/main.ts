@@ -28,6 +28,18 @@ export default class MindmapPlugin extends Plugin {
       await renderMindmapEomeEmbed(this, source, el, ctx);
     });
 
+    this.addCommand({
+      id: 'copy-selection-as-markdown',
+      name: 'Copy selection as Markdown',
+      checkCallback: (checking: boolean) => {
+        const view = this.getActiveMindmapView();
+        const canRun = !!view && view.selectedNodeLines.size > 0;
+        if (checking) return canRun;
+        if (view) void view.copySelectionAsMarkdown();
+        return canRun;
+      },
+    });
+
     this.registerEvent(
       this.app.workspace.on(
         'file-menu',
@@ -250,6 +262,14 @@ export default class MindmapPlugin extends Plugin {
     if (typeof ws.setActiveLeaf === 'function') {
       ws.setActiveLeaf(leaf);
     }
+  }
+
+  private getActiveMindmapView(): MindmapView | null {
+    const activeView = this.app.workspace.activeLeaf?.view;
+    if (activeView instanceof MindmapView) {
+      return activeView;
+    }
+    return null;
   }
 
   private async updateMindmapViews(file: TFile): Promise<void> {

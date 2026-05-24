@@ -685,6 +685,20 @@ export class MindmapView extends TextFileView {
     return copyNodesToClipboardFn(this, nodes);
   }
 
+  public async copySelectionAsMarkdown(): Promise<boolean> {
+    const nodes = this.getSelectedNodes();
+    if (nodes.length === 0) {
+      new Notice('No nodes selected.');
+      return false;
+    }
+
+    const copied = await this.copyNodesToClipboard(nodes);
+    if (copied) {
+      new Notice('Copied selection as Markdown.');
+    }
+    return copied;
+  }
+
   public async cutNodesToClipboard(nodes: OutlineNode[]): Promise<void> {
     await cutNodesToClipboardFn(this, nodes);
   }
@@ -753,6 +767,12 @@ export class MindmapView extends TextFileView {
 
   public getNodeByLine(nodeLine: number): OutlineNode | null {
     return this.getFlatNodes().find((node) => node.line === nodeLine) ?? null;
+  }
+
+  public getSelectedNodes(): OutlineNode[] {
+    return this.getFlatNodes()
+      .filter((node) => this.selectedNodeLines.has(node.line))
+      .sort((a, b) => a.line - b.line);
   }
 
   public normalizeNodeText(text: string, notice: boolean = true): string {

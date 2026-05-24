@@ -43,6 +43,13 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
 
     menu.addItem((item) => {
       item
+        .setTitle('Copy selection as Markdown')
+        .setIcon('file-text')
+        .onClick(() => void view.copyNodesToClipboard(selectedNodes));
+    });
+
+    menu.addItem((item) => {
+      item
         .setTitle(copyCount > 1 ? `Cut ${copyCount} nodes` : 'Cut')
         .setIcon('scissors')
         .onClick(() => void view.cutNodesToClipboard(selectedNodes));
