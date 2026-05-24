@@ -11,6 +11,7 @@ import { addToggleMindmapMenuItem } from './integration/context-menu';
 import { MindmapView } from './view/mindmap-view';
 import { openInternalLink } from './utils/outline';
 import { renderMindmapEomeEmbed } from './embeds/eome-embed';
+import { exportMindmapViewToCanvas } from './commands/export-canvas';
 
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();
@@ -36,6 +37,18 @@ export default class MindmapPlugin extends Plugin {
         const canRun = !!view && view.selectedNodeLines.size > 0;
         if (checking) return canRun;
         if (view) void view.copySelectionAsMarkdown();
+        return canRun;
+      },
+    });
+
+    this.addCommand({
+      id: 'export-current-mindmap-to-canvas',
+      name: 'Export current mindmap to Canvas',
+      checkCallback: (checking: boolean) => {
+        const view = this.getActiveMindmapView();
+        const canRun = !!view?.file;
+        if (checking) return canRun;
+        if (view) void exportMindmapViewToCanvas(this, view);
         return canRun;
       },
     });

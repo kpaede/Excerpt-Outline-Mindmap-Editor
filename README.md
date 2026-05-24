@@ -100,6 +100,11 @@ If the file contains non-outline content outside list items, the mindmap view ma
 - Checked nodes are visually muted.
 - Nodes containing Zotero links show a Zotero badge for opening the source.
 
+### Export
+
+- Use the command **Export current mindmap to Canvas** to create an Obsidian Canvas from the active mindmap.
+- The export creates text cards for all nodes, connects parent and child nodes, and keeps task nodes as Markdown task list items.
+
 ### Navigation
 
 - Pan with two fingers on a trackpad or by holding the middle mouse button.
