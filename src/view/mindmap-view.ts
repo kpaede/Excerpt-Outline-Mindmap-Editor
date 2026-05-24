@@ -4,11 +4,10 @@ import {
   TextFileView,
   WorkspaceLeaf,
   TFile,
-  Menu,
   Notice,
   Platform,
 } from 'obsidian';
-import { Core, type NodeSingular } from 'cytoscape';
+import { Core } from 'cytoscape';
 
 import '../styles/dnd-css';
 
@@ -47,6 +46,14 @@ import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-opti
 import { MindmapViewState, SelectionSnapshot } from './view-state';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { resetToolbarPlacement } from '../ui/toolbar/toolbar-placement';
+import { showNodeContextMenu as showNodeContextMenuFn } from './context-menu';
+import { navigateSelection as navigateSelectionFn, NavigationDirection } from './navigation';
+import {
+  copyNodesToClipboard as copyNodesToClipboardFn,
+  cutNodesToClipboard as cutNodesToClipboardFn,
+  getTopLevelNodes as getTopLevelNodesFn,
+  pasteClipboardAsChildren as pasteClipboardAsChildrenFn,
+} from './clipboard';
 
 export type { LayoutOptions, MindmapViewState };
 
@@ -70,8 +77,8 @@ export class MindmapView extends TextFileView {
   private isMiddleMousePanning: boolean = false;
   private hasDraggedSelectionBox: boolean = false;
   private suppressNextEmptyClick: boolean = false;
-  private mindmapClipboardText: string | null = null;
-  private pendingCutNodeLines: Set<number> = new Set();
+  public mindmapClipboardText: string | null = null;
+  public pendingCutNodeLines: Set<number> = new Set();
   private selectionHistory: SelectionSnapshot[] = [];
   private zoomSaveTimeout: number | null = null;
   private boxStartX: number = 0;
@@ -667,185 +674,19 @@ export class MindmapView extends TextFileView {
   }
 
   public showNodeContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    if (this.wrapper?.classList.contains('is-touch-dragging')) return;
-
-    const target = event.target as HTMLElement | null;
-    const overlay = target?.closest('.mindmap-overlay') as HTMLElement | null;
-    const contextLine = overlay ? Number(overlay.dataset.nodeLine) : NaN;
-    const contextNode = Number.isNaN(contextLine) ? null : this.getNodeByLine(contextLine);
-
-    if (contextNode && !this.selectedNodeLines.has(contextNode.line)) {
-      this.selectNode(contextNode.line);
-    } else {
-      this.wrapper?.focus();
-    }
-
-    const selectedNodes = this.getSelectedNodesForContext(contextNode);
-    const copyCount = selectedNodes.length;
-    const targetNode = contextNode ?? (this.selectedNodeLines.size === 1 ? selectedNodes[0] : null);
-    const menu = new Menu();
-
-    if (targetNode) {
-      menu.addItem((item) => {
-        item
-          .setTitle('Edit node')
-          .setIcon('edit-3')
-          .onClick(() => void this.enterEditModeForNodeByLine(targetNode.line));
-      });
-
-      if (copyCount > 0) menu.addSeparator();
-    }
-
-    if (copyCount > 0) {
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Copy ${copyCount} nodes` : 'Copy')
-          .setIcon('copy')
-          .onClick(() => void this.copyNodesToClipboard(selectedNodes));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Cut ${copyCount} nodes` : 'Cut')
-          .setIcon('scissors')
-          .onClick(() => void this.cutNodesToClipboard(selectedNodes));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Delete ${copyCount} nodes` : 'Delete')
-          .setIcon('trash')
-          .onClick(() => void this.deleteNodesWithConfirmation(selectedNodes));
-      });
-    }
-
-    if (targetNode) {
-      menu.addItem((item) => {
-        item
-          .setTitle('Add child')
-          .setIcon('plus')
-          .onClick(() => void this.executeAddChildCommand(targetNode));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle('Add sibling')
-          .setIcon('git-pull-request-create')
-          .onClick(() => void this.executeAddSiblingCommand(targetNode));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to unchecked tasks` : 'Convert to unchecked task')
-          .setIcon('check-square')
-          .onClick(() => void this.convertNodesToTask(selectedNodes));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to checked tasks` : 'Convert to checked task')
-          .setIcon('check-square')
-          .onClick(() => void this.convertNodesToCheckedTask(selectedNodes));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to bullet points` : 'Convert to bullet point')
-          .setIcon('list')
-          .onClick(() => void this.convertNodesToBulletPoint(selectedNodes));
-      });
-
-      menu.addSeparator();
-
-      menu.addItem((item) => {
-        item
-          .setTitle('Paste')
-          .setIcon('clipboard-paste')
-          .onClick(() => void this.pasteClipboardAsChildren(targetNode));
-      });
-
-      menu.addItem((item) => {
-        item
-          .setTitle('Duplicate')
-          .setIcon('copy-plus')
-          .onClick(() => void this.executeDuplicateNodeCommand(targetNode));
-      });
-    }
-
-    if (copyCount === 0 && !targetNode) {
-      menu.addItem((item) => item.setTitle('No node selected').setDisabled(true));
-    }
-
-    menu.showAtMouseEvent(event);
-  }
-
-  private getSelectedNodesForContext(contextNode: OutlineNode | null): OutlineNode[] {
-    const flat = this.getFlatNodes();
-    const selected = flat
-      .filter((node) => this.selectedNodeLines.has(node.line))
-      .sort((a, b) => a.line - b.line);
-
-    if (selected.length > 0 && (!contextNode || this.selectedNodeLines.has(contextNode.line))) {
-      return selected;
-    }
-
-    return contextNode ? [contextNode] : [];
+    showNodeContextMenuFn(this, event);
   }
 
   private getTopLevelNodes(nodes: OutlineNode[]): OutlineNode[] {
-    return nodes.filter((node) => {
-      return !nodes.some((other) => (
-        other !== node &&
-        node.line > other.line &&
-        node.line <= other.endLine
-      ));
-    });
+    return getTopLevelNodesFn(nodes);
   }
 
-  private getNodesAsMarkdown(nodes: OutlineNode[]): string {
-    const lines = this.data.split(/\r?\n/);
-    return this.getTopLevelNodes(nodes)
-      .sort((a, b) => a.line - b.line)
-      .map((node) => lines.slice(node.line, node.endLine + 1).join('\n'))
-      .join('\n');
+  public async copyNodesToClipboard(nodes: OutlineNode[]): Promise<boolean> {
+    return copyNodesToClipboardFn(this, nodes);
   }
 
-  private async copyNodesToClipboard(nodes: OutlineNode[]): Promise<boolean> {
-    const text = this.getNodesAsMarkdown(nodes);
-    if (!text) return false;
-
-    this.mindmapClipboardText = text;
-    this.pendingCutNodeLines.clear();
-    this.updateSelectionStyling();
-
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      console.error('Copy failed:', error);
-      new Notice('Copied inside mindmap.');
-      return true;
-    }
-  }
-
-  private async cutNodesToClipboard(nodes: OutlineNode[]): Promise<void> {
-    const text = this.getNodesAsMarkdown(nodes);
-    const topLevelNodes = this.getTopLevelNodes(nodes);
-    if (!text || topLevelNodes.length === 0) return;
-
-    this.mindmapClipboardText = text;
-    this.pendingCutNodeLines = new Set(topLevelNodes.map((node) => node.line));
-    this.updateSelectionStyling();
-
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (error) {
-      console.error('Cut clipboard write failed:', error);
-      new Notice('Cut saved inside mindmap.');
-    }
-
-    this.wrapper?.focus();
+  public async cutNodesToClipboard(nodes: OutlineNode[]): Promise<void> {
+    await cutNodesToClipboardFn(this, nodes);
   }
 
   private hasUnselectedDescendants(nodes: OutlineNode[], selectedLines: Set<number>): boolean {
@@ -906,44 +747,11 @@ export class MindmapView extends TextFileView {
     }).open();
   }
 
-  private async pasteClipboardAsChildren(targetNode: OutlineNode): Promise<void> {
-    try {
-      let text = '';
-
-      try {
-        text = await navigator.clipboard.readText();
-      } catch (error) {
-        console.error('Paste clipboard read failed:', error);
-      }
-
-      if (!text.trim()) {
-        text = this.mindmapClipboardText ?? '';
-      }
-
-      if (!text.trim()) return;
-
-      const pendingCutNodes = this.getPendingCutNodes();
-      if (pendingCutNodes.length > 0 && text === this.mindmapClipboardText) {
-        await this.executeCutPasteNodesCommand(pendingCutNodes, targetNode, text);
-        return;
-      }
-
-      await this.executePasteNodesCommand(targetNode, text);
-    } catch (error) {
-      console.error('Paste failed:', error);
-      new Notice('Paste failed.');
-    }
+  public async pasteClipboardAsChildren(targetNode: OutlineNode): Promise<void> {
+    await pasteClipboardAsChildrenFn(this, targetNode);
   }
 
-  private getPendingCutNodes(): OutlineNode[] {
-    if (this.pendingCutNodeLines.size === 0) return [];
-
-    return this.getFlatNodes()
-      .filter((node) => this.pendingCutNodeLines.has(node.line))
-      .sort((a, b) => a.line - b.line);
-  }
-
-  private getNodeByLine(nodeLine: number): OutlineNode | null {
+  public getNodeByLine(nodeLine: number): OutlineNode | null {
     return this.getFlatNodes().find((node) => node.line === nodeLine) ?? null;
   }
 
@@ -2054,7 +1862,7 @@ export class MindmapView extends TextFileView {
     this.selectedNodeLines.clear();
     this.updateSelectionStyling();
   }
-  private updateSelectionStyling(): void {
+  public updateSelectionStyling(): void {
     if (!this.wrapper) return;
 
     this.wrapper.querySelectorAll('[data-overlay]').forEach((overlay) => {
@@ -2064,7 +1872,7 @@ export class MindmapView extends TextFileView {
     });
   }
 
-  private getFlatNodes(): OutlineNode[] {
+  public getFlatNodes(): OutlineNode[] {
     const flat: OutlineNode[] = [];
     (function walk(arr: OutlineNode[]) {
       arr.forEach((node) => {
@@ -2075,113 +1883,8 @@ export class MindmapView extends TextFileView {
     return flat;
   }
 
-  private navigateSelection(direction: 'up' | 'down' | 'left' | 'right'): void {
-    if (this.generalSettings.keyboardNavigation === 'spatial') {
-      this.navigateSpatial(direction);
-      return;
-    }
-
-    const flat = this.getFlatNodes();
-    if (flat.length === 0) return;
-
-    const selectedArray = Array.from(this.selectedNodeLines);
-    const lastSelectedLine = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
-
-    if (lastSelectedLine === null) {
-      this.selectNode(flat[0].line);
-      return;
-    }
-
-    const current = flat.find(node => node.line === lastSelectedLine);
-    if (!current) {
-      this.selectNode(flat[0].line);
-      return;
-    }
-
-    const parent = flat.find(node => node.children.some(child => child.line === current.line));
-
-    if (direction === 'up') {
-      if (parent) this.selectNode(parent.line);
-      return;
-    }
-
-    if (direction === 'down') {
-      if (current.children[0]) this.selectNode(current.children[0].line);
-      return;
-    }
-
-    if (!parent) return;
-
-    const siblingIndex = parent.children.findIndex(child => child.line === current.line);
-    if (siblingIndex < 0) return;
-
-    if (direction === 'left') {
-      const previousSibling = parent.children[siblingIndex - 1];
-      if (previousSibling) this.selectNode(previousSibling.line);
-      return;
-    }
-
-    if (direction === 'right') {
-      const nextSibling = parent.children[siblingIndex + 1];
-      if (nextSibling) this.selectNode(nextSibling.line);
-    }
-  }
-
-  private navigateSpatial(direction: 'up' | 'down' | 'left' | 'right'): void {
-    if (!this.cy) return;
-    const nodes = this.cy.nodes();
-    if (nodes.length === 0) return;
-
-    const selectedArray = Array.from(this.selectedNodeLines);
-    const lastSelectedLine = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
-
-    if (lastSelectedLine === null) {
-      const firstLine = nodes[0].data('node')?.line;
-      if (firstLine !== undefined) this.selectNode(firstLine);
-      return;
-    }
-
-    const currentCyNode = this.cy.getElementById(`n${lastSelectedLine}`);
-    if (!currentCyNode || currentCyNode.empty()) {
-      const firstLine = nodes[0].data('node')?.line;
-      if (firstLine !== undefined) this.selectNode(firstLine);
-      return;
-    }
-
-    const currentPos = currentCyNode.position();
-    let bestNode: NodeSingular | null = null;
-    let bestScore = Infinity;
-
-    nodes.forEach(n => {
-      const node = n as import('cytoscape').NodeSingular;
-      if (!node.isNode?.() || node.id() === currentCyNode.id()) return;
-      const pos = node.position();
-
-      const dx = pos.x - currentPos.x;
-      const dy = pos.y - currentPos.y;
-
-      let distanceScore = Infinity;
-
-      if (direction === 'right') {
-        if (dx > 0) distanceScore = dx + Math.abs(dy) * 3;
-      } else if (direction === 'left') {
-        if (dx < 0) distanceScore = -dx + Math.abs(dy) * 3;
-      } else if (direction === 'down') {
-        if (dy > 0) distanceScore = dy + Math.abs(dx) * 3;
-      } else if (direction === 'up') {
-        if (dy < 0) distanceScore = -dy + Math.abs(dx) * 3;
-      }
-
-      if (distanceScore < bestScore) {
-        bestScore = distanceScore;
-        bestNode = node;
-      }
-    });
-
-    if (bestNode) {
-      const bestLine = (bestNode as unknown as import('cytoscape').NodeSingular).data('node')?.line;
-      if (bestLine !== undefined) this.selectNode(bestLine);
-    }
+  private navigateSelection(direction: NavigationDirection): void {
+    navigateSelectionFn(this, direction);
   }
 
   private centerSelectedNodeInView(): void {
