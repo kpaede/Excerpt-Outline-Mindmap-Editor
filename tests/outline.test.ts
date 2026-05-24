@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isOutlineCompatible, parseHeadingSections, parseOutline } from '../src/utils/outline';
+import { isOutlineCompatible, parseOutline } from '../src/utils/outline';
+import { parseHeadingSections } from '../src/utils/heading-sections';
 
 describe('outline parsing', () => {
   it('treats markdown headings as compatible section markers', () => {

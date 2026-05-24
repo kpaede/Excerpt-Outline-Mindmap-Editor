@@ -11,7 +11,8 @@ import { Core } from 'cytoscape';
 
 import '../styles/dnd-css';
 
-import { HeadingSection, parseHeadingSections, parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from '../utils/outline';
+import { parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from '../utils/outline';
+import { HeadingSection, parseHeadingSections } from '../utils/heading-sections';
 import { VIEW_TYPE_MINDMAP } from '../constants';
 import MindmapPlugin from '../main';
 import {

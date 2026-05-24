@@ -1,6 +1,6 @@
 import type { Core } from 'cytoscape';
 import { Notice } from 'obsidian';
-import type { HeadingSection } from '../utils/outline';
+import type { HeadingSection } from '../utils/heading-sections';
 import type { MindmapView } from './mindmap-view';
 import { createEmbeddableMarkdownEditor } from '../editor/embeddable-markdown-editor';
 

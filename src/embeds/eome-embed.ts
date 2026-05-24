@@ -10,7 +10,8 @@ import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 
 import type MindmapPlugin from '../main';
-import { isOutlineCompatible, OutlineNode, parseHeadingSections, parseOutline } from '../utils/outline';
+import { isOutlineCompatible, OutlineNode, parseOutline } from '../utils/outline';
+import { parseHeadingSections } from '../utils/heading-sections';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { renderHeadingFrames } from '../view/heading-frames';
 import { arrangeTopLevelTrees } from '../view/tree-layout';

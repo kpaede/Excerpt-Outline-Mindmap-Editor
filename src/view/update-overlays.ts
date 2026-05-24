@@ -1,5 +1,6 @@
 import { setIcon, Notice } from 'obsidian';
-import { parseHeadingSections, parseOutline, OutlineNode } from '../utils/outline';
+import { parseOutline, OutlineNode } from '../utils/outline';
+import { parseHeadingSections } from '../utils/heading-sections';
 import { MindmapView } from './mindmap-view';
 import { DeleteNodeModal, DeleteOption } from "../ui/modals/delete-node-modal";
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
