@@ -1,13 +1,13 @@
-import { setIcon, Notice } from 'obsidian';
+import { Notice } from 'obsidian';
 import { parseOutline, OutlineNode } from '../utils/outline';
 import { parseHeadingSections } from '../utils/heading-sections';
 import { MindmapView } from './mindmap-view';
-import { DeleteNodeModal, DeleteOption } from "../ui/modals/delete-node-modal";
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
-import { clearDropPreview, DropIntent, DropPointer, getDropIntent, getOverlayAtPoint, updateDropPreview } from './overlay-dnd';
-import { getPrimaryZoteroLink } from '../utils/zotero';
+import { clearDropPreview, DropIntent, DropPointer, getOverlayAtPoint, updateDropPreview } from './overlay-dnd';
 import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
 import { renderHeadingFrames, startHeadingEditing } from './heading-frames';
+import { attachDesktopNodeDndHandlers } from './node-desktop-dnd';
+import { appendCheckboxToggle, appendNodeControls, appendZoteroBadge } from './node-overlay-controls';
 
 export { startNodeEditing };
 
@@ -227,37 +227,7 @@ function performOverlayUpdate(view: MindmapView): void {
     box.style.setProperty('--mindmap-font-size', '16px');
     box.style.setProperty('--mindmap-box-shadow', '0 1px 3px rgba(0,0,0,.08)');
 
-    const hasCheckbox = nodeToUse.checkbox !== 'none';
-    const isCheckboxHoverable = !hasCheckbox && view.generalSettings.showCheckboxesOnHover;
-
-    box.classList.toggle('has-checkbox', hasCheckbox);
-    box.classList.toggle('checkbox-hoverable', isCheckboxHoverable);
-    box.classList.toggle('checkbox-checked', nodeToUse.checkbox === 'checked');
-
-    const checkboxToggle = document.createElement('button');
-    checkboxToggle.type = 'button';
-    checkboxToggle.className = 'checkbox-toggle';
-    checkboxToggle.setAttribute('aria-label', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
-    checkboxToggle.setAttribute('title', nodeToUse.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
-    setIcon(checkboxToggle, nodeToUse.checkbox === 'checked' ? 'square-check-big' : 'square');
-    const toggleCheckbox = async () => {
-      if (!view.file) return;
-      await view.toggleNodeCheckbox(nodeToUse);
-    };
-    checkboxToggle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-    });
-    checkboxToggle.addEventListener('pointerup', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void toggleCheckbox();
-    });
-    checkboxToggle.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-    });
-    box.appendChild(checkboxToggle);
+    const { checkboxToggle, hasCheckbox, toggleCheckbox } = appendCheckboxToggle(box, nodeToUse, view);
 
     if (view.selectedNodeLines.has(nodeToUse.line)) {
       box.classList.add('selected');
@@ -267,25 +237,7 @@ function performOverlayUpdate(view: MindmapView): void {
       pendingEdit = { box, node: nodeToUse };
     }
 
-    const primaryZoteroLink = getPrimaryZoteroLink(nodeToUse.text);
-    if (primaryZoteroLink) {
-      const zoteroBadge = document.createElement('button');
-      zoteroBadge.className = 'mindmap-zotero-badge';
-      zoteroBadge.setAttribute('type', 'button');
-      zoteroBadge.setAttribute('aria-label', 'Open Zotero source');
-      zoteroBadge.setAttribute('title', 'Open Zotero source');
-      zoteroBadge.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-          <polygon fill="currentColor" points="13.863 2.73 13.027 1 2.137 1 2.137 3.8 2.137 3.921 8.822 3.921 1.289 13.233 2.137 15 13.863 15 13.863 12.142 13.863 12.021 6.448 12.021 13.863 2.73"/>
-        </svg>
-      `;
-      zoteroBadge.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        window.open(primaryZoteroLink, '_blank');
-      });
-      box.appendChild(zoteroBadge);
-    }
+    appendZoteroBadge(box, nodeToUse);
 
     const md = document.createElement('div');
     renderNodeMarkdown(md, nodeToUse, view);
@@ -295,213 +247,22 @@ function performOverlayUpdate(view: MindmapView): void {
 
     const isTouchDevice = view.wrapper.classList.contains('is-touch-device');
 
-    // Setup event handlers with improved drag and drop
-    box.draggable = !isTouchDevice;
-    
-    // Prevent child elements from being draggable
-    box.addEventListener('dragstart', (e) => {
-      if (isTouchDevice) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-
-      // Ensure we're always dragging the entire node, not internal content
-      if (e.target !== box) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-      
-      // Use current node data for drag operations
-      e.dataTransfer!.setData('text/mindmap-line', String(nodeToUse.line));
-      e.dataTransfer!.setData('text/mindmap-node-id', nodeId);
-      
-      // CRITICAL: Store comprehensive visual state for drag and drop
-      const currentDims = view.sizeMap.get(nodeToUse.line);
-      if (currentDims) {
-        e.dataTransfer!.setData('text/mindmap-width', String(currentDims.w));
-        e.dataTransfer!.setData('text/mindmap-height', String(currentDims.h));
-      }
-      
-      // Store current cytoscape position to preserve layout
-      const cyNode = view.cy?.getElementById(nodeId);
-      if (cyNode) {
-        const pos = cyNode.position();
-        e.dataTransfer!.setData('text/mindmap-pos-x', String(pos.x));
-        e.dataTransfer!.setData('text/mindmap-pos-y', String(pos.y));
-      }
-      
-      // Store scale factor if it exists
-      if (nodeToUse.scaleFactor) {
-        e.dataTransfer!.setData('text/mindmap-scale', String(nodeToUse.scaleFactor));
-      }
-      
-      activeDraggedNodeLine = nodeToUse.line;
-      box.classList.add('mm-src');
-
-      const rect = box.getBoundingClientRect();
-      const clone = box.cloneNode(true) as HTMLElement;
-      Object.assign(clone.style, {
-        position: 'absolute',
-        top: '-9999px',
-        left: '-9999px',
-        zoom: '50%',
-      });
-      document.body.appendChild(clone);
-
-      const offsetX = rect.width / 4;
-      const offsetY = rect.height / 4;
-      e.dataTransfer!.setDragImage(clone, offsetX, offsetY);
-
-      setTimeout(() => {
-        if (clone.parentElement) clone.parentElement.removeChild(clone);
-      }, 0);
+    attachDesktopNodeDndHandlers({
+      view,
+      box,
+      nodeToUse,
+      nodeId,
+      flatCurrent,
+      isTouchDevice,
+      getActiveDraggedNodeLine: () => activeDraggedNodeLine,
+      setActiveDraggedNodeLine: (line) => {
+        activeDraggedNodeLine = line;
+      },
+      isInvalidMoveTarget,
+      updateMoveDropPreview,
     });
 
-    // Improved drag event handling for better visual feedback
-    let dragCounter = 0; // Track nested drag events
-    
-    box.addEventListener('dragend', () => {
-      box.classList.remove('mm-src');
-      clearDropPreview(box);
-      activeDraggedNodeLine = null;
-      dragCounter = 0; // Reset counter
-    });
-    
-    box.addEventListener('dragenter', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounter++;
-      box.classList.add('mm-tgt');
-      updateMoveDropPreview(e, box, nodeToUse, activeDraggedNodeLine);
-    });
-    
-    box.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounter--;
-      // Only remove the class when we've left all nested elements
-      if (dragCounter <= 0) {
-        dragCounter = 0;
-        box.classList.remove('mm-tgt');
-        clearDropPreview(box);
-      }
-    });
-    
-    box.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      // Ensure the visual feedback stays active
-      if (!box.classList.contains('mm-tgt')) {
-        box.classList.add('mm-tgt');
-      }
-      updateMoveDropPreview(e, box, nodeToUse, activeDraggedNodeLine);
-    });
-    
-    box.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const dropIntent = getDropIntent(e, box, { targetHasChildren: nodeToUse.children.length > 0 });
-      box.classList.remove('mm-tgt');
-      clearDropPreview(box);
-      dragCounter = 0;
-      
-      const srcLine = e.dataTransfer!.getData('text/mindmap-line');
-      const srcNodeId = e.dataTransfer!.getData('text/mindmap-node-id');
-      
-      if (srcLine && srcNodeId) {
-        if (!view.file) return;
-        
-        const srcNodeFromOutline = flatCurrent.find(n => n.line === parseInt(srcLine));
-        if (srcNodeFromOutline && srcNodeFromOutline.line !== nodeToUse.line) {
-          if (isInvalidMoveTarget(srcNodeFromOutline, nodeToUse)) {
-            new Notice('Cannot move a node into its own children.');
-            return;
-          }
-
-          try {
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-            // Use the new command-based move operation
-            await view.executeMoveSubtreeCommand(
-              srcNodeFromOutline,
-              nodeToUse,
-              dropIntent.kind === 'child',
-              dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
-              dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
-            );
-          } catch (error) {
-            console.error('Move subtree failed:', error);
-            new Notice('Move failed: ' + errorMessage(error));
-          }
-        }
-      } else {
-        // Handle text drop (external content)
-        const txtData = e.dataTransfer!.getData('text/plain').trim();
-        if (txtData && view.file) {
-          try {
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-            // Use the new command-based add child text operation
-            if (dropIntent.kind === 'sibling') {
-              await view.executeAddSiblingTextCommand(nodeToUse, txtData, dropIntent.siblingInsertPosition);
-            } else {
-              await view.executeAddChildTextCommand(nodeToUse, txtData, dropIntent.childInsertPosition);
-            }
-          } catch (error) {
-            console.error('Add child text failed:', error);
-            new Notice('Failed to add content: ' + errorMessage(error));
-          }
-        }
-      }
-    });
-
-    // Add control elements
-    const ctr = document.createElement('div');
-    ctr.className = 'node-controls';
-
-    const del = document.createElement('span');
-    del.textContent = '×';
-    del.className = 'mindmap-node-delete';
-
-    const btn = (icon: string, label: string, f: () => void) => {
-      const s = document.createElement('span');
-      s.className = 'mindmap-node-control';
-      s.setAttribute('aria-label', label);
-      s.setAttribute('title', label);
-      // Layout and cursor handled via CSS classes
-      setIcon(s, icon);
-      s.onclick = async (e) => {
-        e.stopPropagation();
-        if (!view.file) return;
-        f();
-      };
-      return s;
-    };
-
-    ctr.append(
-      btn('plus', 'Add child', async () => {
-        await view.executeAddChildCommand(nodeToUse);
-      }),
-      btn('git-pull-request-create', 'Add sibling', async () => {
-        await view.executeAddSiblingCommand(nodeToUse);
-      })
-    );
-
-    del.onclick = async (e) => {
-      e.stopPropagation();
-      if (!view.file) return;
-      new DeleteNodeModal(view.app, async (result: DeleteOption) => {
-        if (!view.file) return;
-        
-        if (result === "full") {
-          await view.executeDeleteNodeCommand(nodeToUse);
-        } else {
-          await view.executeDeleteNodeKeepChildrenCommand(nodeToUse);
-        }
-      }).open();
-    };
-
-    box.append(ctr, del);
+    appendNodeControls(box, nodeToUse, view);
     box.onmouseenter = () => {
       box.classList.add('hovering');
     };
