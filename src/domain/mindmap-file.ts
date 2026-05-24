@@ -231,6 +231,21 @@ export function writeHeadingInText(
   return joinDoc(lines, newline);
 }
 
+export function deleteHeadingInText(fileText: string, line: number): DocString {
+  const { lines, newline } = splitDoc(fileText);
+
+  if (line < 0 || line >= lines.length) {
+    return fileText;
+  }
+
+  if (!/^#{1,6}\s+\S/.test(lines[line].trim())) {
+    return fileText;
+  }
+
+  lines.splice(line, 1);
+  return joinDoc(lines, newline);
+}
+
 export async function writeHeading(
   app: App,
   file: TFile,
@@ -239,6 +254,15 @@ export async function writeHeading(
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
   return await persistDocIfChanged(app, file, fileText, writeHeadingInText(fileText, line, headingText));
+}
+
+export async function deleteHeading(
+  app: App,
+  file: TFile,
+  line: number
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  return await persistDocIfChanged(app, file, fileText, deleteHeadingInText(fileText, line));
 }
 
 export async function writeMultipleNodes(
@@ -479,6 +503,91 @@ export function moveSubtreeInText(
   ];
   
   return joinDoc(finalLines, newline);
+}
+
+function indentMovedLines(sourceLines: string[], oldIndent: string, newIndent: string): string[] {
+  return sourceLines.map((line) => {
+    if (line.trim() === '') return line;
+
+    if (line.startsWith(oldIndent)) {
+      return `${newIndent}${line.slice(oldIndent.length)}`;
+    }
+
+    return `${newIndent}${line.replace(/^\s+/, '')}`;
+  });
+}
+
+export function moveSubtreeToEmptyHeadingInText(
+  fileText: string,
+  source: OutlineNode,
+  headingLine: number
+): DocString {
+  const { lines: originalLines, newline } = splitDoc(fileText);
+
+  if (
+    source.line < 0 ||
+    source.line >= originalLines.length ||
+    headingLine < 0 ||
+    headingLine >= originalLines.length ||
+    !/^#{1,6}\s+\S/.test(originalLines[headingLine].trim())
+  ) {
+    return fileText;
+  }
+
+  const sourceEnd = subtreeEnd(originalLines, source.line, source.indent);
+  if (headingLine >= source.line && headingLine < sourceEnd) {
+    return fileText;
+  }
+
+  const sourceLines = originalLines.slice(source.line, sourceEnd);
+  const linesAfterRemoval = [
+    ...originalLines.slice(0, source.line),
+    ...originalLines.slice(sourceEnd),
+  ];
+  const adjustedHeadingLine = headingLine > source.line
+    ? headingLine - (sourceEnd - source.line)
+    : headingLine;
+  const adjustedSourceLines = indentMovedLines(sourceLines, source.indent, '');
+
+  linesAfterRemoval.splice(adjustedHeadingLine + 1, 0, ...adjustedSourceLines);
+  return joinDoc(linesAfterRemoval, newline);
+}
+
+export function addEmptyNodeToHeadingInText(
+  fileText: string,
+  headingLine: number
+): DocString {
+  const { lines, newline } = splitDoc(fileText);
+
+  if (
+    headingLine < 0 ||
+    headingLine >= lines.length ||
+    !/^#{1,6}\s+\S/.test(lines[headingLine].trim())
+  ) {
+    return fileText;
+  }
+
+  lines.splice(headingLine + 1, 0, '- ');
+  return joinDoc(lines, newline);
+}
+
+export async function addEmptyNodeToHeading(
+  app: App,
+  file: TFile,
+  headingLine: number
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  return await persistDocIfChanged(app, file, fileText, addEmptyNodeToHeadingInText(fileText, headingLine));
+}
+
+export async function moveSubtreeToEmptyHeading(
+  app: App,
+  file: TFile,
+  source: OutlineNode,
+  headingLine: number
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  return await persistDocIfChanged(app, file, fileText, moveSubtreeToEmptyHeadingInText(fileText, source, headingLine));
 }
 
 export async function addChildText(

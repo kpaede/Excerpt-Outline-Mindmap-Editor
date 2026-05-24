@@ -88,6 +88,14 @@ function updateOverlayGeometry(view: MindmapView): boolean {
 
   renderHeadingFrames(view.wrapper, view.cy, parseHeadingSections(view.data), view.sizeMap, {
     onEdit: (section, frame) => startHeadingEditing(frame, section, view),
+    onEmptyHeadingCreate: (section) => {
+      void view.executeCreateNodeInEmptyHeadingCommand(section.line);
+    },
+    onEmptyHeadingDrop: (section, sourceLine) => {
+      const sourceNode = view.getFlatNodes().find((node) => node.line === sourceLine);
+      if (!sourceNode) return;
+      void view.executeMoveSubtreeToEmptyHeadingCommand(sourceNode, section.line);
+    },
   });
   return true;
 }
@@ -115,8 +123,17 @@ function performOverlayUpdate(view: MindmapView): void {
 
   // Create a map of valid line numbers from current document
   const validLines = new Set(flatCurrent.map(n => n.line));
+  const getCurrentNodeByLine = (line: number): OutlineNode | undefined => flatCurrent.find(n => n.line === line);
   renderHeadingFrames(view.wrapper, view.cy!, parseHeadingSections(view.data), view.sizeMap, {
     onEdit: (section, frame) => startHeadingEditing(frame, section, view),
+    onEmptyHeadingCreate: (section) => {
+      void view.executeCreateNodeInEmptyHeadingCommand(section.line);
+    },
+    onEmptyHeadingDrop: (section, sourceLine) => {
+      const sourceNode = getCurrentNodeByLine(sourceLine);
+      if (!sourceNode) return;
+      void view.executeMoveSubtreeToEmptyHeadingCommand(sourceNode, section.line);
+    },
   });
 
   let pendingEdit: {
@@ -125,7 +142,6 @@ function performOverlayUpdate(view: MindmapView): void {
   } | null = null;
   let activeDraggedNodeLine: number | null = null;
 
-  const getCurrentNodeByLine = (line: number): OutlineNode | undefined => flatCurrent.find(n => n.line === line);
   const isInvalidMoveTarget = (source: OutlineNode, target: OutlineNode): boolean => (
     source.line === target.line || isMoveTargetInsideSourceSubtree(source, target)
   );
@@ -587,6 +603,14 @@ function performOverlayUpdate(view: MindmapView): void {
         }
 
         if (touchDropTarget) {
+          if (touchDropTarget.classList.contains('mindmap-empty-heading-drop-target')) {
+            touchDropTarget.classList.remove('mm-tgt-invalid');
+            touchDropTarget.classList.add('mm-tgt');
+            touchDragGhost?.classList.add('is-over-target');
+            touchDropIntent = { kind: 'child', childInsertPosition: 'last' };
+            return;
+          }
+
           const targetLine = Number(touchDropTarget.dataset.nodeLine);
           const targetNode = Number.isNaN(targetLine) ? undefined : getCurrentNodeByLine(targetLine);
           if (targetNode && isInvalidMoveTarget(nodeToUse, targetNode)) {
@@ -671,7 +695,23 @@ function performOverlayUpdate(view: MindmapView): void {
 
         const targetLine = Number(targetBox?.dataset.nodeLine);
         const targetNode = Number.isNaN(targetLine) ? null : flatCurrent.find(n => n.line === targetLine);
+        const targetHeadingLine = Number(targetBox?.dataset.headingLine);
         const srcNodeFromOutline = flatCurrent.find(n => n.line === nodeToUse.line);
+
+        if (
+          view.file &&
+          srcNodeFromOutline &&
+          targetBox?.classList.contains('mindmap-empty-heading-drop-target') &&
+          !Number.isNaN(targetHeadingLine)
+        ) {
+          try {
+            await view.executeMoveSubtreeToEmptyHeadingCommand(srcNodeFromOutline, targetHeadingLine);
+          } catch (error) {
+            console.error('Touch move subtree to empty heading failed:', error);
+            new Notice('Move failed: ' + errorMessage(error));
+          }
+          return;
+        }
 
         if (view.file && srcNodeFromOutline && targetNode && targetNode.line !== srcNodeFromOutline.line && dropIntent) {
           try {

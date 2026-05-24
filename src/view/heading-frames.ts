@@ -7,6 +7,8 @@ import { createEmbeddableMarkdownEditor } from '../editor/embeddable-markdown-ed
 interface RenderHeadingFrameOptions {
   attributeName?: 'overlay' | 'mindmapEomeOverlay';
   onEdit?: (section: HeadingSection, frame: HTMLElement) => void;
+  onEmptyHeadingCreate?: (section: HeadingSection) => void;
+  onEmptyHeadingDrop?: (section: HeadingSection, sourceLine: number) => void;
 }
 
 function isValidHeadingText(text: string): boolean {
@@ -25,6 +27,36 @@ export function renderHeadingFrames(
   const zoom = cy.zoom();
   const pan = cy.pan();
   const attributeName = options.attributeName ?? 'overlay';
+  const allNodeBounds = Array.from(sizeMap.keys()).reduce<{
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  } | null>((currentBounds, line) => {
+    const node = cy.getElementById(`n${line}`);
+    const dims = sizeMap.get(line);
+    if (!dims || node.empty()) return currentBounds;
+
+    const position = node.position();
+    const nodeBounds = {
+      left: position.x - dims.w / 2,
+      top: position.y - dims.h / 2,
+      right: position.x + dims.w / 2,
+      bottom: position.y + dims.h / 2,
+    };
+
+    return currentBounds
+      ? {
+        left: Math.min(currentBounds.left, nodeBounds.left),
+        top: Math.min(currentBounds.top, nodeBounds.top),
+        right: Math.max(currentBounds.right, nodeBounds.right),
+        bottom: Math.max(currentBounds.bottom, nodeBounds.bottom),
+      }
+      : nodeBounds;
+  }, null);
+  const emptyFrameWidth = 260;
+  const emptyFrameHeight = 116;
+  let nextEmptyFrameTop = (allNodeBounds?.bottom ?? 0) + 120;
 
   sections.forEach((section) => {
     const bounds = section.nodeLines.reduce<{
@@ -57,16 +89,29 @@ export function renderHeadingFrames(
       };
     }, null);
 
-    if (!bounds) return;
-
     const padding = 24 + Math.max(0, 6 - section.level) * 6;
     const titleSpace = 34;
-    const width = bounds.right - bounds.left + padding * 2;
-    const height = bounds.bottom - bounds.top + padding * 2 + titleSpace;
-    const centerX = bounds.left + (bounds.right - bounds.left) / 2;
-    const centerY = bounds.top + (bounds.bottom - bounds.top) / 2 - titleSpace / 2;
+    const isEmptySection = !bounds;
+    const emptyFrameOuterHeight = emptyFrameHeight + padding * 2 + titleSpace;
+    const emptyLeft = allNodeBounds?.left ?? 0;
+    const emptyContentTop = nextEmptyFrameTop + padding + titleSpace;
+    const resolvedBounds = bounds ?? {
+      left: emptyLeft,
+      top: emptyContentTop,
+      right: emptyLeft + emptyFrameWidth,
+      bottom: emptyContentTop + emptyFrameHeight,
+    };
+    if (isEmptySection) {
+      nextEmptyFrameTop += emptyFrameOuterHeight + 48;
+    }
+
+    const width = resolvedBounds.right - resolvedBounds.left + padding * 2;
+    const height = resolvedBounds.bottom - resolvedBounds.top + padding * 2 + titleSpace;
+    const centerX = resolvedBounds.left + (resolvedBounds.right - resolvedBounds.left) / 2;
+    const centerY = resolvedBounds.top + (resolvedBounds.bottom - resolvedBounds.top) / 2 - titleSpace / 2;
     const frame = document.createElement('div');
     frame.className = 'mindmap-heading-frame';
+    frame.classList.toggle('is-empty-heading-frame', isEmptySection);
     frame.dataset.headingFrame = '1';
     frame.dataset[attributeName] = '1';
     frame.dataset.headingLevel = String(section.level);
@@ -89,6 +134,48 @@ export function renderHeadingFrames(
       });
     }
     frame.appendChild(title);
+
+    if (isEmptySection) {
+      const dropTarget = document.createElement('div');
+      dropTarget.className = 'mindmap-empty-heading-drop-target';
+      dropTarget.dataset.headingLine = String(section.line);
+      dropTarget.textContent = 'Create new node';
+
+      dropTarget.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        options.onEmptyHeadingCreate?.(section);
+      });
+
+      dropTarget.addEventListener('dragenter', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropTarget.classList.add('mm-tgt');
+      });
+      dropTarget.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropTarget.classList.add('mm-tgt');
+      });
+      dropTarget.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropTarget.classList.remove('mm-tgt');
+      });
+      dropTarget.addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dropTarget.classList.remove('mm-tgt');
+
+        const sourceLine = Number(event.dataTransfer?.getData('text/mindmap-line'));
+        if (!Number.isNaN(sourceLine)) {
+          options.onEmptyHeadingDrop?.(section, sourceLine);
+        }
+      });
+
+      frame.appendChild(dropTarget);
+    }
+
     wrapper.appendChild(frame);
   });
 }
@@ -125,7 +212,7 @@ export function startHeadingEditing(
 
     if (!save || newText === section.rawText) return;
 
-    if (!isValidHeadingText(newText)) {
+    if (newText !== '' && !isValidHeadingText(newText)) {
       new Notice('Headings must start with 1-6 # characters followed by text.');
       return;
     }

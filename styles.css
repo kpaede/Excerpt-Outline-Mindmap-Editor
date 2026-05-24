@@ -909,6 +909,57 @@ body div.layout-options-modal {
   z-index: 20;
 }
 
+.mindmap-empty-heading-drop-target {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 52px;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #000000;
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.4;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.mindmap-wrapper .mindmap-empty-heading-drop-target.mm-tgt {
+  border-style: solid;
+  border-width: 2px;
+  border-color: #31b549;
+  background-image: none !important;
+  background-color: rgba(49, 181, 73, 0.12) !important;
+  color: var(--text-normal);
+  box-shadow: 0 0 8px rgba(49, 181, 73, 0.3);
+}
+
+.mindmap-wrapper .mindmap-empty-heading-drop-target.mm-tgt::after {
+  content: "Drop here as first node";
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: bold 10px/16px var(--font-family, sans-serif);
+  background: #31b549;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1001;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mindmap-wrapper .mindmap-empty-heading-drop-target.mm-tgt.mm-tgt-child::after {
+  content: "Drop here as first node";
+  background: #31b549;
+}
+
 /* Canvas container for cytoscape */
 .mindmap-canvas {
   position: absolute;

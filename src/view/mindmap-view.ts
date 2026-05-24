@@ -17,12 +17,14 @@ import MindmapPlugin from '../main';
 import {
   addChild,
   addSibling,
+  addEmptyNodeToHeading,
   writeNode,
   writeMultipleNodes,
   deleteNode,
   deleteMultipleNodes,
   deleteMultipleNodesKeepChildren,
   moveSubtree,
+  moveSubtreeToEmptyHeading,
   addChildText,
   addSiblingText,
   addMarkdownAsChildren,
@@ -30,6 +32,7 @@ import {
   cutPasteMarkdownAsChildren,
   duplicateSubtree,
   deleteNodeKeepChildren,
+  deleteHeading,
   writeHeading,
   DocString,
   ChildInsertPosition,
@@ -1355,10 +1358,13 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
 
     const beforeState = this.data;
-    const newDoc = await writeHeading(this.app, this.file, section.line, newText);
+    const isDeletingHeading = newText.trim() === '';
+    const newDoc = isDeletingHeading
+      ? await deleteHeading(this.app, this.file, section.line)
+      : await writeHeading(this.app, this.file, section.line, newText);
 
     const command: MindmapCommand = {
-      type: 'edit-heading',
+      type: isDeletingHeading ? 'delete-heading' : 'edit-heading',
       timestamp: Date.now(),
       beforeState,
       afterState: newDoc,
@@ -1639,6 +1645,61 @@ export class MindmapView extends TextFileView {
     };
     
     await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeMoveSubtreeToEmptyHeadingCommand(
+    sourceNode: OutlineNode,
+    headingLine: number
+  ): Promise<void> {
+    if (!this.file) return;
+
+    const beforeState = this.data;
+    const newDoc = await moveSubtreeToEmptyHeading(this.app, this.file, sourceNode, headingLine);
+
+    if (newDoc === beforeState) return;
+
+    const command: MindmapCommand = {
+      type: 'move-subtree',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(sourceNode),
+      metadata: {
+        targetHeadingLine: headingLine,
+        dropIntent: 'empty-heading-child',
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
+  public async executeCreateNodeInEmptyHeadingCommand(headingLine: number): Promise<void> {
+    if (!this.file) return;
+
+    const beforeState = this.data;
+    const newDoc = await addEmptyNodeToHeading(this.app, this.file, headingLine);
+
+    if (newDoc === beforeState) return;
+
+    const command: MindmapCommand = {
+      type: 'add-child-text',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: {
+        line: headingLine,
+        text: 'Heading',
+        indent: '',
+        marker: '#',
+      },
+      metadata: {
+        targetHeadingLine: headingLine,
+        addedText: '',
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.scheduleEditModeForNodeByLine(headingLine + 1);
   }
 
   public async executeAddChildTextCommand(

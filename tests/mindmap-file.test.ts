@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   addChildInText,
   addChildTextInText,
+  addEmptyNodeToHeadingInText,
   addHeadingBeforeNodeInText,
   addMarkdownAsChildren,
   cutPasteMarkdownAsChildren,
+  deleteHeadingInText,
   deleteMultipleNodesInText,
   deleteMultipleNodesKeepChildren,
+  moveSubtreeToEmptyHeadingInText,
   moveSubtreeInText,
   writeHeadingInText,
   writeMultipleNodes,
@@ -115,6 +118,50 @@ describe('mindmap file text operations', () => {
     expect(writeHeadingInText(input, 0, '## New heading')).toBe([
       '## New heading',
       '- Root',
+    ].join('\n'));
+  });
+
+  it('deletes a heading line without deleting its nodes', () => {
+    const input = [
+      '# Heading',
+      '- Node',
+      '\t- Child',
+    ].join('\n');
+
+    expect(deleteHeadingInText(input, 0)).toBe([
+      '- Node',
+      '\t- Child',
+    ].join('\n'));
+  });
+
+  it('moves a subtree as the first node inside an empty heading', () => {
+    const input = [
+      '# Source',
+      '- Parent',
+      '\t- Child',
+      '# Empty',
+    ].join('\n');
+
+    expect(moveSubtreeToEmptyHeadingInText(input, node('Parent', 1, 2), 3)).toBe([
+      '# Source',
+      '# Empty',
+      '- Parent',
+      '\t- Child',
+    ].join('\n'));
+  });
+
+  it('adds a new empty node inside an empty heading', () => {
+    const input = [
+      '# Empty',
+      '# Next',
+      '- Node',
+    ].join('\n');
+
+    expect(addEmptyNodeToHeadingInText(input, 0)).toBe([
+      '# Empty',
+      '- ',
+      '# Next',
+      '- Node',
     ].join('\n'));
   });
 

@@ -53,5 +53,5 @@ export function clearDropPreview(targetBox: HTMLElement): void {
 
 export function getOverlayAtPoint(clientX: number, clientY: number): HTMLElement | null {
   const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
-  return element?.closest('.mindmap-overlay') as HTMLElement | null;
+  return element?.closest('.mindmap-overlay, .mindmap-empty-heading-drop-target') as HTMLElement | null;
 }
