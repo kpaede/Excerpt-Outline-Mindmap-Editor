@@ -9,6 +9,10 @@ import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
 
 export { startNodeEditing };
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
 
@@ -401,7 +405,7 @@ function performOverlayUpdate(view: MindmapView): void {
             );
           } catch (error) {
             console.error('Move subtree failed:', error);
-            new Notice('Move failed: ' + (error.message || 'Unknown error'));
+            new Notice('Move failed: ' + errorMessage(error));
           }
         }
       } else {
@@ -418,7 +422,7 @@ function performOverlayUpdate(view: MindmapView): void {
             }
           } catch (error) {
             console.error('Add child text failed:', error);
-            new Notice('Failed to add content: ' + (error.message || 'Unknown error'));
+            new Notice('Failed to add content: ' + errorMessage(error));
           }
         }
       }
@@ -670,7 +674,7 @@ function performOverlayUpdate(view: MindmapView): void {
             );
           } catch (error) {
             console.error('Touch move subtree failed:', error);
-            new Notice('Move failed: ' + (error.message || 'Unknown error'));
+            new Notice('Move failed: ' + errorMessage(error));
           }
         }
       };

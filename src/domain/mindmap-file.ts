@@ -5,6 +5,22 @@ export type DocString = string;
 export type ChildInsertPosition = 'first' | 'last';
 export type SiblingInsertPosition = 'before' | 'after';
 
+interface SplitDoc {
+  lines: string[];
+  newline: '\n' | '\r\n';
+}
+
+function splitDoc(fileText: string): SplitDoc {
+  return {
+    lines: fileText.split(/\r?\n/),
+    newline: fileText.includes('\r\n') ? '\r\n' : '\n',
+  };
+}
+
+function joinDoc(lines: string[], newline: '\n' | '\r\n'): DocString {
+  return lines.join(newline);
+}
+
 export function isMoveTargetInsideSourceSubtree(source: OutlineNode, target: OutlineNode): boolean {
   return target.line > source.line && target.line <= source.endLine;
 }
@@ -28,8 +44,13 @@ function preserveExistingCheckboxPrefix(node: OutlineNode, text: string): string
   return text ? `${checkboxPrefix} ${text}` : checkboxPrefix;
 }
 
-async function persistLines(app: App, file: TFile, lines: string[]): Promise<DocString> {
-  return persistDoc(app, file, lines.join('\n'));
+async function persistLines(
+  app: App,
+  file: TFile,
+  lines: string[],
+  newline: '\n' | '\r\n' = '\n'
+): Promise<DocString> {
+  return persistDoc(app, file, joinDoc(lines, newline));
 }
 
 async function persistDoc(app: App, file: TFile, newDoc: DocString): Promise<DocString> {
@@ -80,7 +101,7 @@ export function addChildInText(
   childInsertPosition: ChildInsertPosition = 'last',
   options: AddChildOptions = {}
 ): DocString {
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (parent.line < 0 || parent.line >= lines.length) {
     return fileText;
@@ -90,7 +111,7 @@ export function addChildInText(
   const newLine = `${childLinePrefix(parent, options.inheritParentListType ?? false)} `;
 
   lines.splice(insertIndex, 0, newLine);
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function addChild(
@@ -122,7 +143,7 @@ export async function addSibling(
   } catch (err) {
     return "";
   }
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (node.line < 0 || node.line >= lines.length) {
     return fileText;
@@ -134,7 +155,7 @@ export async function addSibling(
   const newLine = `${node.indent}${node.marker} `;
   lines.splice(insertIndex, 0, newLine);
 
-  return await persistLines(app, file, lines);
+  return await persistLines(app, file, lines, newline);
 }
 
 export async function writeNode(
@@ -152,7 +173,7 @@ export function writeNodeInText(
   node: OutlineNode,
   txt: string
 ): DocString {
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (node.line < 0 || node.line >= lines.length) {
     return fileText;
@@ -164,7 +185,7 @@ export function writeNodeInText(
   
   lines[node.line] = newLine;
 
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function writeMultipleNodes(
@@ -174,7 +195,7 @@ export async function writeMultipleNodes(
   transform: (node: OutlineNode) => string
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   const sortedNodes = [...nodes].sort((a, b) => b.line - a.line);
   sortedNodes.forEach((node) => {
@@ -187,7 +208,7 @@ export async function writeMultipleNodes(
     lines[node.line] = `${prefix} ${newText}`;
   });
 
-  return await persistLines(app, file, lines);
+  return await persistLines(app, file, lines, newline);
 }
 
 export async function deleteNode(
@@ -200,7 +221,7 @@ export async function deleteNode(
 }
 
 export function deleteNodeInText(fileText: string, node: OutlineNode): DocString {
-  let lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (node.line < 0 || node.line >= lines.length) {
     return fileText;
@@ -209,7 +230,7 @@ export function deleteNodeInText(fileText: string, node: OutlineNode): DocString
   const end = subtreeEnd(lines, node.line, node.indent);
   lines.splice(node.line, end - node.line);
 
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function deleteMultipleNodes(
@@ -222,7 +243,7 @@ export async function deleteMultipleNodes(
 }
 
 export function deleteMultipleNodesInText(fileText: string, nodes: OutlineNode[]): DocString {
-  let lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   // Filter out nodes that are descendants of other nodes in the list
   const topLevelNodes = nodes.filter(n => {
@@ -240,7 +261,7 @@ export function deleteMultipleNodesInText(fileText: string, nodes: OutlineNode[]
     }
   }
 
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function deleteMultipleNodesKeepChildren(
@@ -249,7 +270,7 @@ export async function deleteMultipleNodesKeepChildren(
   nodes: OutlineNode[]
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   const selectedLines = new Set(nodes.map((node) => node.line));
   const sortedNodes = [...nodes].sort((a, b) => b.indent.length - a.indent.length);
@@ -272,7 +293,7 @@ export async function deleteMultipleNodesKeepChildren(
     nextLines.push(line);
   }
 
-  return await persistLines(app, file, nextLines);
+  return await persistLines(app, file, nextLines, newline);
 }
 
 export async function deleteNodeKeepChildren(
@@ -285,7 +306,7 @@ export async function deleteNodeKeepChildren(
 }
 
 export function deleteNodeKeepChildrenInText(fileText: string, node: OutlineNode): DocString {
-  let lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (node.line < 0 || node.line >= lines.length) {
     return fileText;
@@ -305,7 +326,7 @@ export function deleteNodeKeepChildrenInText(fileText: string, node: OutlineNode
     }
   }
 
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function moveSubtree(
@@ -337,7 +358,7 @@ export function moveSubtreeInText(
   childInsertPosition: ChildInsertPosition = 'first',
   siblingInsertPosition: SiblingInsertPosition = 'after'
 ): DocString {
-  const originalLines = fileText.split(/\r?\n/);
+  const { lines: originalLines, newline } = splitDoc(fileText);
 
   if (source.line < 0 || source.line >= originalLines.length ||
       target.line < 0 || target.line >= originalLines.length) {
@@ -404,7 +425,7 @@ export function moveSubtreeInText(
     ...linesAfterRemoval.slice(insertionPoint)
   ];
   
-  return finalLines.join('\n');
+  return joinDoc(finalLines, newline);
 }
 
 export async function addChildText(
@@ -426,7 +447,7 @@ export function addChildTextInText(
   childInsertPosition: ChildInsertPosition = 'last',
   options: AddChildOptions = {}
 ): DocString {
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (parent.line < 0 || parent.line >= lines.length) {
     return fileText;
@@ -439,7 +460,7 @@ export function addChildTextInText(
   
   lines.splice(insertIndex, 0, newLine);
 
-  return lines.join('\n');
+  return joinDoc(lines, newline);
 }
 
 export async function addSiblingText(
@@ -450,7 +471,7 @@ export async function addSiblingText(
   siblingInsertPosition: SiblingInsertPosition = 'after'
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (target.line < 0 || target.line >= lines.length) {
     return fileText;
@@ -463,7 +484,7 @@ export async function addSiblingText(
 
   lines.splice(insertIndex, 0, newLine);
 
-  return await persistLines(app, file, lines);
+  return await persistLines(app, file, lines, newline);
 }
 
 function preparePastedOutlineLines(text: string, indent: string): string[] {
@@ -546,7 +567,7 @@ export async function addMarkdownAsChildren(
   text: string
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (parent.line < 0 || parent.line >= lines.length) {
     return fileText;
@@ -557,7 +578,7 @@ export async function addMarkdownAsChildren(
 
   lines.splice(parent.endLine + 1, 0, ...pastedLines);
 
-  return await persistLines(app, file, lines);
+  return await persistLines(app, file, lines, newline);
 }
 
 export async function cutPasteMarkdownAsChildren(
@@ -568,7 +589,7 @@ export async function cutPasteMarkdownAsChildren(
   text: string
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (parent.line < 0 || parent.line >= lines.length) {
     return fileText;
@@ -608,7 +629,7 @@ export async function cutPasteMarkdownAsChildren(
 
   keptLines.splice(adjustedParentEndLine + 1, 0, ...pastedLines);
 
-  return await persistLines(app, file, keptLines);
+  return await persistLines(app, file, keptLines, newline);
 }
 
 export async function duplicateSubtree(
@@ -617,7 +638,7 @@ export async function duplicateSubtree(
   node: OutlineNode
 ): Promise<DocString> {
   const fileText = await app.vault.read(file);
-  const lines = fileText.split(/\r?\n/);
+  const { lines, newline } = splitDoc(fileText);
 
   if (node.line < 0 || node.line >= lines.length) {
     return fileText;
@@ -626,5 +647,5 @@ export async function duplicateSubtree(
   const subtreeLines = lines.slice(node.line, node.endLine + 1);
   lines.splice(node.endLine + 1, 0, ...subtreeLines);
 
-  return await persistLines(app, file, lines);
+  return await persistLines(app, file, lines, newline);
 }

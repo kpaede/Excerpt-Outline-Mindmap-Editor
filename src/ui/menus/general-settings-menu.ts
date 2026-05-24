@@ -22,7 +22,7 @@ export interface GeneralSettings {
  * positioned next to the clicked button
  */
 export class GeneralSettingsMenu {
-  private container: HTMLDivElement;
+  private container!: HTMLDivElement;
   private settings: GeneralSettings;
   private onSave: (settings: GeneralSettings) => void;
   private anchorEl: HTMLElement;

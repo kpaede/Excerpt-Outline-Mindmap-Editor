@@ -20,7 +20,7 @@ export interface NodeOptions {
  * positioned next to the clicked button
  */
 export class NodeOptionsMenu {
-  private container: HTMLDivElement;
+  private container!: HTMLDivElement;
   private options: NodeOptions;
   private onSave: (options: NodeOptions) => void;
   private anchorEl: HTMLElement;
