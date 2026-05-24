@@ -2,7 +2,7 @@ import { App, TFile } from 'obsidian';
 import { OutlineNode } from '../utils/outline';
 
 export interface MindmapCommand {
-  type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text' | 'toggle-checkbox';
+  type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text' | 'toggle-checkbox' | 'add-heading' | 'edit-heading';
   timestamp: number;
   beforeState: string;
   afterState: string;
@@ -123,6 +123,10 @@ export class CommandHistory {
         return `Undo move "${command.nodeInfo.text.substring(0, 20)}..."`;
       case 'add-child-text':
         return `Undo add text child to "${command.nodeInfo.text.substring(0, 20)}..."`;
+      case 'add-heading':
+        return `Undo add heading before "${command.nodeInfo.text.substring(0, 20)}..."`;
+      case 'edit-heading':
+        return `Undo edit heading "${command.nodeInfo.text.substring(0, 20)}..."`;
       default:
         return 'Undo last action';
     }
@@ -147,6 +151,10 @@ export class CommandHistory {
         return `Redo move "${command.nodeInfo.text.substring(0, 20)}..."`;
       case 'add-child-text':
         return `Redo add text child to "${command.nodeInfo.text.substring(0, 20)}..."`;
+      case 'add-heading':
+        return `Redo add heading before "${command.nodeInfo.text.substring(0, 20)}..."`;
+      case 'edit-heading':
+        return `Redo edit heading "${command.nodeInfo.text.substring(0, 20)}..."`;
       default:
         return 'Redo last action';
     }

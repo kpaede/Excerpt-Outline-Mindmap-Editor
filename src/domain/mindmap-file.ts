@@ -191,6 +191,56 @@ export function writeNodeInText(
   return joinDoc(lines, newline);
 }
 
+export function addHeadingBeforeNodeInText(
+  fileText: string,
+  node: OutlineNode,
+  headingText: string = '# Heading'
+): DocString {
+  const { lines, newline } = splitDoc(fileText);
+
+  if (node.line < 0 || node.line > lines.length) {
+    return fileText;
+  }
+
+  lines.splice(node.line, 0, headingText);
+  return joinDoc(lines, newline);
+}
+
+export async function addHeadingBeforeNode(
+  app: App,
+  file: TFile,
+  node: OutlineNode,
+  headingText: string = '# Heading'
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  return await persistDocIfChanged(app, file, fileText, addHeadingBeforeNodeInText(fileText, node, headingText));
+}
+
+export function writeHeadingInText(
+  fileText: string,
+  line: number,
+  headingText: string
+): DocString {
+  const { lines, newline } = splitDoc(fileText);
+
+  if (line < 0 || line >= lines.length) {
+    return fileText;
+  }
+
+  lines[line] = headingText;
+  return joinDoc(lines, newline);
+}
+
+export async function writeHeading(
+  app: App,
+  file: TFile,
+  line: number,
+  headingText: string
+): Promise<DocString> {
+  const fileText = await app.vault.read(file);
+  return await persistDocIfChanged(app, file, fileText, writeHeadingInText(fileText, line, headingText));
+}
+
 export async function writeMultipleNodes(
   app: App,
   file: TFile,

@@ -10,8 +10,9 @@ import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 
 import type MindmapPlugin from '../main';
-import { isOutlineCompatible, OutlineNode, parseOutline } from '../utils/outline';
+import { isOutlineCompatible, OutlineNode, parseHeadingSections, parseOutline } from '../utils/outline';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
+import { renderHeadingFrames } from '../view/heading-frames';
 
 cytoscape.use(dagre);
 
@@ -157,6 +158,10 @@ async function renderOverlays(
   const font = css.getPropertyValue('--font-family').trim() || 'inherit';
   const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
   const zoom = cy.zoom();
+
+  renderHeadingFrames(wrapper, cy, parseHeadingSections(await plugin.app.vault.read(file)), sizeMap, {
+    attributeName: 'mindmapEomeOverlay',
+  });
 
   for (const node of flat) {
     const cyNode = cy.getElementById(`n${node.line}`);

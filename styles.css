@@ -845,6 +845,70 @@ body div.layout-options-modal {
   height: auto;
 }
 
+.mindmap-heading-frame {
+  position: absolute;
+  left: var(--heading-frame-left, 0);
+  top: var(--heading-frame-top, 0);
+  width: var(--heading-frame-width, 0);
+  height: var(--heading-frame-height, 0);
+  transform: translate(-50%, -50%) scale(var(--heading-frame-zoom, 1));
+  transform-origin: center center;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  background: transparent;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.mindmap-heading-frame-title {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  max-width: calc(100% - 20px);
+  transform: translateY(-50%);
+  padding: 0 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.mindmap-heading-frame-title h1,
+.mindmap-heading-frame-title h2,
+.mindmap-heading-frame-title h3,
+.mindmap-heading-frame-title h4,
+.mindmap-heading-frame-title h5,
+.mindmap-heading-frame-title h6 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindmap-heading-frame.editing .mindmap-heading-frame-title {
+  display: none;
+}
+
+.mindmap-heading-editor {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  width: min(420px, calc(100% - 20px));
+  min-height: 30px;
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  pointer-events: auto;
+  box-sizing: border-box;
+  z-index: 20;
+}
+
 /* Canvas container for cytoscape */
 .mindmap-canvas {
   position: absolute;

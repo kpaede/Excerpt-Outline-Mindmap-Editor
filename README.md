@@ -71,6 +71,19 @@ Task list items are supported too:
 - [x] Checked task
 ```
 
+Markdown headings can be used to group separate trees in the same file. A heading creates a visual frame around the tree below it:
+
+```markdown
+# First tree
+- Parent node
+  - Child node
+
+## Nested section
+- Another parent node
+```
+
+Headings stay as normal Markdown headings in the file and are rendered with your current Obsidian theme in the mindmap view.
+
 If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible. Display settings such as layout, zoom, node width, and keyboard navigation mode are stored per file in the `excerpt-outline-mindmap` frontmatter key.
 
 ---
@@ -81,6 +94,7 @@ If the file contains non-outline content outside list items, the mindmap view ma
 
 - Move nodes with the four-zone drag-and-drop system.
 - Add child and sibling nodes from hover controls or the context menu.
+- Add a heading frame for a tree from a node's context menu with **Add heading for this tree**.
 - Copy, cut, paste, duplicate, and delete nodes.
 - Select multiple nodes by clicking with **Cmd**/**Ctrl** or **Shift**, or by drawing a selection box on empty canvas space.
 - Delete only a node or delete its full subtree when children are involved.
@@ -88,6 +102,7 @@ If the file contains non-outline content outside list items, the mindmap view ma
 ### Editing
 
 - Double-click a node, press **Enter**, or use the context menu to edit.
+- Double-click a heading to edit its raw Markdown heading text, including the leading `#` characters.
 - The editor is actually the full Obsidian editor.
 - Newly created child and sibling nodes enter edit mode automatically.
 - Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.

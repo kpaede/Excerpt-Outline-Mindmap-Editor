@@ -1,11 +1,12 @@
 import { setIcon, Notice } from 'obsidian';
-import { parseOutline, OutlineNode } from '../utils/outline';
+import { parseHeadingSections, parseOutline, OutlineNode } from '../utils/outline';
 import { MindmapView } from './mindmap-view';
 import { DeleteNodeModal, DeleteOption } from "../ui/modals/delete-node-modal";
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
 import { clearDropPreview, DropIntent, DropPointer, getDropIntent, getOverlayAtPoint, updateDropPreview } from './overlay-dnd';
 import { getPrimaryZoteroLink } from '../utils/zotero';
 import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
+import { renderHeadingFrames, startHeadingEditing } from './heading-frames';
 
 export { startNodeEditing };
 
@@ -16,7 +17,10 @@ function errorMessage(error: unknown): string {
 export function updateOverlays(view: MindmapView): void {
   if (!view.cy) return;
 
-  if (view.wrapper.querySelector('.node-editor') || document.querySelector('.mindmap-mobile-editor')) {
+  if (
+    view.wrapper.querySelector('.node-editor, .mindmap-heading-editor') ||
+    document.querySelector('.mindmap-mobile-editor')
+  ) {
     return;
   }
 
@@ -82,6 +86,9 @@ function updateOverlayGeometry(view: MindmapView): boolean {
     overlay.style.setProperty('--mindmap-zoom', String(zoom));
   }
 
+  renderHeadingFrames(view.wrapper, view.cy, parseHeadingSections(view.data), view.sizeMap, {
+    onEdit: (section, frame) => startHeadingEditing(frame, section, view),
+  });
   return true;
 }
 
@@ -108,6 +115,9 @@ function performOverlayUpdate(view: MindmapView): void {
 
   // Create a map of valid line numbers from current document
   const validLines = new Set(flatCurrent.map(n => n.line));
+  renderHeadingFrames(view.wrapper, view.cy!, parseHeadingSections(view.data), view.sizeMap, {
+    onEdit: (section, frame) => startHeadingEditing(frame, section, view),
+  });
 
   let pendingEdit: {
     box: HTMLElement;

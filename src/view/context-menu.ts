@@ -80,6 +80,13 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
 
     menu.addItem((item) => {
       item
+        .setTitle('Add heading for this tree')
+        .setIcon('heading')
+        .onClick(() => void view.executeAddHeadingCommand(targetNode));
+    });
+
+    menu.addItem((item) => {
+      item
         .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to unchecked tasks` : 'Convert to unchecked task')
         .setIcon('check-square')
         .onClick(() => void view.convertNodesToTask(selectedNodes));

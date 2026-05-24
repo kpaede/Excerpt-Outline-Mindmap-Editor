@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   addChildInText,
   addChildTextInText,
+  addHeadingBeforeNodeInText,
   addMarkdownAsChildren,
   cutPasteMarkdownAsChildren,
   deleteMultipleNodesInText,
   deleteMultipleNodesKeepChildren,
   moveSubtreeInText,
+  writeHeadingInText,
   writeMultipleNodes,
   writeNodeInText,
 } from '../src/domain/mindmap-file';
@@ -87,6 +89,33 @@ describe('mindmap file text operations', () => {
     const target = node('Old text', 0, 0, '', 'unchecked');
 
     expect(writeNodeInText(input, target, '[x] New text')).toBe('- [x] New text');
+  });
+
+  it('adds a heading before the selected root node', () => {
+    const input = [
+      '- Root',
+      '\t- Child',
+      '- Second',
+    ].join('\n');
+
+    expect(addHeadingBeforeNodeInText(input, node('Root', 0, 1), '# Heading')).toBe([
+      '# Heading',
+      '- Root',
+      '\t- Child',
+      '- Second',
+    ].join('\n'));
+  });
+
+  it('edits heading lines as raw markdown', () => {
+    const input = [
+      '# Old heading',
+      '- Root',
+    ].join('\n');
+
+    expect(writeHeadingInText(input, 0, '## New heading')).toBe([
+      '## New heading',
+      '- Root',
+    ].join('\n'));
   });
 
   it('moves a subtree to the upper-left drop zone as sibling before target', () => {

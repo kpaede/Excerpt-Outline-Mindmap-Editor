@@ -11,7 +11,7 @@ import { Core } from 'cytoscape';
 
 import '../styles/dnd-css';
 
-import { parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from '../utils/outline';
+import { HeadingSection, parseHeadingSections, parseOutline, OutlineNode, isOutlineCompatible, isEmptyContent } from '../utils/outline';
 import { VIEW_TYPE_MINDMAP } from '../constants';
 import MindmapPlugin from '../main';
 import {
@@ -26,9 +26,11 @@ import {
   addChildText,
   addSiblingText,
   addMarkdownAsChildren,
+  addHeadingBeforeNode,
   cutPasteMarkdownAsChildren,
   duplicateSubtree,
   deleteNodeKeepChildren,
+  writeHeading,
   DocString,
   ChildInsertPosition,
   SiblingInsertPosition,
@@ -48,6 +50,7 @@ import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { resetToolbarPlacement } from '../ui/toolbar/toolbar-placement';
 import { showNodeContextMenu as showNodeContextMenuFn } from './context-menu';
 import { navigateSelection as navigateSelectionFn, NavigationDirection } from './navigation';
+import { startHeadingEditing } from './heading-frames';
 import {
   copyNodesToClipboard as copyNodesToClipboardFn,
   cutNodesToClipboard as cutNodesToClipboardFn,
@@ -182,7 +185,7 @@ export class MindmapView extends TextFileView {
       const target = e.target as HTMLElement | null;
       if (
         target?.closest(
-          '.mindmap-overlay, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
+          '.mindmap-overlay, .mindmap-heading-frame, .mindmap-heading-editor, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
         )
       ) {
         return;
@@ -215,7 +218,7 @@ export class MindmapView extends TextFileView {
 
       if (
         target?.closest(
-          '.mindmap-overlay, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
+          '.mindmap-overlay, .mindmap-heading-frame, .mindmap-heading-editor, .vertical-toolbar, .node-editor, .cm-editor, button, a, input, select, textarea, [contenteditable="true"]'
         )
       ) {
         return;
@@ -1318,6 +1321,68 @@ export class MindmapView extends TextFileView {
     this.scheduleEditModeForNodeByLine(newSiblingLine);
   }
 
+  private getHeadingInsertionNodeForNode(node: OutlineNode): OutlineNode {
+    const roots = parseOutline(this.data);
+    const flat = this.getFlatNodes();
+    const containingSection = parseHeadingSections(this.data)
+      .filter((section) => section.nodeLines.includes(node.line))
+      .sort((a, b) => b.level - a.level)[0];
+    const firstSectionNode = containingSection
+      ? flat.find((candidate) => candidate.line === containingSection.nodeLines[0])
+      : null;
+
+    return firstSectionNode ?? roots[0] ?? node;
+  }
+
+  public async executeAddHeadingCommand(node: OutlineNode): Promise<void> {
+    if (!this.file) return;
+
+    const rootNode = this.getHeadingInsertionNodeForNode(node);
+    const beforeState = this.data;
+    const newDoc = await addHeadingBeforeNode(this.app, this.file, rootNode, '# Heading');
+
+    const command: MindmapCommand = {
+      type: 'add-heading',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: CommandHistory.createNodeInfo(rootNode),
+      metadata: {
+        headingLine: rootNode.line,
+        headingText: '# Heading',
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+    this.scheduleEditModeForHeadingByLine(rootNode.line);
+  }
+
+  public async executeEditHeadingCommand(section: HeadingSection, newText: string): Promise<void> {
+    if (!this.file) return;
+
+    const beforeState = this.data;
+    const newDoc = await writeHeading(this.app, this.file, section.line, newText);
+
+    const command: MindmapCommand = {
+      type: 'edit-heading',
+      timestamp: Date.now(),
+      beforeState,
+      afterState: newDoc,
+      nodeInfo: {
+        line: section.line,
+        text: section.rawText.substring(0, 50),
+        indent: '',
+        marker: '#',
+      },
+      metadata: {
+        oldText: section.rawText.substring(0, 100),
+        newText: newText.substring(0, 100),
+      }
+    };
+
+    await this.applyDocIncrementalWithCommand(newDoc, command);
+  }
+
   public async toggleNodeCheckbox(node: OutlineNode): Promise<void> {
     if (!this.file) return;
 
@@ -1973,6 +2038,42 @@ export class MindmapView extends TextFileView {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             void this.enterEditModeForNodeByLine(nodeLine, true);
+          });
+        });
+      });
+    };
+
+    this.cy?.one('layoutstop', startAfterOverlayUpdate);
+    window.setTimeout(startAfterOverlayUpdate, 350);
+  }
+
+  public async enterEditModeForHeadingByLine(headingLine: number): Promise<void> {
+    for (let i = 0; i < 60; i++) {
+      const frame = this.wrapper?.querySelector(`[data-heading-frame][data-heading-line="${headingLine}"]`) as HTMLElement | null;
+      if (frame && !this.isUpdatingOverlays) {
+        const section = parseHeadingSections(this.data).find(candidate => candidate.line === headingLine);
+        if (!section) return;
+
+        startHeadingEditing(frame, section, this);
+        return;
+      }
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    console.warn(`Heading frame not found for line ${headingLine} to start editing.`);
+  }
+
+  private scheduleEditModeForHeadingByLine(headingLine: number): void {
+    let started = false;
+    const startAfterOverlayUpdate = () => {
+      if (started) return;
+      started = true;
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            void this.enterEditModeForHeadingByLine(headingLine);
           });
         });
       });
