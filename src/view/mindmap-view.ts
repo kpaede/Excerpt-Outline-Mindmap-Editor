@@ -1323,15 +1323,8 @@ export class MindmapView extends TextFileView {
 
   private getHeadingInsertionNodeForNode(node: OutlineNode): OutlineNode {
     const roots = parseOutline(this.data);
-    const flat = this.getFlatNodes();
-    const containingSection = parseHeadingSections(this.data)
-      .filter((section) => section.nodeLines.includes(node.line))
-      .sort((a, b) => b.level - a.level)[0];
-    const firstSectionNode = containingSection
-      ? flat.find((candidate) => candidate.line === containingSection.nodeLines[0])
-      : null;
-
-    return firstSectionNode ?? roots[0] ?? node;
+    const root = roots.find((candidate) => node.line >= candidate.line && node.line <= candidate.endLine);
+    return root ?? node;
   }
 
   public async executeAddHeadingCommand(node: OutlineNode): Promise<void> {

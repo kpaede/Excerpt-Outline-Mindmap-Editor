@@ -13,6 +13,7 @@ import type MindmapPlugin from '../main';
 import { isOutlineCompatible, OutlineNode, parseHeadingSections, parseOutline } from '../utils/outline';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { renderHeadingFrames } from '../view/heading-frames';
+import { stackTopLevelTreesVertically } from '../view/tree-layout';
 
 cytoscape.use(dagre);
 
@@ -233,7 +234,8 @@ export async function renderMindmapEomeEmbed(
     return;
   }
 
-  const flat = flattenOutline(parseOutline(markdown));
+  const roots = parseOutline(markdown);
+  const flat = flattenOutline(roots);
   if (flat.length === 0) {
     renderError(el, `mindmap-eome: ${file.name} has no outline nodes.`);
     return;
@@ -296,6 +298,7 @@ export async function renderMindmapEomeEmbed(
   });
 
   cy.on('layoutstop', () => {
+    stackTopLevelTreesVertically(cy, roots, sizeMap, 160);
     cy.fit(cy.elements(), 28);
     cy.center(cy.elements());
     void renderOverlays(plugin, file, wrapper, cy, flat, sizeMap);

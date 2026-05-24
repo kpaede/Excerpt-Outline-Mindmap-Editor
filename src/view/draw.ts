@@ -7,6 +7,7 @@ import { parseOutline, OutlineNode, openInternalLink } from '../utils/outline';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { MindmapView } from './mindmap-view';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
+import { stackTopLevelTreesVertically } from './tree-layout';
 
 cytoscape.use(dagre);
 
@@ -94,13 +95,14 @@ export async function draw(view: MindmapView): Promise<void> {
     view.wrapper.querySelectorAll('[data-overlay]').forEach((e) => e.remove());
   }
 
+  const roots = parseOutline(view.data);
   const flat: OutlineNode[] = [];
   (function walk(arr: OutlineNode[]) {
     arr.forEach((n) => {
       flat.push(n);
       walk(n.children);
     });
-  })(parseOutline(view.data));
+  })(roots);
 
   const measureContainer = document.createElement('div');
   measureContainer.className = 'mindmap-measurement-container';
@@ -357,6 +359,8 @@ export async function draw(view: MindmapView): Promise<void> {
     view.cy.on('pan zoom', () => view.updateOverlays());
 
     view.cy.on('layoutstop', () => {
+      const layoutRoots = view.cy!.scratch('_mindmapRoots') as OutlineNode[] | undefined;
+      stackTopLevelTreesVertically(view.cy!, layoutRoots ?? roots, view.sizeMap, Math.max(160, (view.layoutOptions.rankSep ?? 50) * 3));
       if (!view.firstFitDone) {
         view.cy!.center(view.cy!.elements());
         if (typeof view.layoutOptions.zoomFactor === 'number') {
@@ -372,9 +376,11 @@ export async function draw(view: MindmapView): Promise<void> {
       view.updateOverlays();
     });
 
+    view.cy.scratch('_mindmapRoots', roots);
     view.cy.layout(layoutOpts).run();
   } else {
     view.cy.json({ elements: els });
+    view.cy.scratch('_mindmapRoots', roots);
     view.cy.layout(layoutOpts).run();
   }
 
