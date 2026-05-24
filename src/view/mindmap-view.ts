@@ -94,6 +94,7 @@ export class MindmapView extends TextFileView {
   private mobileToolbarPlacementTimeouts: number[] = [];
   private orientationMediaQuery: MediaQueryList | null = null;
   private screenOrientation: ScreenOrientation | null = null;
+  private viewEventController: AbortController | null = null;
   private handleMenuDismissPointerDown = (event: Event): void => {
     const target = event.target as HTMLElement | null;
     if (
@@ -139,6 +140,9 @@ export class MindmapView extends TextFileView {
 
   public prepareWrapper(): void {
     if (!this.wrapper) return;
+    if (!this.viewEventController) {
+      this.viewEventController = new AbortController();
+    }
     this.wrapper.tabIndex = 0;
     this.wrapper.classList.toggle('is-touch-device', this.isTouchDevice);
     this.updateMobileToolbarPlacement();
@@ -167,6 +171,7 @@ export class MindmapView extends TextFileView {
   private initBoxSelection(): void {
     if (this.isBoxSelectionInitialized) return;
     this.isBoxSelectionInitialized = true;
+    const signal = this.viewEventController?.signal;
 
     this.wrapper.addEventListener('click', (e) => {
       if (this.suppressNextEmptyClick) {
@@ -184,7 +189,7 @@ export class MindmapView extends TextFileView {
       }
 
       this.clearSelection();
-    });
+    }, { signal });
 
     this.wrapper.addEventListener('contextmenu', (e) => {
       if (this.wrapper.classList.contains('is-touch-dragging')) {
@@ -194,7 +199,7 @@ export class MindmapView extends TextFileView {
       }
 
       this.showNodeContextMenu(e);
-    });
+    }, { signal });
 
     this.wrapper.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
@@ -239,7 +244,7 @@ export class MindmapView extends TextFileView {
       
       // Make overlays unclickable during drag so they don't interfere
       this.wrapper.classList.add('is-box-selecting');
-    }, { capture: true });
+    }, { capture: true, signal });
 
     window.addEventListener('mousemove', (e) => {
       if (!this.isBoxSelecting || !this.selectionBoxEl) return;
@@ -263,7 +268,7 @@ export class MindmapView extends TextFileView {
       this.selectionBoxEl.style.top = `${top}px`;
       this.selectionBoxEl.style.width = `${width}px`;
       this.selectionBoxEl.style.height = `${height}px`;
-    });
+    }, { signal });
 
     window.addEventListener('mouseup', (e) => {
       if (!this.isBoxSelecting) return;
@@ -302,12 +307,13 @@ export class MindmapView extends TextFileView {
 
         this.selectionBoxEl.style.display = 'none';
       }
-    });
+    }, { signal });
   }
 
   private initViewportWheelControls(): void {
     if (this.isViewportWheelInitialized) return;
     this.isViewportWheelInitialized = true;
+    const signal = this.viewEventController?.signal;
 
     if (this.isTouchDevice) {
       this.initTouchViewportControls();
@@ -333,13 +339,13 @@ export class MindmapView extends TextFileView {
       this.middlePanLastY = event.clientY;
       this.wrapper.classList.add('is-middle-mouse-panning');
       this.wrapper.focus();
-    }, { capture: true });
+    }, { capture: true, signal });
 
     this.wrapper.addEventListener('auxclick', (event) => {
       if (event.button !== 1) return;
       event.preventDefault();
       event.stopPropagation();
-    }, { capture: true });
+    }, { capture: true, signal });
 
     window.addEventListener('mousemove', (event) => {
       if (!this.isMiddleMousePanning || !this.cy) return;
@@ -354,7 +360,7 @@ export class MindmapView extends TextFileView {
 
       this.middlePanLastX = event.clientX;
       this.middlePanLastY = event.clientY;
-    }, { capture: true });
+    }, { capture: true, signal });
 
     window.addEventListener('mouseup', (event) => {
       if (!this.isMiddleMousePanning || event.button !== 1) return;
@@ -364,7 +370,7 @@ export class MindmapView extends TextFileView {
 
       this.isMiddleMousePanning = false;
       this.wrapper.classList.remove('is-middle-mouse-panning');
-    }, { capture: true });
+    }, { capture: true, signal });
 
     this.wrapper.addEventListener('wheel', (event) => {
       if (!this.cy) return;
@@ -402,10 +408,11 @@ export class MindmapView extends TextFileView {
         x: -event.deltaX,
         y: -event.deltaY,
       });
-    }, { capture: true, passive: false });
+    }, { capture: true, passive: false, signal });
   }
 
   private initTouchViewportControls(): void {
+    const signal = this.viewEventController?.signal;
     const getGesturePointers = () => {
       return Array.from(this.touchViewportPointers.entries())
         .filter(([pointerId]) => pointerId !== this.activeTouchDragPointerId)
@@ -482,12 +489,12 @@ export class MindmapView extends TextFileView {
       const customEvent = event as CustomEvent<{ pointerId: number }>;
       this.activeTouchDragPointerId = customEvent.detail.pointerId;
       resetGestureState();
-    });
+    }, { signal });
 
     this.wrapper.addEventListener('mindmap-touch-drag-end', () => {
       this.activeTouchDragPointerId = null;
       resetGestureState();
-    });
+    }, { signal });
 
     this.wrapper.addEventListener('pointerdown', (event) => {
       if (event.pointerType !== 'touch') return;
@@ -535,7 +542,7 @@ export class MindmapView extends TextFileView {
         this.touchGestureMode = 'pan';
         this.touchPanLastPoint = { x: event.clientX, y: event.clientY };
       }
-    }, { capture: true, passive: false });
+    }, { capture: true, passive: false, signal });
 
     this.wrapper.addEventListener('pointermove', (event) => {
       if (event.pointerType !== 'touch' || !this.touchViewportPointers.has(event.pointerId)) return;
@@ -632,7 +639,7 @@ export class MindmapView extends TextFileView {
 
       this.touchPinchLastDistance = state.distance;
       this.touchPinchLastCenter = state.center;
-    }, { capture: true, passive: false });
+    }, { capture: true, passive: false, signal });
 
     const endPointer = (event: PointerEvent) => {
       if (event.pointerType !== 'touch') return;
@@ -666,11 +673,11 @@ export class MindmapView extends TextFileView {
       this.touchPinchLastCenter = state?.center ?? null;
     };
 
-    this.wrapper.addEventListener('pointerup', endPointer, { capture: true });
-    this.wrapper.addEventListener('pointercancel', endPointer, { capture: true });
-    window.addEventListener('pointerup', endPointer, { capture: true });
-    window.addEventListener('pointercancel', endPointer, { capture: true });
-    window.addEventListener('blur', resetTouchState);
+    this.wrapper.addEventListener('pointerup', endPointer, { capture: true, signal });
+    this.wrapper.addEventListener('pointercancel', endPointer, { capture: true, signal });
+    window.addEventListener('pointerup', endPointer, { capture: true, signal });
+    window.addEventListener('pointercancel', endPointer, { capture: true, signal });
+    window.addEventListener('blur', resetTouchState, { signal });
   }
 
   public showNodeContextMenu(event: MouseEvent): void {
@@ -1101,6 +1108,15 @@ export class MindmapView extends TextFileView {
   }
 
   async onClose(): Promise<void> {
+    this.viewEventController?.abort();
+    this.viewEventController = null;
+    this.isBoxSelectionInitialized = false;
+    this.isViewportWheelInitialized = false;
+    this.isBoxSelecting = false;
+    this.isMiddleMousePanning = false;
+    this.touchViewportPointers.clear();
+    this.touchGestureMode = null;
+    this.activeTouchDragPointerId = null;
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);

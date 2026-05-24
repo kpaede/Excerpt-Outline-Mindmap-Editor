@@ -66,7 +66,10 @@ async function persistDoc(app: App, file: TFile, newDoc: DocString): Promise<Doc
   if (!writtenViaEditor) {
     try {
       await app.vault.modify(file, newDoc);
-    } catch (err) {}
+    } catch (err) {
+      console.error(`Failed to write mindmap file "${file.path}".`, err);
+      throw err;
+    }
   }
 
   return newDoc;
