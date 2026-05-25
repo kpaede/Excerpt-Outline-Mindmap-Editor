@@ -813,8 +813,11 @@ body div.layout-options-modal {
   position: absolute;
   left: var(--mindmap-left, 0);
   top: var(--mindmap-top, 0);
-  transform: translate(-50%,-50%) scale(var(--mindmap-zoom,1));
+  transform: translate3d(-50%,-50%,0) scale(var(--mindmap-zoom,1));
   transform-origin: center center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
   width: var(--mindmap-box-width, 200px);
   height: var(--mindmap-box-height, 60px);
   padding: 6px 10px 22px;
@@ -833,11 +836,29 @@ body div.layout-options-modal {
 
 .mindmap-overlay .markdown-rendered {
   /* Allow per-node scaling via variable */
-  transform: scale(var(--mindmap-scale, 1));
+  transform: translateZ(0) scale(var(--mindmap-scale, 1));
   transform-origin: top left;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   width: calc(100% / var(--mindmap-scale, 1));
   height: 100%;
   overflow: hidden;
+}
+
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay iframe,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay object,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay embed,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay video,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay canvas,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay .markdown-embed,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay .file-embed,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay .internal-embed,
+.mindmap-wrapper.is-viewport-zooming .mindmap-overlay .pdf-embed {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+  contain: paint;
 }
 
 .mindmap-overlay img {

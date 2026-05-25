@@ -106,6 +106,7 @@ export class MindmapView extends TextFileView {
   private orientationMediaQuery: MediaQueryList | null = null;
   private screenOrientation: ScreenOrientation | null = null;
   private viewEventController: AbortController | null = null;
+  private zoomingClassTimeout: number | null = null;
   private handleMenuDismissPointerDown = (event: Event): void => {
     const target = event.target as HTMLElement | null;
     if (
@@ -1158,6 +1159,10 @@ export class MindmapView extends TextFileView {
     this.screenOrientation = null;
     document.removeEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
     document.removeEventListener('touchstart', this.handleMenuDismissPointerDown, true);
+    if (this.zoomingClassTimeout !== null) {
+      window.clearTimeout(this.zoomingClassTimeout);
+      this.zoomingClassTimeout = null;
+    }
     this.mobileToolbarPlacementTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     this.mobileToolbarPlacementTimeouts = [];
     if (this.wrapper) resetToolbarPlacement(this.wrapper);
@@ -1903,6 +1908,7 @@ export class MindmapView extends TextFileView {
     renderedPosition?: { x: number; y: number }
   ): void {
     if (!this.cy) return;
+    this.markViewportZooming();
 
     const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), zoomFactor));
     const roundedZoom = this.isTouchDevice
@@ -1928,6 +1934,19 @@ export class MindmapView extends TextFileView {
     if (save) {
       this.queueZoomFactorSave(roundedZoom);
     }
+  }
+
+  private markViewportZooming(): void {
+    this.wrapper?.classList.add('is-viewport-zooming');
+
+    if (this.zoomingClassTimeout !== null) {
+      window.clearTimeout(this.zoomingClassTimeout);
+    }
+
+    this.zoomingClassTimeout = window.setTimeout(() => {
+      this.wrapper?.classList.remove('is-viewport-zooming');
+      this.zoomingClassTimeout = null;
+    }, 180);
   }
 
   public rememberCurrentZoom(save: boolean = false): void {

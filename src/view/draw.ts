@@ -119,10 +119,16 @@ export async function draw(view: MindmapView): Promise<void> {
       wheelSensitivity: 0.2, // This controls zoom sensitivity
     });
 
+    let geometryUpdateFrame: number | null = null;
     view.cy.on('pan zoom', () => {
-      if (!view.updateOverlayGeometry()) {
-        view.updateOverlays();
-      }
+      if (geometryUpdateFrame !== null) return;
+
+      geometryUpdateFrame = requestAnimationFrame(() => {
+        geometryUpdateFrame = null;
+        if (!view.updateOverlayGeometry()) {
+          view.updateOverlays();
+        }
+      });
     });
 
     view.cy.on('layoutstop', () => {
