@@ -12,6 +12,7 @@ import { MindmapView } from './view/mindmap-view';
 import { openInternalLink } from './utils/outline';
 import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 import { exportMindmapViewToCanvas } from './commands/export-canvas';
+import { exportMindmapViewToPdf, exportMindmapViewToSvg } from './commands/export-vector';
 
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();
@@ -49,6 +50,30 @@ export default class MindmapPlugin extends Plugin {
         const canRun = !!view?.file;
         if (checking) return canRun;
         if (view) void exportMindmapViewToCanvas(this, view);
+        return canRun;
+      },
+    });
+
+    this.addCommand({
+      id: 'export-current-mindmap-to-svg',
+      name: 'Export current mindmap to SVG',
+      checkCallback: (checking: boolean) => {
+        const view = this.getActiveMindmapView();
+        const canRun = !!view?.file;
+        if (checking) return canRun;
+        if (view) void exportMindmapViewToSvg(this, view);
+        return canRun;
+      },
+    });
+
+    this.addCommand({
+      id: 'export-current-mindmap-to-pdf',
+      name: 'Export current mindmap to PDF',
+      checkCallback: (checking: boolean) => {
+        const view = this.getActiveMindmapView();
+        const canRun = !!view?.file;
+        if (checking) return canRun;
+        if (view) void exportMindmapViewToPdf(this, view);
         return canRun;
       },
     });
