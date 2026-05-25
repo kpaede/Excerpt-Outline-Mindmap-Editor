@@ -425,7 +425,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .node-editor-host .cm-focused {
-  outline: none !important;
+  outline: none;
 }
 
 .node-editor-host .cm-scroller {
@@ -494,16 +494,16 @@ If your plugin does not need CSS, delete this file.
   height: 24px;
   min-width: 24px;
   min-height: 24px;
-  border: none !important;
+  border: none;
   border-radius: 0;
-  background: var(--mindmap-bg, #ffffff) !important;
+  background: var(--mindmap-bg, #ffffff);
   color: #000000;
   display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 0 !important;
-  box-shadow: none !important;
+  padding: 0;
+  box-shadow: none;
   appearance: none;
   --button-shadow: none;
   --button-shadow-hover: none;
@@ -513,8 +513,8 @@ If your plugin does not need CSS, delete this file.
 .mindmap-wrapper .checkbox-toggle:focus,
 .mindmap-wrapper .checkbox-toggle:active {
   color: #000000;
-  background: var(--mindmap-bg, #ffffff) !important;
-  box-shadow: none !important;
+  background: var(--mindmap-bg, #ffffff);
+  box-shadow: none;
 }
 
 .mindmap-overlay.has-checkbox .checkbox-toggle,
@@ -536,7 +536,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .mindmap-overlay.checkbox-checked .checkbox-toggle {
-  background: var(--mindmap-bg, #ffffff) !important;
+  background: var(--mindmap-bg, #ffffff);
   border-color: transparent;
   color: var(--mindmap-checked-color);
 }
@@ -549,16 +549,16 @@ If your plugin does not need CSS, delete this file.
   height: 24px;
   min-width: 24px;
   min-height: 24px;
-  border: none !important;
+  border: none;
   border-radius: 0;
-  background: var(--mindmap-bg, #ffffff) !important;
+  background: var(--mindmap-bg, #ffffff);
   color: #000000;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: none !important;
-  padding: 0 !important;
+  box-shadow: none;
+  padding: 0;
   appearance: none;
   --button-shadow: none;
   --button-shadow-hover: none;
@@ -568,8 +568,8 @@ If your plugin does not need CSS, delete this file.
 .mindmap-wrapper .mindmap-zotero-badge:focus,
 .mindmap-wrapper .mindmap-zotero-badge:active {
   color: #000000;
-  background: var(--mindmap-bg, #ffffff) !important;
-  box-shadow: none !important;
+  background: var(--mindmap-bg, #ffffff);
+  box-shadow: none;
 }
 
 .mindmap-overlay.checkbox-checked .mindmap-zotero-badge,
@@ -953,8 +953,8 @@ body div.layout-options-modal {
   border-style: solid;
   border-width: 2px;
   border-color: #31b549;
-  background-image: none !important;
-  background-color: rgba(49, 181, 73, 0.12) !important;
+  background-image: none;
+  background-color: rgba(49, 181, 73, 0.12);
   color: var(--text-normal);
   box-shadow: 0 0 8px rgba(49, 181, 73, 0.3);
 }
@@ -1287,8 +1287,8 @@ body .suggestion-container {
 }
 
 .mindmap-eome-open-button svg {
-  width: 22px !important;
-  height: 22px !important;
+  width: 22px;
+  height: 22px;
   min-width: 22px;
   min-height: 22px;
   stroke-width: 2.25;
@@ -1313,34 +1313,34 @@ body .suggestion-container {
 }
 
 .mindmap-touch-drag-ghost {
-  position: fixed !important;
+  position: fixed;
   left: var(--touch-drag-left, 0);
   top: var(--touch-drag-top, 0);
-  transform: translate(-50%, -50%) !important;
-  transform-origin: center center !important;
-  width: var(--touch-drag-width, 220px) !important;
-  height: var(--touch-drag-height, 80px) !important;
-  overflow: hidden !important;
-  padding: 6px 10px 22px !important;
-  border: 1px solid var(--interactive-accent) !important;
-  border-radius: 4px !important;
-  background: var(--background-primary) !important;
-  color: var(--text-normal) !important;
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+  width: var(--touch-drag-width, 220px);
+  height: var(--touch-drag-height, 80px);
+  overflow: hidden;
+  padding: 6px 10px 22px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
   opacity: 0.52;
-  pointer-events: none !important;
-  z-index: 900 !important;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18) !important;
-  box-sizing: border-box !important;
-  font-family: var(--font-family, inherit) !important;
-  font-size: 16px !important;
-  line-height: 1.4 !important;
+  pointer-events: none;
+  z-index: 900;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+  font-family: var(--font-family, inherit);
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 .mindmap-touch-drag-ghost-content {
-  width: 100% !important;
-  height: 100% !important;
-  overflow: hidden !important;
-  transform: none !important;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transform: none;
 }
 
 .mindmap-touch-drag-ghost.is-over-target {
@@ -1366,11 +1366,11 @@ body .suggestion-container {
 
 .mindmap-wrapper.is-touch-device [data-overlay],
 .mindmap-wrapper.is-touch-device [data-overlay] * {
-  -webkit-user-drag: none !important;
-  -khtml-user-drag: none !important;
-  -moz-user-drag: none !important;
-  -o-user-drag: none !important;
-  user-drag: none !important;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
 }
 
 .mindmap-wrapper.is-touch-device,
@@ -1460,9 +1460,9 @@ body .suggestion-container {
 /* Authoritative touch-toolbar layout. Keep this after older responsive rules. */
 :root.mindmap-touch-toolbar .vertical-toolbar,
 body.mindmap-touch-toolbar .vertical-toolbar {
-  position: fixed !important;
-  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) !important;
-  bottom: auto !important;
+  position: fixed;
+  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top));
+  bottom: auto;
   --mindmap-menu-max-width: calc(var(--mindmap-visual-width, 100vw) - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
   box-sizing: border-box;
   padding: 8px;
@@ -1491,10 +1491,10 @@ body.mindmap-touch-toolbar .vertical-toolbar .mindmap-zoom-indicator {
 
 :root.mindmap-toolbar-top .vertical-toolbar,
 body.mindmap-toolbar-top .vertical-toolbar {
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
-  flex-direction: row !important;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  flex-direction: row;
   align-items: center;
   max-width: var(--mindmap-menu-max-width);
   max-height: none;
@@ -1504,9 +1504,9 @@ body.mindmap-toolbar-top .vertical-toolbar {
 
 :root.mindmap-toolbar-top .vertical-toolbar .toolbar-separator,
 body.mindmap-toolbar-top .vertical-toolbar .toolbar-separator {
-  width: 1px !important;
-  height: 28px !important;
-  margin: 0 2px !important;
+  width: 1px;
+  height: 28px;
+  margin: 0 2px;
 }
 
 :root.mindmap-toolbar-top .vertical-toolbar .mindmap-zoom-indicator,
@@ -1517,10 +1517,10 @@ body.mindmap-toolbar-top .vertical-toolbar .mindmap-zoom-indicator {
 
 :root.mindmap-toolbar-side .vertical-toolbar,
 body.mindmap-toolbar-side .vertical-toolbar {
-  left: auto !important;
-  right: max(8px, env(safe-area-inset-right)) !important;
-  transform: none !important;
-  flex-direction: column !important;
+  left: auto;
+  right: max(8px, env(safe-area-inset-right));
+  transform: none;
+  flex-direction: column;
   align-items: center;
   max-width: none;
   max-height: calc(var(--mindmap-visual-height, 100vh) - max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
@@ -1531,9 +1531,9 @@ body.mindmap-toolbar-side .vertical-toolbar {
 
 :root.mindmap-toolbar-side .vertical-toolbar .toolbar-separator,
 body.mindmap-toolbar-side .vertical-toolbar .toolbar-separator {
-  width: 100% !important;
-  height: 1px !important;
-  margin: 2px 0 !important;
+  width: 100%;
+  height: 1px;
+  margin: 2px 0;
 }
 
 :root.mindmap-toolbar-side .vertical-toolbar .mindmap-zoom-indicator,
@@ -1550,9 +1550,9 @@ body.mindmap-touch-toolbar .layout-options-menu,
 body.mindmap-touch-toolbar .node-options-menu,
 body.mindmap-touch-toolbar .general-settings-menu,
 body.mindmap-touch-toolbar .zoom-options-menu {
-  position: fixed !important;
-  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) !important;
-  right: auto !important;
+  position: fixed;
+  top: max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top));
+  right: auto;
   --mindmap-menu-max-width: calc(var(--mindmap-visual-width, 100vw) - 24px - env(safe-area-inset-left) - env(safe-area-inset-right));
   box-sizing: border-box;
   max-height: calc(var(--mindmap-visual-height, 100vh) - max(var(--mindmap-mobile-toolbar-top, 8px), env(safe-area-inset-top)) - 12px - env(safe-area-inset-bottom));
@@ -1568,10 +1568,10 @@ body.mindmap-toolbar-top .layout-options-menu,
 body.mindmap-toolbar-top .node-options-menu,
 body.mindmap-toolbar-top .general-settings-menu,
 body.mindmap-toolbar-top .zoom-options-menu {
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width)) !important;
-  max-width: var(--mindmap-menu-max-width) !important;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width));
+  max-width: var(--mindmap-menu-max-width);
 }
 
 :root.mindmap-toolbar-side .layout-options-menu,
@@ -1582,10 +1582,10 @@ body.mindmap-toolbar-side .layout-options-menu,
 body.mindmap-toolbar-side .node-options-menu,
 body.mindmap-toolbar-side .general-settings-menu,
 body.mindmap-toolbar-side .zoom-options-menu {
-  left: var(--menu-left, 0) !important;
-  transform: none !important;
-  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width)) !important;
-  max-width: var(--mindmap-menu-max-width) !important;
+  left: var(--menu-left, 0);
+  transform: none;
+  width: min(var(--mindmap-menu-width, 320px), var(--mindmap-menu-max-width));
+  max-width: var(--mindmap-menu-max-width);
 }
 
 :root.mindmap-touch-toolbar .layout-options-menu,
@@ -1658,23 +1658,23 @@ body.mindmap-toolbar-side .zoom-options-menu .setting-item-control {
 
 /* Lineage-style toolbar placement: local absolute controls in the view. */
 .mindmap-wrapper .vertical-toolbar {
-  right: var(--size-4-2, 8px) !important;
-  top: var(--size-4-2, 8px) !important;
-  left: auto !important;
-  bottom: auto !important;
-  position: absolute !important;
-  z-index: 2000 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: var(--size-4-2, 8px) !important;
-  background: transparent !important;
-  padding: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  transform: none !important;
-  max-width: none !important;
-  max-height: none !important;
-  overflow: visible !important;
+  right: var(--size-4-2, 8px);
+  top: var(--size-4-2, 8px);
+  left: auto;
+  bottom: auto;
+  position: absolute;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2, 8px);
+  background: transparent;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  transform: none;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
 }
 
 .mindmap-wrapper .vertical-toolbar .buttons-group {
@@ -1686,7 +1686,7 @@ body.mindmap-toolbar-side .zoom-options-menu .setting-item-control {
 }
 
 .mindmap-wrapper .vertical-toolbar .buttons-group--vertical {
-  flex-direction: column !important;
+  flex-direction: column;
 }
 
 .mindmap-wrapper .vertical-toolbar .controls-toggle {
@@ -1695,22 +1695,22 @@ body.mindmap-toolbar-side .zoom-options-menu .setting-item-control {
 
 .mindmap-wrapper .vertical-toolbar button,
 .mindmap-wrapper .vertical-toolbar .clickable-icon {
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  min-height: 34px !important;
-  padding: 8px !important;
-  border-radius: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 8px;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   background: transparent;
 }
 
 .mindmap-wrapper .vertical-toolbar .mindmap-zoom-indicator {
-  width: 42px !important;
-  height: 34px !important;
-  min-width: 42px !important;
-  min-height: 34px !important;
+  width: 42px;
+  height: 34px;
+  min-width: 42px;
+  min-height: 34px;
 }
 
 .mindmap-wrapper .vertical-toolbar .mindmap-toolbar-toggle {
@@ -1735,9 +1735,9 @@ body.mindmap-toolbar-side .zoom-options-menu .setting-item-control {
 }
 
 .mindmap-wrapper .vertical-toolbar .toolbar-separator {
-  width: 100% !important;
-  height: 1px !important;
-  margin: 0 !important;
+  width: 100%;
+  height: 1px;
+  margin: 0;
 }
 
 body.is-mobile .mindmap-wrapper .vertical-toolbar .controls-toggle,
@@ -1747,14 +1747,14 @@ body.is-mobile .mindmap-wrapper .vertical-toolbar .controls-toggle,
 
 body.is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-visible='false'],
 .is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-visible='false'] {
-  display: none !important;
+  display: none;
 }
 
 @media (orientation: landscape) {
   body.is-mobile .mindmap-wrapper .vertical-toolbar,
   .is-mobile .mindmap-wrapper .vertical-toolbar {
-    top: max(32px, calc(env(safe-area-inset-top) + 16px)) !important;
-    right: max(var(--size-4-2, 8px), env(safe-area-inset-right)) !important;
+    top: max(32px, calc(env(safe-area-inset-top) + 16px));
+    right: max(var(--size-4-2, 8px), env(safe-area-inset-right));
   }
 }
 
@@ -1762,63 +1762,63 @@ body.is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-vi
 .node-options-menu.mindmap-mobile-options-menu,
 .general-settings-menu.mindmap-mobile-options-menu,
 .zoom-options-menu.mindmap-mobile-options-menu {
-  z-index: 2100 !important;
-  padding: 12px !important;
-  border-radius: 8px !important;
+  z-index: 2100;
+  padding: 12px;
+  border-radius: 8px;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
 .mindmap-mobile-options-menu h3,
 .mindmap-mobile-options-menu .layout-options-menu-title {
-  margin: 0 0 10px !important;
-  font-size: 16px !important;
-  line-height: 1.25 !important;
+  margin: 0 0 10px;
+  font-size: 16px;
+  line-height: 1.25;
 }
 
 .mindmap-mobile-options-menu .setting-item {
-  display: grid !important;
-  grid-template-columns: minmax(104px, 0.85fr) minmax(150px, 1.15fr) !important;
-  gap: 8px 12px !important;
-  align-items: center !important;
-  padding: 8px 0 !important;
-  min-height: 0 !important;
+  display: grid;
+  grid-template-columns: minmax(104px, 0.85fr) minmax(150px, 1.15fr);
+  gap: 8px 12px;
+  align-items: center;
+  padding: 8px 0;
+  min-height: 0;
 }
 
 .mindmap-mobile-options-menu .setting-item-info,
 .mindmap-mobile-options-menu .setting-item-control {
-  min-width: 0 !important;
-  width: 100% !important;
+  min-width: 0;
+  width: 100%;
 }
 
 .mindmap-mobile-options-menu .setting-item-name {
-  font-size: 14px !important;
-  line-height: 1.25 !important;
+  font-size: 14px;
+  line-height: 1.25;
 }
 
 .mindmap-mobile-options-menu .setting-item-description {
-  font-size: 12px !important;
-  line-height: 1.25 !important;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .mindmap-mobile-options-menu select,
 .mindmap-mobile-options-menu input[type='range'] {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 100%;
+  min-width: 0;
 }
 
 .mindmap-mobile-options-menu button.fullwidth-button,
 .mindmap-mobile-options-menu .fullwidth-button {
-  margin-top: 8px !important;
+  margin-top: 8px;
 }
 
 @media (orientation: portrait) {
   .mindmap-mobile-options-menu .setting-item {
-    grid-template-columns: 1fr !important;
-    gap: 6px !important;
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .mindmap-mobile-options-menu .setting-item-control {
-    justify-content: stretch !important;
+    justify-content: stretch;
   }
 }
