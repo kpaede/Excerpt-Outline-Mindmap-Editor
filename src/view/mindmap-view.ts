@@ -2110,7 +2110,7 @@ export class MindmapView extends TextFileView {
         const section = parseHeadingSections(this.data).find(candidate => candidate.line === headingLine);
         if (!section) return;
 
-        startHeadingEditing(frame, section, this);
+        startHeadingEditing(frame, section, this, { selectHeadingTextOnly: true });
         return;
       }
 

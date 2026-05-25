@@ -183,7 +183,8 @@ export function renderHeadingFrames(
 export function startHeadingEditing(
   frame: HTMLElement,
   section: HeadingSection,
-  view: MindmapView
+  view: MindmapView,
+  options: { selectHeadingTextOnly?: boolean } = {}
 ): void {
   if (frame.classList.contains('editing')) return;
 
@@ -220,6 +221,10 @@ export function startHeadingEditing(
     await view.executeEditHeadingCommand(section, newText);
   };
 
+  const headingTextStart = options.selectHeadingTextOnly
+    ? section.rawText.match(/^#{1,6}\s+/)?.[0].length ?? 0
+    : 0;
+
   const markdownEditor = createEmbeddableMarkdownEditor(view.app, editorHost, {
     value: section.rawText,
     placeholder: '# Heading',
@@ -227,7 +232,7 @@ export function startHeadingEditing(
     file: view.file,
     singleLine: true,
     cursorLocation: {
-      anchor: 0,
+      anchor: headingTextStart,
       head: section.rawText.length,
     },
     onEnter: () => {
