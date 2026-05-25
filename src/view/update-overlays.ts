@@ -50,7 +50,7 @@ export function updateOverlays(view: MindmapView): void {
   });
 }
 
-function updateOverlayGeometry(view: MindmapView): boolean {
+export function updateOverlayGeometry(view: MindmapView): boolean {
   if (!view.cy) return false;
 
   const overlays = new Map<number, HTMLElement>();

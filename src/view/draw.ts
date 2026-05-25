@@ -119,7 +119,11 @@ export async function draw(view: MindmapView): Promise<void> {
       wheelSensitivity: 0.2, // This controls zoom sensitivity
     });
 
-    view.cy.on('pan zoom', () => view.updateOverlays());
+    view.cy.on('pan zoom', () => {
+      if (!view.updateOverlayGeometry()) {
+        view.updateOverlays();
+      }
+    });
 
     view.cy.on('layoutstop', () => {
       const layoutRoots = view.cy!.scratch('_mindmapRoots') as OutlineNode[] | undefined;

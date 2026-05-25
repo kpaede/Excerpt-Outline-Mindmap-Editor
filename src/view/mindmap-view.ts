@@ -42,7 +42,11 @@ import {
 } from '../domain/mindmap-file';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { draw as drawMindmap } from './draw';
-import { updateOverlays as updateOverlaysFn, startNodeEditing } from './update-overlays';
+import {
+  updateOverlayGeometry as updateOverlayGeometryFn,
+  updateOverlays as updateOverlaysFn,
+  startNodeEditing,
+} from './update-overlays';
 import { NodeOptions } from '../ui/menus/node-options-menu';
 import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
@@ -143,6 +147,10 @@ export class MindmapView extends TextFileView {
    */
   public updateOverlays = (): void => {
     updateOverlaysFn(this);
+  };
+
+  public updateOverlayGeometry = (): boolean => {
+    return updateOverlayGeometryFn(this);
   };
 
   public prepareWrapper(): void {
@@ -381,6 +389,15 @@ export class MindmapView extends TextFileView {
 
     this.wrapper.addEventListener('wheel', (event) => {
       if (!this.cy) return;
+
+      if (
+        this.wrapper.querySelector('.node-editor, .mindmap-heading-editor') ||
+        document.querySelector('.mindmap-mobile-editor')
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
 
       const target = event.target as HTMLElement | null;
       if (
