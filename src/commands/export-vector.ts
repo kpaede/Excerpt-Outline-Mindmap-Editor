@@ -564,7 +564,7 @@ async function withPreparedExportDom<T>(
     await refreshOverlays(view);
     printEdgeLayer = createPrintEdgeLayer(view, width, height);
     view.wrapper.insertBefore(printEdgeLayer, view.wrapper.firstChild);
-    snapshot = createExportSnapshot(view.wrapper, width, height, background);
+    snapshot = await createExportSnapshot(view.wrapper, width, height, background);
     printRoot.appendChild(snapshot);
     view.wrapper.classList.add('mindmap-vector-source-wrapper');
     return await callback({ width, height, background, snapshot, printRoot });
@@ -632,10 +632,11 @@ function createSvgPrintArtifact(svg: string, width: number, height: number): HTM
   return container;
 }
 
-function createExportSnapshot(source: HTMLElement, width: number, height: number, background: string): HTMLElement {
+async function createExportSnapshot(source: HTMLElement, width: number, height: number, background: string): Promise<HTMLElement> {
   const snapshot = source.cloneNode(true) as HTMLElement;
   inlineComputedStyles(source, snapshot);
   sanitizeExportDomClone(snapshot);
+  await inlineExportMedia(snapshot);
   snapshot.classList.add('mindmap-vector-export-snapshot');
   snapshot.classList.remove('mindmap-vector-source-wrapper');
   snapshot.style.display = 'block';
@@ -701,6 +702,88 @@ function sanitizeExportDomClone(root: HTMLElement): void {
   });
 
   sanitizeInvalidSvgTransforms(root);
+}
+
+async function inlineExportMedia(root: HTMLElement): Promise<void> {
+  const tasks: Promise<void>[] = [];
+
+  root.querySelectorAll<HTMLImageElement>('img').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.currentSrc || element.src || element.getAttribute('src')));
+  });
+
+  root.querySelectorAll<HTMLVideoElement>('video').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.currentSrc || element.src || element.getAttribute('src')));
+    tasks.push(inlineElementUrl(element, 'poster', element.poster || element.getAttribute('poster')));
+  });
+
+  root.querySelectorAll<HTMLAudioElement>('audio').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.currentSrc || element.src || element.getAttribute('src')));
+  });
+
+  root.querySelectorAll<HTMLSourceElement>('source').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.src || element.getAttribute('src')));
+    tasks.push(inlineElementUrl(element, 'srcset', element.srcset || element.getAttribute('srcset')));
+  });
+
+  root.querySelectorAll<HTMLIFrameElement>('iframe').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.src || element.getAttribute('src')));
+  });
+
+  root.querySelectorAll<HTMLEmbedElement>('embed').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'src', element.src || element.getAttribute('src')));
+  });
+
+  root.querySelectorAll<HTMLObjectElement>('object').forEach((element) => {
+    tasks.push(inlineElementUrl(element, 'data', element.data || element.getAttribute('data')));
+  });
+
+  await Promise.all(tasks);
+}
+
+async function inlineElementUrl(
+  element: Element,
+  attribute: string,
+  rawUrl: string | null | undefined
+): Promise<void> {
+  const url = rawUrl?.trim();
+  if (!url || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('#')) return;
+
+  if (attribute === 'srcset') {
+    const firstSource = url.split(',')[0]?.trim().split(/\s+/)[0];
+    if (!firstSource) return;
+    const dataUrl = await fetchAsDataUrl(firstSource);
+    if (dataUrl) {
+      element.setAttribute(attribute, dataUrl);
+    }
+    return;
+  }
+
+  const dataUrl = await fetchAsDataUrl(url);
+  if (!dataUrl) return;
+
+  element.setAttribute(attribute, dataUrl);
+}
+
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    return await blobToDataUrl(blob);
+  } catch (error) {
+    console.warn('Could not inline media for mindmap export:', url, error);
+    return null;
+  }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read media blob.'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function sanitizeInvalidSvgTransforms(root: Element): void {
