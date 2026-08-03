@@ -84,37 +84,13 @@ function attachmentEmbed(view: MindmapView, attachment: TFile): string {
 }
 
 /**
- * vault.modify() resolves once the write lands on disk, but Obsidian updates
- * its metadata cache for the file asynchronously afterward. Rendering the
- * embed immediately can race that update and show the pre-edit SVG - this
- * waits for the cache's own "changed" event for this exact file (with a
- * bounded fallback in case the event doesn't fire) before the caller redraws.
- */
-function waitForMetadataCacheRefresh(view: MindmapView, attachment: TFile): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (): void => {
-      if (settled) return;
-      settled = true;
-      view.app.metadataCache.offref(ref);
-      window.clearTimeout(timeout);
-      resolve();
-    };
-    const ref = view.app.metadataCache.on('changed', (file) => {
-      if (file.path === attachment.path) finish();
-    });
-    const timeout = window.setTimeout(finish, 500);
-  });
-}
-
-/**
  * The redraw above re-renders the node's markdown fresh, but Obsidian's own
  * resource URL for the embedded image can still be identical to the one the
  * webview already has cached (its cache-busting, if any, depends on the
- * TFile's mtime being visible by the time the embed resolves - not
- * guaranteed here even after waitForMetadataCacheRefresh). Forcing a new
- * query string on the exact <img> for this attachment guarantees a fresh
- * fetch regardless of what Obsidian's own caching does internally.
+ * TFile's mtime being visible by the time the embed resolves - not guaranteed
+ * here). Forcing a new query string on the exact <img> for this attachment
+ * guarantees a fresh fetch regardless of what Obsidian's own caching does
+ * internally.
  */
 function forceReloadEmbeddedImage(view: MindmapView, attachment: TFile): void {
   const resourceBase = view.app.vault.getResourcePath(attachment).split('?')[0];
@@ -210,8 +186,12 @@ export async function editDrawing(view: MindmapView, node: OutlineNode): Promise
       return;
     }
     await view.app.vault.modify(attachment, createDrawingSvg(result.items, document.createdAt));
-    await waitForMetadataCacheRefresh(view, attachment);
-    await view.refreshRenderedAttachments();
+    // No wait for the metadata cache in between: it only tracks Markdown, so
+    // an SVG attachment never emits its "changed" event and waiting for one
+    // just cost every save the full fallback timeout. What the redraw
+    // actually needs is the new mtime, and vault.modify has already committed
+    // that by the time it resolves.
+    await view.refreshRenderedAttachments(attachment);
     forceReloadEmbeddedImage(view, attachment);
   } catch (error) {
     console.error('Could not edit drawing:', error);
@@ -280,6 +260,19 @@ export function addExcalidrawAsChild(view: MindmapView, node: OutlineNode): Prom
 
 export function addExcalidrawAsSibling(view: MindmapView, node: OutlineNode): Promise<void> {
   return addExcalidrawDrawing(view, node, 'sibling');
+}
+
+/**
+ * Routes the "Edit" action to whatever the node actually holds: a built-in
+ * drawing, an Excalidraw drawing, or plain text. One entry point rather than
+ * one menu entry per possible content type.
+ */
+export function editNodeContent(view: MindmapView, node: OutlineNode): Promise<void> {
+  if (extractDrawingLink(node.text)) return editDrawing(view, node);
+  if (view.file && resolveExcalidrawEmbed(view.app, node.text, view.file.path)) {
+    return editExcalidrawDrawing(view, node);
+  }
+  return view.enterEditModeForNodeByLine(node.line);
 }
 
 export async function editExcalidrawDrawing(view: MindmapView, node: OutlineNode): Promise<void> {

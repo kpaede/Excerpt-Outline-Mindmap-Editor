@@ -55,7 +55,11 @@ import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
 import { CommandHistory, MindmapCommand } from '../history/command-history';
 import { PenPreferenceStore } from '../drawing/pen-preferences';
-import { isExcalidrawFile } from '../drawing/excalidraw-integration';
+import { extractEmbedLinks } from '../drawing/drawing-link';
+
+// Long enough to collapse an autosave burst into one redraw, short enough
+// that a finished drawing appears to update as soon as it is saved.
+const ATTACHMENT_REFRESH_DELAY_MS = 250;
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
 import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
 import { MindmapViewState, SelectionSnapshot } from './view-state';
@@ -93,9 +97,8 @@ export class MindmapView extends TextFileView {
   private transientClosers = new Set<() => void>();
   private readonly renderLifecycle = new RenderLifecycle();
   private isViewClosed = false;
-  private pendingAttachmentRefresh = false;
+  private attachmentRefreshTimeout: number | null = null;
   private vaultModifyRef: EventRef | null = null;
-  private activeLeafChangeRef: EventRef | null = null;
 
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
@@ -971,27 +974,30 @@ export class MindmapView extends TextFileView {
     this.interactionDocument = this.wrapper.ownerDocument;
     this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
     this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
-    this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
   }
 
   /**
-   * Excalidraw drawings are edited in their own tab and written by Excalidraw
-   * itself, so this view is never told that an embedded image changed.
+   * Drawings are written by whoever edits them - Excalidraw in its own tab,
+   * or this plugin's editor - so nothing else tells this view that an
+   * embedded image changed on disk.
    *
-   * Excalidraw autosaves continuously while drawing, so redrawing on every
-   * save would rebuild the graph under the user's hands. The redraw is
-   * deferred until the mindmap is actually looked at again instead.
+   * Only the nodes embedding that one file are re-measured, which is what
+   * makes an immediate redraw affordable. The delay just collapses a burst of
+   * writes (Excalidraw autosaves while drawing) into a single redraw.
    */
   private readonly handleEmbeddedDrawingModified = (file: TAbstractFile): void => {
     if (this.isViewClosed || !(file instanceof TFile)) return;
-    if (!isExcalidrawFile(this.app, file) || !this.embedsFile(file)) return;
-    this.pendingAttachmentRefresh = true;
-  };
+    if (!this.embedsFile(file)) return;
 
-  private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
-    if (this.isViewClosed || leaf !== this.leaf || !this.pendingAttachmentRefresh) return;
-    this.pendingAttachmentRefresh = false;
-    void this.refreshRenderedAttachments();
+    this.invalidateMeasurementsFor(file);
+    if (this.attachmentRefreshTimeout !== null) {
+      window.clearTimeout(this.attachmentRefreshTimeout);
+    }
+    this.attachmentRefreshTimeout = window.setTimeout(() => {
+      this.attachmentRefreshTimeout = null;
+      if (this.isViewClosed) return;
+      void this.draw();
+    }, ATTACHMENT_REFRESH_DELAY_MS);
   };
 
   /**
@@ -1021,14 +1027,13 @@ export class MindmapView extends TextFileView {
     this.isMiddleMousePanning = false;
     this.gestureCoordinator?.destroy();
     this.gestureCoordinator = null;
-    this.pendingAttachmentRefresh = false;
+    if (this.attachmentRefreshTimeout !== null) {
+      window.clearTimeout(this.attachmentRefreshTimeout);
+      this.attachmentRefreshTimeout = null;
+    }
     if (this.vaultModifyRef) {
       this.app.vault.offref(this.vaultModifyRef);
       this.vaultModifyRef = null;
-    }
-    if (this.activeLeafChangeRef) {
-      this.app.workspace.offref(this.activeLeafChangeRef);
-      this.activeLeafChangeRef = null;
     }
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
@@ -1767,11 +1772,60 @@ export class MindmapView extends TextFileView {
     void this.draw();
   }
 
-  public refreshRenderedAttachments(): Promise<void> {
+  /**
+   * Redraws after an attachment changed on disk.
+   *
+   * Naming the changed file matters for how fast this feels: every node whose
+   * measurement is dropped has to be rendered and measured again, so clearing
+   * the whole cache makes a single edited drawing cost a full re-measurement
+   * of the map. Without a file the caller cannot say what changed and the
+   * conservative full clear stands.
+   */
+  public refreshRenderedAttachments(changed?: TFile): Promise<void> {
+    // A caller that redraws explicitly has already seen the write, so the
+    // debounced redraw the vault event queued for the same edit is redundant.
+    if (this.attachmentRefreshTimeout !== null) {
+      window.clearTimeout(this.attachmentRefreshTimeout);
+      this.attachmentRefreshTimeout = null;
+    }
     // The old graph remains internally consistent while the fresh attachment
     // measurements are prepared in a render-local map.
-    this.measurementCache.clear();
+    if (changed) {
+      this.invalidateMeasurementsFor(changed);
+    } else {
+      this.measurementCache.clear();
+    }
     return this.draw();
+  }
+
+  private invalidateMeasurementsFor(changed: TFile): void {
+    const sourcePath = this.file?.path;
+    if (!sourcePath) {
+      this.measurementCache.clear();
+      return;
+    }
+
+    const affectedTexts = new Set(
+      this.getFlatNodes()
+        .filter((node) => this.nodeEmbedsFile(node.text, changed, sourcePath))
+        .map((node) => node.text)
+    );
+    if (affectedTexts.size === 0) return;
+
+    for (const key of Array.from(this.measurementCache.keys())) {
+      // Keys are `${targetWidth}\u0000${nodeText}`, and node text cannot
+      // contain a NUL, so the first separator always ends the width.
+      if (affectedTexts.has(key.slice(key.indexOf('\u0000') + 1))) {
+        this.measurementCache.delete(key);
+      }
+    }
+  }
+
+  private nodeEmbedsFile(text: string, changed: TFile, sourcePath: string): boolean {
+    return extractEmbedLinks(text).some((link) => {
+      const target = this.app.metadataCache.getFirstLinkpathDest(link.split('#')[0], sourcePath);
+      return target?.path === changed.path;
+    });
   }
 
   public registerTransientCloser(close: () => void): () => void {

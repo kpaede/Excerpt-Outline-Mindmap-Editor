@@ -11,6 +11,15 @@ export function extractDrawingLink(markdown: string): string | null {
  * the target and decide what it is.
  */
 export function extractEmbedLink(markdown: string): string | null {
-  const match = markdown.match(/!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/);
-  return match?.[1]?.trim() ?? null;
+  return extractEmbedLinks(markdown)[0] ?? null;
+}
+
+export function extractEmbedLinks(markdown: string): string[] {
+  const pattern = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+  const links: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(markdown)) !== null) {
+    links.push(match[1].trim());
+  }
+  return links;
 }

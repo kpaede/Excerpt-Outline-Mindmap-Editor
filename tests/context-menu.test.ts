@@ -64,8 +64,16 @@ describe('node drawing context menu', () => {
     expect(titles.indexOf('Add drawing as sibling')).toBeGreaterThan(titles.indexOf('Add drawing as child'));
   });
 
-  it('also exposes editing for an SVG drawing node', () => {
-    expect(menuTitlesFor(node('![[Idea drawing.svg]]'))).toContain('Edit drawing');
+  // A drawing node gets the same single "Edit" entry as any other node; what
+  // that entry opens is decided by the node's content, not by the menu.
+  it('offers one Edit entry regardless of what the node holds', () => {
+    for (const text of ['Idea', '![[Idea drawing.svg]]', '![[Idea.excalidraw]]']) {
+      const titles = menuTitlesFor(node(text), excalidrawApp(['Excalidraw/Idea.excalidraw.md']));
+      expect(titles.filter((title) => title === 'Edit')).toHaveLength(1);
+      expect(titles).not.toContain('Edit drawing');
+      expect(titles).not.toContain('Edit Excalidraw drawing');
+      expect(titles).not.toContain('Edit node');
+    }
   });
 
   it('hides the Excalidraw actions while the plugin is not installed', () => {
@@ -79,13 +87,6 @@ describe('node drawing context menu', () => {
     expect(titles).toContain('Add drawing as child');
     expect(titles).toContain('Add Excalidraw drawing as child');
     expect(titles).toContain('Add Excalidraw drawing as sibling');
-    expect(titles).not.toContain('Edit Excalidraw drawing');
-  });
-
-  it('offers Excalidraw editing only for a node embedding a drawing', () => {
-    const app = excalidrawApp(['Excalidraw/Idea.excalidraw.md']);
-    expect(menuTitlesFor(node('![[Idea.excalidraw]]'), app)).toContain('Edit Excalidraw drawing');
-    expect(menuTitlesFor(node('![[Some note]]'), app)).not.toContain('Edit Excalidraw drawing');
   });
 
   it('uses the explicit node supplied by a Pencil long-press even when WebKit retargets the event', () => {

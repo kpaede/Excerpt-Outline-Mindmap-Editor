@@ -6,12 +6,10 @@ import {
   addDrawingAsSibling,
   addExcalidrawAsChild,
   addExcalidrawAsSibling,
-  editDrawing,
-  editExcalidrawDrawing,
+  editNodeContent,
   warmDrawingEditor,
 } from '../drawing/drawing-actions';
-import { extractDrawingLink } from '../drawing/drawing-link';
-import { isExcalidrawAvailable, resolveExcalidrawEmbed } from '../drawing/excalidraw-integration';
+import { isExcalidrawAvailable } from '../drawing/excalidraw-integration';
 
 export function showNodeContextMenu(
   view: MindmapView,
@@ -41,9 +39,9 @@ export function showNodeContextMenu(
   if (targetNode) {
     menu.addItem((item) => {
       item
-        .setTitle('Edit node')
+        .setTitle('Edit')
         .setIcon('edit-3')
-        .onClick(() => void view.enterEditModeForNodeByLine(targetNode.line));
+        .onClick(() => void editNodeContent(view, targetNode));
     });
 
     if (copyCount > 0) menu.addSeparator();
@@ -105,15 +103,6 @@ export function showNodeContextMenu(
         .onClick(() => void addDrawingAsSibling(view, targetNode));
     });
 
-    if (extractDrawingLink(targetNode.text)) {
-      menu.addItem((item) => {
-        item
-          .setTitle('Edit drawing')
-          .setIcon('edit-3')
-          .onClick(() => void editDrawing(view, targetNode));
-      });
-    }
-
     // Excalidraw is optional. Its entries appear only while the plugin is
     // installed and enabled, so the menu never offers an action that cannot
     // run. Existing Excalidraw nodes still render either way - that is
@@ -132,15 +121,6 @@ export function showNodeContextMenu(
           .setIcon('shapes')
           .onClick(() => void addExcalidrawAsSibling(view, targetNode));
       });
-
-      if (view.file && resolveExcalidrawEmbed(view.app, targetNode.text, view.file.path)) {
-        menu.addItem((item) => {
-          item
-            .setTitle('Edit Excalidraw drawing')
-            .setIcon('edit-3')
-            .onClick(() => void editExcalidrawDrawing(view, targetNode));
-        });
-      }
     }
 
     menu.addItem((item) => {

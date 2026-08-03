@@ -5,7 +5,7 @@ import { loadWhiteboardRuntime, WhiteboardRuntimeCapabilityError } from './white
 import { createPressurePenTool, type PressurePenToolControl } from './pressure-pen';
 import { WhiteboardInputAdapter } from './whiteboard-input-adapter';
 import { applyRetinaCanvasFix } from './retina-canvas';
-import type { PenPreferenceStore } from './pen-preferences';
+import type { PenPreferences, PenPreferenceStore } from './pen-preferences';
 
 export interface DrawingModalResult {
   items: ExportedDrawingItem[];
@@ -149,6 +149,9 @@ class DrawingModal extends Modal {
 
   private async initializeBoard(stage: HTMLElement): Promise<void> {
     const ownerDocument = stage.ownerDocument;
+    // Started before the board exists so the vault read overlaps with building
+    // the element instead of queueing behind it.
+    const pendingPreferences = this.penPreferences?.load();
     const runtime = await loadWhiteboardRuntime(ownerDocument);
     if (this.isClosed) return;
     const board = ownerDocument.createElement('simple-whiteboard') as SimpleWhiteboard;
@@ -214,12 +217,6 @@ class DrawingModal extends Modal {
     stage.appendChild(board);
     await board.updateComplete;
     await toolsReady;
-    // Restore the size and colour from the last session before the first
-    // paint, so the tool options never briefly show the library's defaults.
-    if (this.penPreferences) {
-      this.pressurePen?.applyPenOptions(await this.penPreferences.load());
-    }
-    await board.updateComplete;
     if (this.isClosed) {
       board.remove();
       return;
@@ -247,5 +244,24 @@ class DrawingModal extends Modal {
     board.setCurrentTool('pen');
     board.draw();
     this.board = board;
+
+    // Applied after the board can already be drawn on, not before. The size
+    // and colour from the last session only affect how the next stroke looks,
+    // so blocking the first stroke on a vault read - and on the extra render
+    // pass that follows it - bought nothing but a delay. The load was started
+    // at the top of this method, so in practice it is already resolved here.
+    void this.restorePenPreferences(pendingPreferences);
+  }
+
+  private async restorePenPreferences(pending: Promise<PenPreferences> | undefined): Promise<void> {
+    if (!pending) return;
+    try {
+      const preferences = await pending;
+      if (this.isClosed) return;
+      this.pressurePen?.applyPenOptions(preferences);
+    } catch (error) {
+      // The editor is fully usable on the library's defaults.
+      console.error('Could not restore the pen preferences:', error);
+    }
   }
 }

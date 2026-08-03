@@ -125,15 +125,15 @@ If the file contains non-outline content outside list items, the mindmap view ma
 - Hold briefly at the end of a freehand stroke to straighten it. Lines and ellipses are fitted precisely; other strokes are simplified and smoothed without being forced into a standard shape.
 - A drawing node is a normal Obsidian SVG embed such as `![[Idea drawing.svg]]`.
 - The SVG attachment contains both the visible vector preview and versioned editable drawing data in its SVG `<metadata>` element. The parent Markdown file therefore stays readable, and the image remains visible even when the plugin is disabled.
-- Select **Edit drawing** on a drawing node to reopen that metadata in the editor. Everything stays local to the vault.
+- **Edit** on a drawing node reopens that metadata in the editor; on a text node the same entry edits the text. Everything stays local to the vault.
 
 ### Excalidraw drawings
 
-If the [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) plugin is installed and enabled, the node context menu additionally offers **Add Excalidraw drawing as child**, **Add Excalidraw drawing as sibling**, and **Edit Excalidraw drawing**. Without Excalidraw these entries do not appear, and the built-in drawing editor above is unaffected either way.
+If the [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) plugin is installed and enabled, the node context menu additionally offers **Add Excalidraw drawing as child** and **Add Excalidraw drawing as sibling**. Without Excalidraw these entries do not appear, and the built-in drawing editor above is unaffected either way.
 
 - New drawings follow Excalidraw's own settings for the drawing folder and the file format, so they behave like any other drawing in your vault. The filename is derived from the node text, as it is for the built-in drawings.
 - The node embeds the drawing as a normal Obsidian embed such as `![[Idea drawing.excalidraw]]`, which Excalidraw renders in the mindmap like it does anywhere else.
-- Editing happens in Excalidraw's own editor, which opens in a new tab. The mindmap picks up the changed drawing the next time you switch back to it — Excalidraw saves continuously while you draw, so the node is not rebuilt on every stroke.
+- **Edit** on such a node opens Excalidraw's own editor in a new tab. The mindmap re-renders that node shortly after the drawing is saved, without touching the rest of the map.
 
 ### Navigation
 
