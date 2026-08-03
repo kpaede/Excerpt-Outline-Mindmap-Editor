@@ -118,6 +118,15 @@ If the file contains non-outline content outside list items, the mindmap view ma
 - Use the command **Export current mindmap to Canvas** to create an Obsidian Canvas from the active mindmap.
 - The export creates text cards for all nodes, connects parent and child nodes, and keeps task nodes as Markdown task list items.
 
+### Drawings
+
+- Use **Add drawing as child** or **Add drawing as sibling** in a node's context menu.
+- Apple Pencil input uses real browser pressure samples, coalesced pointer events, tilt metadata, pointer capture, and palm rejection. Mouse and touch continue to work without a Pencil.
+- Hold briefly at the end of a freehand stroke to straighten it. Lines and ellipses are fitted precisely; other strokes are simplified and smoothed without being forced into a standard shape.
+- A drawing node is a normal Obsidian SVG embed such as `![[Idea drawing.svg]]`.
+- The SVG attachment contains both the visible vector preview and versioned editable drawing data in its SVG `<metadata>` element. The parent Markdown file therefore stays readable, and the image remains visible even when the plugin is disabled.
+- Select **Edit drawing** on a drawing node to reopen that metadata in the editor. Everything stays local to the vault.
+
 ### Navigation
 
 - Pan with two fingers on a trackpad or by holding the middle mouse button.
@@ -169,7 +178,7 @@ Only the filename belongs inside the code block. Options, extra text, and multip
 
 ## Mobile support
 
-The plugin offers mobile support. You can navigate, edit, and restructure your mindmaps using touch gestures. Double tap for a node context menu; long-press a node to pick it up. Everything else works like on the desktop version.
+The plugin offers mobile support. You can navigate, edit, and restructure your mindmaps using touch gestures or Apple Pencil. A double tap edits a node, matching desktop double-click. Press and hold opens the desktop-style context menu; moving after that hold picks the node up. Pinch and pan gestures never start a node drag.
 
 ---
 
@@ -177,6 +186,8 @@ The plugin offers mobile support. You can navigate, edit, and restructure your m
 
 - [Cytoscape.js](https://js.cytoscape.org/) for graph rendering
 - [Dagre](https://github.com/dagrejs/dagre) for automatic hierarchical layout
+- [Simple Whiteboard](https://github.com/ludovicm67/simple-whiteboard) for drawing tools and object editing
+- [perfect-freehand](https://github.com/steveruizok/perfect-freehand) for pressure-sensitive vector strokes
 
 Thanks to the developers.
 
