@@ -5,6 +5,7 @@ import {
   createEmbeddableMarkdownEditor,
   EmbeddableMarkdownEditor,
 } from './embeddable-markdown-editor';
+import { isDrawingRefreshLogging, logDrawingRefresh } from '../view/drawing-refresh-log';
 
 export function renderNodeMarkdown(
   container: HTMLElement,
@@ -33,6 +34,22 @@ export function renderNodeMarkdown(
     view.file?.path || '',
     view as Component
   ).then(() => {
+    // Reapplied on every render, not once after a redraw: the overlay rebuild
+    // replaces these elements wholesale, so a version stamped outside the
+    // render is discarded by the very next pass.
+    view.attachmentVersions.applyTo(container, view.app);
+
+    if (isDrawingRefreshLogging() && node.text.includes('![[')) {
+      logDrawingRefresh('node-rendered', {
+        line: node.line,
+        connected: container.isConnected,
+        images: Array.from(container.querySelectorAll('img')).map((image) => image.src),
+        inlineSvgs: container.querySelectorAll('svg').length,
+        unprocessedEmbeds: Array.from(container.querySelectorAll('.internal-embed'))
+          .map((embed) => embed.getAttribute('src')),
+      });
+    }
+
     container.querySelectorAll('a.internal-link').forEach(link => {
       link.addEventListener('click', (event) => {
         event.preventDefault();

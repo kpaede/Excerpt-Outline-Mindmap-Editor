@@ -56,6 +56,8 @@ import { FrontmatterStorage } from '../storage/frontmatter-storage';
 import { CommandHistory, MindmapCommand } from '../history/command-history';
 import { PenPreferenceStore } from '../drawing/pen-preferences';
 import { extractEmbedLinks } from '../drawing/drawing-link';
+import { AttachmentVersions, embeddedAttachments } from './attachment-versions';
+import { logDrawingRefresh } from './drawing-refresh-log';
 
 // Long enough to collapse an autosave burst into one redraw, short enough
 // that a finished drawing appears to update as soon as it is saved.
@@ -99,6 +101,8 @@ export class MindmapView extends TextFileView {
   private isViewClosed = false;
   private attachmentRefreshTimeout: number | null = null;
   private vaultModifyRef: EventRef | null = null;
+  private activeLeafChangeRef: EventRef | null = null;
+  public readonly attachmentVersions = new AttachmentVersions();
 
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
@@ -974,11 +978,12 @@ export class MindmapView extends TextFileView {
     this.interactionDocument = this.wrapper.ownerDocument;
     this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
     this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
+    this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
   }
 
   /**
    * Drawings are written by whoever edits them - Excalidraw in its own tab,
-   * or this plugin's editor - so nothing else tells this view that an
+   * or this plugin's own editor - so nothing else tells this view that an
    * embedded image changed on disk.
    *
    * Only the nodes embedding that one file are re-measured, which is what
@@ -987,18 +992,57 @@ export class MindmapView extends TextFileView {
    */
   private readonly handleEmbeddedDrawingModified = (file: TAbstractFile): void => {
     if (this.isViewClosed || !(file instanceof TFile)) return;
-    if (!this.embedsFile(file)) return;
+    if (!this.embedsFile(file) || !this.attachmentVersions.markCurrent(file)) return;
 
+    logDrawingRefresh('vault-modify', { path: file.path, mtime: file.stat?.mtime });
     this.invalidateMeasurementsFor(file);
+    this.scheduleAttachmentRedraw();
+  };
+
+  /**
+   * The vault event is not a reliable trigger on its own: an editor in another
+   * tab decides when it writes, and Excalidraw in particular saves on blur and
+   * on its own interval. Whenever this view is looked at again, the mtime the
+   * nodes were rendered with is compared against what is on disk, so a write
+   * that happened while this view was inactive is caught regardless of when
+   * its event arrived.
+   */
+  private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
+    if (this.isViewClosed || leaf !== this.leaf) return;
+    this.refreshStaleAttachments();
+  };
+
+  private refreshStaleAttachments(): void {
+    const sourcePath = this.file?.path;
+    if (!sourcePath) return;
+
+    let staleCount = 0;
+    for (const attachment of embeddedAttachments(this.app, sourcePath)) {
+      if (!this.attachmentVersions.isStale(attachment)) {
+        this.attachmentVersions.adopt(attachment);
+        continue;
+      }
+      this.attachmentVersions.markCurrent(attachment);
+      this.invalidateMeasurementsFor(attachment);
+      staleCount++;
+    }
+
+    if (staleCount === 0) return;
+    logDrawingRefresh('stale-on-activate', { sourcePath, staleCount });
+    this.scheduleAttachmentRedraw();
+  }
+
+  private scheduleAttachmentRedraw(): void {
     if (this.attachmentRefreshTimeout !== null) {
       window.clearTimeout(this.attachmentRefreshTimeout);
     }
     this.attachmentRefreshTimeout = window.setTimeout(() => {
       this.attachmentRefreshTimeout = null;
       if (this.isViewClosed) return;
+      logDrawingRefresh('redraw', {});
       void this.draw();
     }, ATTACHMENT_REFRESH_DELAY_MS);
-  };
+  }
 
   /**
    * Uses the resolved-link index rather than walking the outline: this runs on
@@ -1035,6 +1079,11 @@ export class MindmapView extends TextFileView {
       this.app.vault.offref(this.vaultModifyRef);
       this.vaultModifyRef = null;
     }
+    if (this.activeLeafChangeRef) {
+      this.app.workspace.offref(this.activeLeafChangeRef);
+      this.activeLeafChangeRef = null;
+    }
+    this.attachmentVersions.clear();
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);

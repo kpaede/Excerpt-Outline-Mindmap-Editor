@@ -162,6 +162,10 @@ export async function measureNodesForLayout(
             view as Component
           );
 
+          // Before waiting: the node has to be measured around the image it
+          // will actually display, so the measurement pass must load the same
+          // version the overlay will render.
+          view.attachmentVersions.applyTo(tmpBox, view.app);
           await waitForAsyncContent(view, tmpBox);
 
           tmpBox.querySelectorAll('pre code').forEach((codeEl) => {

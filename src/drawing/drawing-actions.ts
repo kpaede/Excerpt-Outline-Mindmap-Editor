@@ -83,24 +83,6 @@ function attachmentEmbed(view: MindmapView, attachment: TFile): string {
   return `![[${link}]]`;
 }
 
-/**
- * The redraw above re-renders the node's markdown fresh, but Obsidian's own
- * resource URL for the embedded image can still be identical to the one the
- * webview already has cached (its cache-busting, if any, depends on the
- * TFile's mtime being visible by the time the embed resolves - not guaranteed
- * here). Forcing a new query string on the exact <img> for this attachment
- * guarantees a fresh fetch regardless of what Obsidian's own caching does
- * internally.
- */
-function forceReloadEmbeddedImage(view: MindmapView, attachment: TFile): void {
-  const resourceBase = view.app.vault.getResourcePath(attachment).split('?')[0];
-  view.wrapper.querySelectorAll('img').forEach((img) => {
-    if (img.src.split('?')[0] === resourceBase) {
-      img.src = `${resourceBase}?t=${Date.now()}`;
-    }
-  });
-}
-
 function resolveLiveTarget(view: MindmapView, original: OutlineNode, sourcePath: string): OutlineNode | null {
   if (view.file?.path !== sourcePath) return null;
   const sameLine = view.getNodeByLine(original.line);
@@ -191,8 +173,8 @@ export async function editDrawing(view: MindmapView, node: OutlineNode): Promise
     // just cost every save the full fallback timeout. What the redraw
     // actually needs is the new mtime, and vault.modify has already committed
     // that by the time it resolves.
+    view.attachmentVersions.markCurrent(attachment);
     await view.refreshRenderedAttachments(attachment);
-    forceReloadEmbeddedImage(view, attachment);
   } catch (error) {
     console.error('Could not edit drawing:', error);
     new Notice('Could not update the drawing.');
