@@ -938,11 +938,7 @@ export class MindmapView extends TextFileView {
   /* ── Lifecycle ───────────────────────────── */
   async onOpen(): Promise<void> {
     this.isViewClosed = false;
-    // Before the early returns below. Obsidian renders this view through
-    // setViewData(), which is independent of onOpen finishing, so anything
-    // registered only at the end of onOpen can be absent from a view that is
-    // on screen and working.
-    this.ensureAttachmentWatchers();
+    this.ensureViewListeners();
 
     const st = this.leaf.getViewState().state as MindmapViewState | undefined;
     if (!st?.file) {
@@ -970,11 +966,38 @@ export class MindmapView extends TextFileView {
     }
 
     this.scheduleMobileToolbarPlacementUpdate();
+  }
+
+  /**
+   * Every subscription that has to live as long as the view, in one
+   * idempotent place called from each entry point that can bring a file in.
+   *
+   * None of this may sit at the end of onOpen. Obsidian renders this view
+   * through setViewData(), which does not depend on onOpen finishing - and
+   * onOpen returns early when the leaf state carries no file, which is the
+   * normal case when the view is created before its state is applied. The
+   * interaction machinery survives that because prepareWrapper() runs from
+   * the draw path, but these listeners had no second home and were simply
+   * absent from a view that looked perfectly healthy.
+   *
+   * Re-registering is safe: addEventListener ignores a repeat of the same
+   * type, callback and capture flag, and every callback here is a stable
+   * instance property rather than a fresh closure.
+   */
+  private ensureViewListeners(): void {
+    if (!this.vaultModifyRef) {
+      this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
+    }
+    if (!this.activeLeafChangeRef) {
+      this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
+    }
+
     window.addEventListener('resize', this.updateOverlays);
     window.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.addEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
     window.visualViewport?.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.visualViewport?.addEventListener('scroll', this.scheduleMobileToolbarPlacementUpdate);
+
     this.orientationMediaQuery = window.matchMedia?.('(orientation: landscape)') ?? null;
     if (this.orientationMediaQuery) {
       if (this.orientationMediaQuery.addEventListener) {
@@ -985,24 +1008,12 @@ export class MindmapView extends TextFileView {
     }
     this.screenOrientation = window.screen.orientation ?? null;
     this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
-    this.interactionDocument = this.wrapper.ownerDocument;
-    this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
-  }
 
-  /**
-   * Idempotent, and called from every entry point that can bring a file into
-   * this view. Without these two subscriptions a drawing edited anywhere else
-   * never reaches the map: the built-in editor happens to redraw by calling
-   * refreshRenderedAttachments itself, but Excalidraw edits in their own tab
-   * have nothing but these events to arrive on.
-   */
-  private ensureAttachmentWatchers(): void {
-    if (!this.vaultModifyRef) {
-      this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
-    }
-    if (!this.activeLeafChangeRef) {
-      this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
-    }
+    // contentEl rather than wrapper.ownerDocument: the wrapper is created by
+    // the draw path and need not exist yet, while the document is the same one
+    // either way - and in a pop-out window it must be that window's document.
+    this.interactionDocument = this.contentEl.ownerDocument;
+    this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
   }
 
   /**
@@ -1263,7 +1274,7 @@ export class MindmapView extends TextFileView {
 
   async onLoadFile(file: TFile): Promise<void> {
     super.onLoadFile(file);
-    this.ensureAttachmentWatchers();
+    this.ensureViewListeners();
 
     if (this.frontmatterStorage && file) {
       const mindmapData = await this.frontmatterStorage.loadMindmapData(file);
