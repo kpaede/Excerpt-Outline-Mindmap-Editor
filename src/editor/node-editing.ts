@@ -5,27 +5,6 @@ import {
   createEmbeddableMarkdownEditor,
   EmbeddableMarkdownEditor,
 } from './embeddable-markdown-editor';
-import { isDrawingRefreshLogging, logDrawingRefresh } from '../view/drawing-refresh-log';
-
-/**
- * A compact, single-line picture of what an embed actually rendered into.
- * `svgBytes` is the lever: an Excalidraw drawing that changed produces a
- * different size, so a redraw that keeps reporting the same number means the
- * drawing was re-rendered from something stale rather than not re-rendered.
- */
-function snapshotEmbeds(container: HTMLElement): Record<string, unknown> {
-  if (!container.isConnected) return { connected: false };
-  return {
-    connected: true,
-    imgs: Array.from(container.querySelectorAll('img')).map((image) => {
-      const [base, query] = image.src.split('?');
-      return `${base.slice(base.lastIndexOf('/') + 1)}${query ? `?${query}` : ''}`;
-    }),
-    svgBytes: Array.from(container.querySelectorAll('svg')).map((svg) => svg.outerHTML.length),
-    pending: Array.from(container.querySelectorAll('.internal-embed'))
-      .map((embed) => embed.getAttribute('src')),
-  };
-}
 
 export function renderNodeMarkdown(
   container: HTMLElement,
@@ -58,18 +37,6 @@ export function renderNodeMarkdown(
     // replaces these elements wholesale, so a version stamped outside the
     // render is discarded by the very next pass.
     view.attachmentVersions.applyTo(container, view.app);
-
-    if (isDrawingRefreshLogging() && node.text.includes('![[')) {
-      logDrawingRefresh('node-rendered', { line: node.line, ...snapshotEmbeds(container) });
-      // Excalidraw replaces the embed placeholder from a global task queue, so
-      // the state right after rendering says nothing about what finally
-      // landed. The size of the drawing that settled is what distinguishes a
-      // stale render from no render at all.
-      window.setTimeout(
-        () => logDrawingRefresh('node-settled', { line: node.line, ...snapshotEmbeds(container) }),
-        1500
-      );
-    }
 
     container.querySelectorAll('a.internal-link').forEach(link => {
       link.addEventListener('click', (event) => {

@@ -13,7 +13,6 @@ import { openInternalLink } from './utils/outline';
 import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 import { exportMindmapViewToCanvas } from './commands/export-canvas';
 import { exportMindmapViewToPdf, exportMindmapViewToSvg } from './commands/export-vector';
-import { registerDrawingDiagnostics } from './commands/drawing-diagnostics';
 
 declare const __EOME_BUILD__: string;
 
@@ -35,8 +34,6 @@ export default class MindmapPlugin extends Plugin {
       VIEW_TYPE_MINDMAP,
       (leaf: WorkspaceLeaf) => new MindmapView(leaf, this)
     );
-
-    registerDrawingDiagnostics(this);
 
     this.registerMarkdownCodeBlockProcessor('mindmap-eome', async (source, el, ctx) => {
       await renderMindmapEomeEmbed(this, source, el, ctx);

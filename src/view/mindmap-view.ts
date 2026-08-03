@@ -57,7 +57,6 @@ import { CommandHistory, MindmapCommand } from '../history/command-history';
 import { PenPreferenceStore } from '../drawing/pen-preferences';
 import { extractEmbedLinks } from '../drawing/drawing-link';
 import { AttachmentVersions, embeddedAttachments } from './attachment-versions';
-import { logDrawingRefresh } from './drawing-refresh-log';
 
 // Long enough to collapse an autosave burst into one redraw, short enough
 // that a finished drawing appears to update as soon as it is saved.
@@ -1004,7 +1003,6 @@ export class MindmapView extends TextFileView {
     if (!this.activeLeafChangeRef) {
       this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
     }
-    logDrawingRefresh('watchers-ready', { file: this.file?.path });
   }
 
   /**
@@ -1018,9 +1016,7 @@ export class MindmapView extends TextFileView {
    */
   private readonly handleEmbeddedDrawingModified = (file: TAbstractFile): void => {
     if (this.isViewClosed || !(file instanceof TFile)) return;
-    const embedded = this.embedsFile(file);
-    logDrawingRefresh('vault-modify', { path: file.path, mtime: file.stat?.mtime, embedded });
-    if (!embedded || !this.attachmentVersions.markCurrent(file)) return;
+    if (!this.embedsFile(file) || !this.attachmentVersions.markCurrent(file)) return;
 
     this.invalidateMeasurementsFor(file);
     this.scheduleAttachmentRedraw();
@@ -1089,14 +1085,7 @@ export class MindmapView extends TextFileView {
       staleCount++;
     }
 
-    if (staleCount === 0) {
-      logDrawingRefresh('activate-nothing-stale', {
-        sourcePath,
-        attachments: this.collectEmbeddedAttachments().map((file) => `${file.path}@${file.stat?.mtime}`),
-      });
-      return;
-    }
-    logDrawingRefresh('stale-on-activate', { sourcePath, staleCount });
+    if (staleCount === 0) return;
     this.scheduleAttachmentRedraw();
   }
 
@@ -1107,8 +1096,7 @@ export class MindmapView extends TextFileView {
     this.attachmentRefreshTimeout = window.setTimeout(() => {
       this.attachmentRefreshTimeout = null;
       if (this.isViewClosed) return;
-      logDrawingRefresh('redraw', {});
-      void this.draw();
+        void this.draw();
     }, ATTACHMENT_REFRESH_DELAY_MS);
   }
 
