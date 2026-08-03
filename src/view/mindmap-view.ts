@@ -62,6 +62,9 @@ import { logDrawingRefresh } from './drawing-refresh-log';
 // Long enough to collapse an autosave burst into one redraw, short enough
 // that a finished drawing appears to update as soon as it is saved.
 const ATTACHMENT_REFRESH_DELAY_MS = 250;
+// Covers the window in which another plugin's own handler for the activation
+// event is still writing the file it was asked to save.
+const ACTIVATION_RECHECK_DELAY_MS = 600;
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
 import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
 import { MindmapViewState, SelectionSnapshot } from './view-state';
@@ -100,6 +103,7 @@ export class MindmapView extends TextFileView {
   private readonly renderLifecycle = new RenderLifecycle();
   private isViewClosed = false;
   private attachmentRefreshTimeout: number | null = null;
+  private activationRecheckTimeout: number | null = null;
   private vaultModifyRef: EventRef | null = null;
   private activeLeafChangeRef: EventRef | null = null;
   public readonly attachmentVersions = new AttachmentVersions();
@@ -992,9 +996,10 @@ export class MindmapView extends TextFileView {
    */
   private readonly handleEmbeddedDrawingModified = (file: TAbstractFile): void => {
     if (this.isViewClosed || !(file instanceof TFile)) return;
-    if (!this.embedsFile(file) || !this.attachmentVersions.markCurrent(file)) return;
+    const embedded = this.embedsFile(file);
+    logDrawingRefresh('vault-modify', { path: file.path, mtime: file.stat?.mtime, embedded });
+    if (!embedded || !this.attachmentVersions.markCurrent(file)) return;
 
-    logDrawingRefresh('vault-modify', { path: file.path, mtime: file.stat?.mtime });
     this.invalidateMeasurementsFor(file);
     this.scheduleAttachmentRedraw();
   };
@@ -1010,14 +1015,49 @@ export class MindmapView extends TextFileView {
   private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
     if (this.isViewClosed || leaf !== this.leaf) return;
     this.refreshStaleAttachments();
+
+    // Excalidraw saves the drawing you are leaving from inside its own handler
+    // for this same event, and awaits that write. At this point the file on
+    // disk can therefore still be the pre-edit one, and the mtime comparison
+    // above would conclude that nothing changed. Look again once the write
+    // has had a chance to land.
+    if (this.activationRecheckTimeout !== null) {
+      window.clearTimeout(this.activationRecheckTimeout);
+    }
+    this.activationRecheckTimeout = window.setTimeout(() => {
+      this.activationRecheckTimeout = null;
+      if (!this.isViewClosed) this.refreshStaleAttachments();
+    }, ACTIVATION_RECHECK_DELAY_MS);
   };
+
+  /**
+   * The attachments this mindmap embeds, taken from the resolved-link index
+   * and from resolving the outline's own embeds. Neither source alone is
+   * enough - see embedsFile.
+   */
+  private collectEmbeddedAttachments(): TFile[] {
+    const sourcePath = this.file?.path;
+    if (!sourcePath) return [];
+
+    const byPath = new Map<string, TFile>();
+    for (const attachment of embeddedAttachments(this.app, sourcePath)) {
+      byPath.set(attachment.path, attachment);
+    }
+    for (const node of this.getFlatNodes()) {
+      for (const link of extractEmbedLinks(node.text)) {
+        const target = this.app.metadataCache.getFirstLinkpathDest(link.split('#')[0], sourcePath);
+        if (target) byPath.set(target.path, target);
+      }
+    }
+    return Array.from(byPath.values());
+  }
 
   private refreshStaleAttachments(): void {
     const sourcePath = this.file?.path;
     if (!sourcePath) return;
 
     let staleCount = 0;
-    for (const attachment of embeddedAttachments(this.app, sourcePath)) {
+    for (const attachment of this.collectEmbeddedAttachments()) {
       if (!this.attachmentVersions.isStale(attachment)) {
         this.attachmentVersions.adopt(attachment);
         continue;
@@ -1027,7 +1067,13 @@ export class MindmapView extends TextFileView {
       staleCount++;
     }
 
-    if (staleCount === 0) return;
+    if (staleCount === 0) {
+      logDrawingRefresh('activate-nothing-stale', {
+        sourcePath,
+        attachments: this.collectEmbeddedAttachments().map((file) => `${file.path}@${file.stat?.mtime}`),
+      });
+      return;
+    }
     logDrawingRefresh('stale-on-activate', { sourcePath, staleCount });
     this.scheduleAttachmentRedraw();
   }
@@ -1045,14 +1091,22 @@ export class MindmapView extends TextFileView {
   }
 
   /**
-   * Uses the resolved-link index rather than walking the outline: this runs on
-   * every vault write in the whole vault, including Excalidraw's autosaves.
+   * Checks the resolved-link index first because this runs on every write in
+   * the whole vault, then falls back to resolving the embeds in the outline.
+   *
+   * The fallback matters: the index and the resolver can disagree. An
+   * Excalidraw drawing is linked as `X.excalidraw` while the file on disk is
+   * `X.excalidraw.md`, and it is getFirstLinkpathDest - not the index - that
+   * decided what actually got rendered into the node.
    */
   private embedsFile(file: TFile): boolean {
     const sourcePath = this.file?.path;
     if (!sourcePath) return false;
+
     const links = this.app.metadataCache.resolvedLinks?.[sourcePath];
-    return Boolean(links && file.path in links);
+    if (links && file.path in links) return true;
+
+    return this.getFlatNodes().some((node) => this.nodeEmbedsFile(node.text, file, sourcePath));
   }
 
   async onClose(): Promise<void> {
@@ -1074,6 +1128,10 @@ export class MindmapView extends TextFileView {
     if (this.attachmentRefreshTimeout !== null) {
       window.clearTimeout(this.attachmentRefreshTimeout);
       this.attachmentRefreshTimeout = null;
+    }
+    if (this.activationRecheckTimeout !== null) {
+      window.clearTimeout(this.activationRecheckTimeout);
+      this.activationRecheckTimeout = null;
     }
     if (this.vaultModifyRef) {
       this.app.vault.offref(this.vaultModifyRef);
