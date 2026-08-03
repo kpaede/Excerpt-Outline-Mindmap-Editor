@@ -5,7 +5,7 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && node scripts/verify-build.mjs",
 		"test": "vitest run",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
@@ -19,14 +19,16 @@
 		"esbuild": "0.28.0",
 		"obsidian": "1.8.7",
 		"tslib": "2.4.0",
-		"typescript": "4.7.4",
+		"typescript": "^5.9.3",
 		"vitest": "^4.1.7"
 	},
 	"dependencies": {
+		"@ludovicm67/simple-whiteboard": "^0.6.0",
 		"cytoscape": "^3.32.0",
 		"cytoscape-dagre": "^2.5.0",
 		"cytoscape-node-html-label": "^1.2.2",
 		"dagre": "^0.8.5",
-		"monkey-around": "^3.0.0"
+		"monkey-around": "^3.0.0",
+		"perfect-freehand": "^1.2.3"
 	}
 }
