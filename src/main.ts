@@ -14,6 +14,8 @@ import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 import { exportMindmapViewToCanvas } from './commands/export-canvas';
 import { exportMindmapViewToPdf, exportMindmapViewToSvg } from './commands/export-vector';
 
+declare const __EOME_BUILD__: string;
+
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();
   private autoOpenTimer: number | null = null;
@@ -21,6 +23,13 @@ export default class MindmapPlugin extends Plugin {
   private autoOpenQueued = false;
 
   async onload() {
+    // Readable as `EOME_BUILD` in the developer console. Silent by design:
+    // its only job is to answer whether a device is running the bundle that
+    // was just built, which matters here because this plugin folder is synced
+    // rather than installed.
+    (globalThis as { EOME_BUILD?: string }).EOME_BUILD =
+      typeof __EOME_BUILD__ === 'string' ? __EOME_BUILD__ : 'dev';
+
     this.registerView(
       VIEW_TYPE_MINDMAP,  
       (leaf: WorkspaceLeaf) => new MindmapView(leaf, this)

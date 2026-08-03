@@ -142,16 +142,23 @@ export function startNodeEditing(
     if (finished) return;
     finished = true;
 
-    const newText = view.normalizeNodeText(markdownEditor.value);
+    const rawText = markdownEditor.value;
     closeEditor();
 
-    if (save && newText !== nodeToUse.text && view.file) {
-      await view.executeEditNodeCommand(nodeToUse, newText);
+    // Opening and closing a node without typing must leave it untouched. This
+    // used to normalise unconditionally, so merely double-clicking a node
+    // whose source spans several lines stripped those line breaks, announced
+    // it, and wrote the collapsed text back - on Escape as well as on save.
+    if (!save || rawText === nodeToUse.text) {
+      if (save) view.selectNode(nodeToUse.line);
+      return;
     }
 
-    if (save) {
-      view.selectNode(nodeToUse.line);
+    const newText = view.normalizeNodeText(rawText);
+    if (newText !== nodeToUse.text && view.file) {
+      await view.executeEditNodeCommand(nodeToUse, newText);
     }
+    view.selectNode(nodeToUse.line);
   };
 
   const markdownEditor = createEmbeddableMarkdownEditor(view.app, editorHost, {
