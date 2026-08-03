@@ -939,6 +939,12 @@ export class MindmapView extends TextFileView {
   /* ── Lifecycle ───────────────────────────── */
   async onOpen(): Promise<void> {
     this.isViewClosed = false;
+    // Before the early returns below. Obsidian renders this view through
+    // setViewData(), which is independent of onOpen finishing, so anything
+    // registered only at the end of onOpen can be absent from a view that is
+    // on screen and working.
+    this.ensureAttachmentWatchers();
+
     const st = this.leaf.getViewState().state as MindmapViewState | undefined;
     if (!st?.file) {
       return;
@@ -982,8 +988,23 @@ export class MindmapView extends TextFileView {
     this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
     this.interactionDocument = this.wrapper.ownerDocument;
     this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
-    this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
-    this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
+  }
+
+  /**
+   * Idempotent, and called from every entry point that can bring a file into
+   * this view. Without these two subscriptions a drawing edited anywhere else
+   * never reaches the map: the built-in editor happens to redraw by calling
+   * refreshRenderedAttachments itself, but Excalidraw edits in their own tab
+   * have nothing but these events to arrive on.
+   */
+  private ensureAttachmentWatchers(): void {
+    if (!this.vaultModifyRef) {
+      this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
+    }
+    if (!this.activeLeafChangeRef) {
+      this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
+    }
+    logDrawingRefresh('watchers-ready', { file: this.file?.path });
   }
 
   /**
@@ -1254,7 +1275,8 @@ export class MindmapView extends TextFileView {
 
   async onLoadFile(file: TFile): Promise<void> {
     super.onLoadFile(file);
-    
+    this.ensureAttachmentWatchers();
+
     if (this.frontmatterStorage && file) {
       const mindmapData = await this.frontmatterStorage.loadMindmapData(file);
       
