@@ -33,6 +33,18 @@ if (!bundle.includes('module.exports')) {
   throw new Error('main.js does not expose an Obsidian CommonJS entry point.');
 }
 
+// Proves the artifact on disk came from this config and not from something
+// else writing to the same file. A `npm run dev` watcher rebuilds main.js on
+// every source change with the config it captured at startup, so it can
+// silently replace a production build - and a synced device then runs a
+// bundle nobody thinks is deployed.
+const buildStamp = bundle.match(/EOME_BUILD\s*=\s*"([^"]+)"/u)?.[1];
+if (!buildStamp) {
+  throw new Error(
+    'main.js carries no build stamp. Another process (a `npm run dev` watcher?) overwrote it after the build.'
+  );
+}
+
 // Parse the complete artifact, catching truncated or only partially written
 // bundles before they are handed to Obsidian or synchronized to another device.
 new vm.Script(bundle, { filename: 'main.js' });
@@ -52,7 +64,7 @@ if (unexpectedImports.length > 0) {
 
 await verifyTopLevelLoadAndOnload();
 
-console.log(`Verified mobile-compatible Obsidian bundle (${bundleStat.size} bytes).`);
+console.log(`Verified mobile-compatible Obsidian bundle (${bundleStat.size} bytes, build ${buildStamp}).`);
 
 async function verifyTopLevelLoadAndOnload() {
   for (const browserGlobal of ['document', 'window', 'HTMLElement', 'customElements']) {
