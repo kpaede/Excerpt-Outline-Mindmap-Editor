@@ -7,6 +7,8 @@ import {
   Notice,
   Platform,
   Menu,
+  type EventRef,
+  type TAbstractFile,
 } from 'obsidian';
 import { Core } from 'cytoscape';
 
@@ -53,6 +55,7 @@ import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
 import { CommandHistory, MindmapCommand } from '../history/command-history';
 import { PenPreferenceStore } from '../drawing/pen-preferences';
+import { isExcalidrawFile } from '../drawing/excalidraw-integration';
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
 import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
 import { MindmapViewState, SelectionSnapshot } from './view-state';
@@ -90,6 +93,9 @@ export class MindmapView extends TextFileView {
   private transientClosers = new Set<() => void>();
   private readonly renderLifecycle = new RenderLifecycle();
   private isViewClosed = false;
+  private pendingAttachmentRefresh = false;
+  private vaultModifyRef: EventRef | null = null;
+  private activeLeafChangeRef: EventRef | null = null;
 
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
@@ -964,6 +970,39 @@ export class MindmapView extends TextFileView {
     this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
     this.interactionDocument = this.wrapper.ownerDocument;
     this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
+    this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
+    this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
+  }
+
+  /**
+   * Excalidraw drawings are edited in their own tab and written by Excalidraw
+   * itself, so this view is never told that an embedded image changed.
+   *
+   * Excalidraw autosaves continuously while drawing, so redrawing on every
+   * save would rebuild the graph under the user's hands. The redraw is
+   * deferred until the mindmap is actually looked at again instead.
+   */
+  private readonly handleEmbeddedDrawingModified = (file: TAbstractFile): void => {
+    if (this.isViewClosed || !(file instanceof TFile)) return;
+    if (!isExcalidrawFile(this.app, file) || !this.embedsFile(file)) return;
+    this.pendingAttachmentRefresh = true;
+  };
+
+  private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
+    if (this.isViewClosed || leaf !== this.leaf || !this.pendingAttachmentRefresh) return;
+    this.pendingAttachmentRefresh = false;
+    void this.refreshRenderedAttachments();
+  };
+
+  /**
+   * Uses the resolved-link index rather than walking the outline: this runs on
+   * every vault write in the whole vault, including Excalidraw's autosaves.
+   */
+  private embedsFile(file: TFile): boolean {
+    const sourcePath = this.file?.path;
+    if (!sourcePath) return false;
+    const links = this.app.metadataCache.resolvedLinks?.[sourcePath];
+    return Boolean(links && file.path in links);
   }
 
   async onClose(): Promise<void> {
@@ -982,6 +1021,15 @@ export class MindmapView extends TextFileView {
     this.isMiddleMousePanning = false;
     this.gestureCoordinator?.destroy();
     this.gestureCoordinator = null;
+    this.pendingAttachmentRefresh = false;
+    if (this.vaultModifyRef) {
+      this.app.vault.offref(this.vaultModifyRef);
+      this.vaultModifyRef = null;
+    }
+    if (this.activeLeafChangeRef) {
+      this.app.workspace.offref(this.activeLeafChangeRef);
+      this.activeLeafChangeRef = null;
+    }
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);

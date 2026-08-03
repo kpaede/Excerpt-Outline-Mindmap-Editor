@@ -2,11 +2,10 @@ import { Component, MarkdownRenderer } from 'obsidian';
 import type { OutlineNode } from '../utils/outline';
 import { openInternalLink } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
+import { hasUnrenderedExcalidrawEmbed } from '../drawing/excalidraw-integration';
 
-async function waitForAsyncContent(container: HTMLElement, maxWaitTime: number = 3000): Promise<void> {
-  const startTime = Date.now();
-  const images = container.querySelectorAll('img');
-  const imagePromises = Array.from(images).map((img) => {
+function waitForImages(container: HTMLElement): Promise<unknown> {
+  return Promise.all(Array.from(container.querySelectorAll('img')).map((img) => {
     if (img.complete) return Promise.resolve();
 
     return new Promise<void>((resolve) => {
@@ -14,47 +13,60 @@ async function waitForAsyncContent(container: HTMLElement, maxWaitTime: number =
       img.onerror = () => resolve();
       setTimeout(() => resolve(), 2000);
     });
-  });
+  }));
+}
 
-  const checkAsyncRenderers = async (): Promise<void> => {
-    let attempts = 0;
-    const maxAttempts = 30;
+// Excalidraw renders its embeds through a global task queue shared with every
+// other embed in the app, so it can be slower than the in-process renderers
+// below. Only nodes that actually embed a drawing ever wait this long, and a
+// measurement taken too early is cached and stays visibly wrong.
+const EXCALIDRAW_WAIT_MS = 8000;
+const DEFAULT_WAIT_MS = 3000;
 
-    while (attempts < maxAttempts && (Date.now() - startTime) < maxWaitTime) {
-      const verovioContainers = Array.from(container.querySelectorAll('.verovio-container'));
-      let verovioReady = true;
-      for (const verovio of verovioContainers) {
-        const svg = verovio.querySelector('svg');
-        if (!svg || svg.getAttribute('width') === '0' || !svg.getAttribute('width')) {
-          verovioReady = false;
-          break;
-        }
+async function waitForAsyncContent(view: MindmapView, container: HTMLElement): Promise<void> {
+  const startTime = Date.now();
+  const sourcePath = view.file?.path ?? '';
+
+  let attempts = 0;
+  const maxAttempts = 80;
+
+  while (attempts < maxAttempts) {
+    const verovioContainers = Array.from(container.querySelectorAll('.verovio-container'));
+    let verovioReady = true;
+    for (const verovio of verovioContainers) {
+      const svg = verovio.querySelector('svg');
+      if (!svg || svg.getAttribute('width') === '0' || !svg.getAttribute('width')) {
+        verovioReady = false;
+        break;
       }
-
-      const codeBlocks = Array.from(container.querySelectorAll('pre code, .block-language-chart, .block-language-plantuml'));
-      let codeBlocksReady = true;
-      for (const block of codeBlocks) {
-        if (
-          block.textContent?.includes('Loading...') ||
-          block.classList.contains('is-loading') ||
-          block.querySelector('.loading')
-        ) {
-          codeBlocksReady = false;
-          break;
-        }
-      }
-
-      if (verovioReady && codeBlocksReady) break;
-
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
-      attempts++;
     }
-  };
 
-  await Promise.all([
-    Promise.all(imagePromises),
-    checkAsyncRenderers(),
-  ]);
+    const codeBlocks = Array.from(container.querySelectorAll('pre code, .block-language-chart, .block-language-plantuml'));
+    let codeBlocksReady = true;
+    for (const block of codeBlocks) {
+      if (
+        block.textContent?.includes('Loading...') ||
+        block.classList.contains('is-loading') ||
+        block.querySelector('.loading')
+      ) {
+        codeBlocksReady = false;
+        break;
+      }
+    }
+
+    const excalidrawPending = hasUnrenderedExcalidrawEmbed(view.app, container, sourcePath);
+
+    if (verovioReady && codeBlocksReady && !excalidrawPending) break;
+    if ((Date.now() - startTime) >= (excalidrawPending ? EXCALIDRAW_WAIT_MS : DEFAULT_WAIT_MS)) break;
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    attempts++;
+  }
+
+  // Collected only now: Excalidraw replaces its embed placeholder with a
+  // freshly created image, so an image list taken before the loop would miss
+  // exactly the element the node has to be sized around.
+  await waitForImages(container);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
@@ -131,6 +143,12 @@ export async function measureNodesForLayout(
       const tmpBox = doc.createElement('div');
       tmpBox.className = 'mindmap-measure-box';
       tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
+      // Attached before rendering, not after. Obsidian's Markdown
+      // post-processors are free to skip work for disconnected nodes, and
+      // Excalidraw does exactly that - it drops any embed whose placeholder is
+      // not in the document, which left drawing nodes measured at the height
+      // of the embed's one-line fallback text.
+      measureContainer.appendChild(tmpBox);
 
       if (node.text.trim() === '') {
         tmpBox.innerHTML = '&nbsp;';
@@ -144,7 +162,7 @@ export async function measureNodesForLayout(
             view as Component
           );
 
-          await waitForAsyncContent(tmpBox);
+          await waitForAsyncContent(view, tmpBox);
 
           tmpBox.querySelectorAll('pre code').forEach((codeEl) => {
             const preEl = codeEl.parentElement as HTMLPreElement;
@@ -173,7 +191,6 @@ export async function measureNodesForLayout(
         }
       }
 
-      measureContainer.appendChild(tmpBox);
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       if (tmpBox.querySelector('svg, .verovio-container, pre code')) {

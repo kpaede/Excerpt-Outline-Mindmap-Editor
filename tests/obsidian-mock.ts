@@ -24,6 +24,10 @@ export class Notice {
 
 export function setIcon(_element: HTMLElement, _icon: string): void {}
 
+export function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
 export class TFile {
   path = '';
   extension = 'md';

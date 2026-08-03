@@ -127,6 +127,14 @@ If the file contains non-outline content outside list items, the mindmap view ma
 - The SVG attachment contains both the visible vector preview and versioned editable drawing data in its SVG `<metadata>` element. The parent Markdown file therefore stays readable, and the image remains visible even when the plugin is disabled.
 - Select **Edit drawing** on a drawing node to reopen that metadata in the editor. Everything stays local to the vault.
 
+### Excalidraw drawings
+
+If the [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) plugin is installed and enabled, the node context menu additionally offers **Add Excalidraw drawing as child**, **Add Excalidraw drawing as sibling**, and **Edit Excalidraw drawing**. Without Excalidraw these entries do not appear, and the built-in drawing editor above is unaffected either way.
+
+- New drawings follow Excalidraw's own settings for the drawing folder and the file format, so they behave like any other drawing in your vault. The filename is derived from the node text, as it is for the built-in drawings.
+- The node embeds the drawing as a normal Obsidian embed such as `![[Idea drawing.excalidraw]]`, which Excalidraw renders in the mindmap like it does anywhere else.
+- Editing happens in Excalidraw's own editor, which opens in a new tab. The mindmap picks up the changed drawing the next time you switch back to it — Excalidraw saves continuously while you draw, so the node is not rebuilt on every stroke.
+
 ### Navigation
 
 - Pan with two fingers on a trackpad or by holding the middle mouse button.

@@ -4,6 +4,12 @@ import type { MindmapView } from '../view/mindmap-view';
 import { createDrawingSvg, parseDrawingSvg } from './drawing-svg';
 import { extractDrawingLink } from './drawing-link';
 import { warmWhiteboardRuntime } from './whiteboard-runtime';
+import {
+  createExcalidrawDrawing,
+  isExcalidrawAvailable,
+  openExcalidrawFile,
+  resolveExcalidrawEmbed,
+} from './excalidraw-integration';
 import type { DrawingModalResult } from './drawing-modal';
 import type { ExportedDrawingItem } from './types';
 
@@ -59,12 +65,15 @@ function drawingBaseName(view: MindmapView, node: OutlineNode): string {
     .trim()
     .slice(0, 48);
   const base = readableNode || view.file?.basename || 'Drawing';
-  return `${base} drawing.svg`;
+  return `${base} drawing`;
 }
 
 async function createAttachment(view: MindmapView, node: OutlineNode, svg: string): Promise<TFile> {
   if (!view.file) throw new Error('No Markdown file is open.');
-  const path = await view.app.fileManager.getAvailablePathForAttachment(drawingBaseName(view, node), view.file.path);
+  const path = await view.app.fileManager.getAvailablePathForAttachment(
+    `${drawingBaseName(view, node)}.svg`,
+    view.file.path
+  );
   return await view.app.vault.create(path, svg);
 }
 
@@ -207,5 +216,85 @@ export async function editDrawing(view: MindmapView, node: OutlineNode): Promise
   } catch (error) {
     console.error('Could not edit drawing:', error);
     new Notice('Could not update the drawing.');
+  }
+}
+
+/**
+ * Creates a drawing in Excalidraw's own format and folder, links it from a new
+ * node, and hands editing over to Excalidraw's editor in a new tab.
+ *
+ * The drawing is created before the node so the node is never left pointing at
+ * a file that does not exist; the tab opens last so a failed insert does not
+ * pull the user away from the mindmap.
+ */
+async function addExcalidrawDrawing(
+  view: MindmapView,
+  node: OutlineNode,
+  placement: 'child' | 'sibling'
+): Promise<void> {
+  const sourcePath = view.file?.path;
+  if (!sourcePath) return;
+  if (!isExcalidrawAvailable(view.app)) {
+    new Notice('The Excalidraw plugin is not available.');
+    return;
+  }
+
+  let attachment: TFile;
+  try {
+    attachment = await createExcalidrawDrawing(view.app, drawingBaseName(view, node));
+  } catch (error) {
+    console.error('Could not create the Excalidraw drawing:', error);
+    new Notice('Could not create the Excalidraw drawing.');
+    return;
+  }
+
+  const liveTarget = resolveLiveTarget(view, node, sourcePath);
+  if (!liveTarget) {
+    new Notice(`The target node changed. ${attachment.path} was created, but no node was inserted.`);
+    return;
+  }
+
+  try {
+    await (placement === 'child'
+      ? view.executeAddChildTextCommand(liveTarget, attachmentEmbed(view, attachment))
+      : view.executeAddSiblingTextCommand(liveTarget, attachmentEmbed(view, attachment)));
+  } catch (error) {
+    console.error(`Excalidraw drawing was created but its ${placement} node could not be inserted:`, error);
+    new Notice(`Drawing created as ${attachment.path}, but the ${placement} node could not be inserted.`);
+    return;
+  }
+
+  try {
+    await openExcalidrawFile(view.app, attachment);
+  } catch (error) {
+    // The node and the drawing both exist; only the convenience of jumping
+    // straight into the editor was lost.
+    console.error('Could not open the new Excalidraw drawing:', error);
+    new Notice(`Drawing created as ${attachment.path}, but its editor could not be opened.`);
+  }
+}
+
+export function addExcalidrawAsChild(view: MindmapView, node: OutlineNode): Promise<void> {
+  return addExcalidrawDrawing(view, node, 'child');
+}
+
+export function addExcalidrawAsSibling(view: MindmapView, node: OutlineNode): Promise<void> {
+  return addExcalidrawDrawing(view, node, 'sibling');
+}
+
+export async function editExcalidrawDrawing(view: MindmapView, node: OutlineNode): Promise<void> {
+  const sourcePath = view.file?.path;
+  if (!sourcePath) return;
+  const attachment = resolveExcalidrawEmbed(view.app, node.text, sourcePath);
+  if (!attachment) {
+    new Notice('The Excalidraw drawing could not be found.');
+    return;
+  }
+
+  try {
+    await openExcalidrawFile(view.app, attachment);
+  } catch (error) {
+    console.error('Could not open the Excalidraw drawing:', error);
+    new Notice('Could not open the Excalidraw drawing.');
   }
 }

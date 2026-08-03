@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lastMenu } from './obsidian-mock';
+import { lastMenu, TFile } from './obsidian-mock';
 import { showNodeContextMenu } from '../src/view/context-menu';
 import type { OutlineNode } from '../src/utils/outline';
 
@@ -7,7 +7,28 @@ function node(text: string): OutlineNode {
   return { text, indent: '', marker: '-', line: 4, endLine: 4, children: [], checkbox: 'none' };
 }
 
-function menuTitlesFor(targetNode: OutlineNode): string[] {
+function excalidrawApp(drawingPaths: string[] = []): unknown {
+  const known = new Set(drawingPaths);
+  return {
+    plugins: {
+      plugins: {
+        'obsidian-excalidraw-plugin': {
+          settings: {},
+          isExcalidrawFile: (file: { path: string }) => known.has(file.path),
+        },
+      },
+    },
+    metadataCache: {
+      getFirstLinkpathDest: (linkpath: string) => {
+        const file = new TFile();
+        file.path = `Excalidraw/${linkpath}.md`;
+        return file;
+      },
+    },
+  };
+}
+
+function menuTitlesFor(targetNode: OutlineNode, app?: unknown): string[] {
   const overlay = { dataset: { nodeLine: String(targetNode.line) } };
   const ownerDocument = {} as Document;
   const event = {
@@ -19,6 +40,8 @@ function menuTitlesFor(targetNode: OutlineNode): string[] {
     target: { closest: (selector: string) => selector === '.mindmap-overlay' ? overlay : null },
   } as unknown as MouseEvent;
   const view = {
+    app,
+    file: app ? { path: 'Map.md' } : null,
     wrapper: { classList: { contains: () => false }, focus: () => undefined, ownerDocument },
     isDirectNodeDragActive: () => false,
     selectedNodeLines: new Set<number>(),
@@ -43,6 +66,26 @@ describe('node drawing context menu', () => {
 
   it('also exposes editing for an SVG drawing node', () => {
     expect(menuTitlesFor(node('![[Idea drawing.svg]]'))).toContain('Edit drawing');
+  });
+
+  it('hides the Excalidraw actions while the plugin is not installed', () => {
+    const titles = menuTitlesFor(node('Idea'));
+    expect(titles).not.toContain('Add Excalidraw drawing as child');
+    expect(titles).not.toContain('Add Excalidraw drawing as sibling');
+  });
+
+  it('offers the Excalidraw actions alongside the built-in ones', () => {
+    const titles = menuTitlesFor(node('Idea'), excalidrawApp());
+    expect(titles).toContain('Add drawing as child');
+    expect(titles).toContain('Add Excalidraw drawing as child');
+    expect(titles).toContain('Add Excalidraw drawing as sibling');
+    expect(titles).not.toContain('Edit Excalidraw drawing');
+  });
+
+  it('offers Excalidraw editing only for a node embedding a drawing', () => {
+    const app = excalidrawApp(['Excalidraw/Idea.excalidraw.md']);
+    expect(menuTitlesFor(node('![[Idea.excalidraw]]'), app)).toContain('Edit Excalidraw drawing');
+    expect(menuTitlesFor(node('![[Some note]]'), app)).not.toContain('Edit Excalidraw drawing');
   });
 
   it('uses the explicit node supplied by a Pencil long-press even when WebKit retargets the event', () => {

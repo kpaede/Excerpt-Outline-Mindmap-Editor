@@ -4,10 +4,14 @@ import type { MindmapView } from './mindmap-view';
 import {
   addDrawingAsChild,
   addDrawingAsSibling,
+  addExcalidrawAsChild,
+  addExcalidrawAsSibling,
   editDrawing,
+  editExcalidrawDrawing,
   warmDrawingEditor,
 } from '../drawing/drawing-actions';
 import { extractDrawingLink } from '../drawing/drawing-link';
+import { isExcalidrawAvailable, resolveExcalidrawEmbed } from '../drawing/excalidraw-integration';
 
 export function showNodeContextMenu(
   view: MindmapView,
@@ -108,6 +112,35 @@ export function showNodeContextMenu(
           .setIcon('edit-3')
           .onClick(() => void editDrawing(view, targetNode));
       });
+    }
+
+    // Excalidraw is optional. Its entries appear only while the plugin is
+    // installed and enabled, so the menu never offers an action that cannot
+    // run. Existing Excalidraw nodes still render either way - that is
+    // Obsidian's embed pipeline, not this plugin's.
+    if (isExcalidrawAvailable(view.app)) {
+      menu.addItem((item) => {
+        item
+          .setTitle('Add Excalidraw drawing as child')
+          .setIcon('shapes')
+          .onClick(() => void addExcalidrawAsChild(view, targetNode));
+      });
+
+      menu.addItem((item) => {
+        item
+          .setTitle('Add Excalidraw drawing as sibling')
+          .setIcon('shapes')
+          .onClick(() => void addExcalidrawAsSibling(view, targetNode));
+      });
+
+      if (view.file && resolveExcalidrawEmbed(view.app, targetNode.text, view.file.path)) {
+        menu.addItem((item) => {
+          item
+            .setTitle('Edit Excalidraw drawing')
+            .setIcon('edit-3')
+            .onClick(() => void editExcalidrawDrawing(view, targetNode));
+        });
+      }
     }
 
     menu.addItem((item) => {
