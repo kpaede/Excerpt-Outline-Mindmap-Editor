@@ -107,6 +107,7 @@ export class MindmapView extends TextFileView {
   private vaultModifyRef: EventRef | null = null;
   private activeLeafChangeRef: EventRef | null = null;
   public readonly attachmentVersions = new AttachmentVersions();
+  private embeddedPathsCache: { data: string; paths: Set<string> } | null = null;
 
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
@@ -1106,7 +1107,21 @@ export class MindmapView extends TextFileView {
     const links = this.app.metadataCache.resolvedLinks?.[sourcePath];
     if (links && file.path in links) return true;
 
-    return this.getFlatNodes().some((node) => this.nodeEmbedsFile(node.text, file, sourcePath));
+    return this.embeddedPaths().has(file.path);
+  }
+
+  /**
+   * Memoised against the document it was derived from. This is consulted for
+   * every write anywhere in the vault, and resolving the outline's embeds
+   * means parsing the whole document - work that only changes when the
+   * document does.
+   */
+  private embeddedPaths(): Set<string> {
+    if (this.embeddedPathsCache?.data === this.data) return this.embeddedPathsCache.paths;
+
+    const paths = new Set(this.collectEmbeddedAttachments().map((file) => file.path));
+    this.embeddedPathsCache = { data: this.data, paths };
+    return paths;
   }
 
   async onClose(): Promise<void> {

@@ -92,6 +92,7 @@ async function verifyTopLevelLoadAndOnload() {
     registerMarkdownCodeBlockProcessor() {}
     addCommand() {}
     registerEvent() {}
+    register() {}
   }
 
   class TextFileViewStub {}
