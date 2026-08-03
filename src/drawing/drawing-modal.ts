@@ -6,6 +6,7 @@ import { createPressurePenTool, type PressurePenToolControl } from './pressure-p
 import { WhiteboardInputAdapter } from './whiteboard-input-adapter';
 import { applyRetinaCanvasFix } from './retina-canvas';
 import type { PenPreferences, PenPreferenceStore } from './pen-preferences';
+import { canonicalizeDrawing } from './drawing-changes';
 
 export interface DrawingModalResult {
   items: ExportedDrawingItem[];
@@ -19,9 +20,52 @@ export function openDrawingModal(
 ): Promise<DrawingModalResult | null> {
   return new Promise((resolve) => {
     const modal = new DrawingModal(app, initialItems, resolve, penPreferences);
-    modal.setLifecycleCleanup(registerCloser?.(() => modal.close()) ?? null);
+    // The lifecycle closer fires when the mindmap view itself goes away, and
+    // it must not stop to ask anything: there is nobody left to answer, and
+    // the editor cannot outlive the view it belongs to.
+    modal.setLifecycleCleanup(registerCloser?.(() => modal.closeWithoutPrompt()) ?? null);
     modal.open();
   });
+}
+
+type UnsavedChoice = 'save' | 'discard' | 'keep-editing';
+
+class UnsavedDrawingModal extends Modal {
+  private settled = false;
+
+  constructor(app: App, private readonly onChoice: (choice: UnsavedChoice) => void) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.titleEl.setText('Unsaved drawing');
+    const container = this.contentEl.createDiv({ cls: 'eome-drawing-unsaved' });
+    container.createEl('p', { text: 'This drawing has changes that have not been saved yet.' });
+
+    const buttons = container.createDiv({ cls: 'eome-drawing-unsaved-buttons' });
+    const keepEditing = buttons.createEl('button', { text: 'Keep editing' });
+    const discard = buttons.createEl('button', { text: "Don't save", cls: 'mod-warning' });
+    const save = buttons.createEl('button', { text: 'Save', cls: 'mod-cta' });
+
+    keepEditing.addEventListener('click', () => this.settle('keep-editing'));
+    discard.addEventListener('click', () => this.settle('discard'));
+    save.addEventListener('click', () => this.settle('save'));
+    save.focus();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    // Escape or a click outside is not a decision. Reading it as "keep
+    // editing" is the only choice here that cannot lose the drawing.
+    this.settle('keep-editing');
+  }
+
+  private settle(choice: UnsavedChoice): void {
+    if (this.settled) return;
+    this.settled = true;
+    this.close();
+    this.onChoice(choice);
+  }
 }
 
 class DrawingModal extends Modal {
@@ -31,6 +75,11 @@ class DrawingModal extends Modal {
   private settled = false;
   private isClosed = false;
   private lifecycleCleanup: (() => void) | null = null;
+  private statusEl: HTMLElement | null = null;
+  private saveButton: HTMLButtonElement | null = null;
+  private unsavedPrompt: UnsavedDrawingModal | null = null;
+  private isDiscarding = false;
+  private savedSnapshot: string | null = null;
 
   constructor(
     app: App,
@@ -82,23 +131,10 @@ class DrawingModal extends Modal {
     const saveButton = footer.createEl('button', { text: 'Save', cls: 'mod-cta' });
     saveButton.disabled = true;
 
+    this.statusEl = status;
+    this.saveButton = saveButton;
     cancelButton.addEventListener('click', () => this.close());
-    saveButton.addEventListener('click', () => {
-      if (!this.board || this.settled) return;
-      let items: ExportedDrawingItem[];
-      try {
-        items = this.board.exportItems() as ExportedDrawingItem[];
-      } catch (error) {
-        console.error('Could not export the drawing from the editor:', error);
-        status.setText('The drawing could not be prepared for saving. Nothing was changed.');
-        new Notice('Could not prepare the drawing for saving.');
-        return;
-      }
-      saveButton.disabled = true;
-      this.settled = true;
-      this.resolveResult({ items });
-      this.close();
-    });
+    saveButton.addEventListener('click', () => this.commitSave());
 
     void this.initializeBoard(stage).then(() => {
       if (this.isClosed) return;
@@ -119,8 +155,88 @@ class DrawingModal extends Modal {
     });
   }
 
+  /**
+   * Closing is the only way to lose a drawing, so it is the one place that
+   * has to ask. Save and the lifecycle closer both mark their intent first,
+   * which is why this can treat every remaining call - the Cancel button,
+   * Escape, a click outside - as "the user wants out" and nothing else.
+   */
+  close(): void {
+    if (this.isDiscarding || !this.hasUnsavedChanges()) {
+      super.close();
+      return;
+    }
+    if (this.unsavedPrompt) return;
+
+    this.unsavedPrompt = new UnsavedDrawingModal(this.app, (choice) => {
+      this.unsavedPrompt = null;
+      if (this.isClosed) return;
+      if (choice === 'save') {
+        this.commitSave();
+      } else if (choice === 'discard') {
+        this.isDiscarding = true;
+        this.close();
+      }
+    });
+    this.unsavedPrompt.open();
+  }
+
+  /**
+   * Closes without asking, for when the mindmap view is going away and the
+   * question could not be answered anyway.
+   */
+  closeWithoutPrompt(): void {
+    this.isDiscarding = true;
+    this.unsavedPrompt?.close();
+    this.unsavedPrompt = null;
+    this.close();
+  }
+
+  /**
+   * Compares the board against what it was opened with, using the same export
+   * the save path uses. That makes this exactly the question that matters:
+   * would closing now lose something that saving would keep?
+   */
+  private hasUnsavedChanges(): boolean {
+    if (!this.board || this.settled || this.isClosed || this.savedSnapshot === null) return false;
+    const current = this.snapshotBoard(this.board);
+    // A drawing that cannot be exported cannot be saved either. Offering a
+    // dialog whose "Save" is bound to fail would only trap the user.
+    return current !== null && current !== this.savedSnapshot;
+  }
+
+  private snapshotBoard(board: SimpleWhiteboard): string | null {
+    try {
+      return canonicalizeDrawing(board.exportItems() as ExportedDrawingItem[]);
+    } catch (error) {
+      console.error('Could not read the drawing back from the editor:', error);
+      return null;
+    }
+  }
+
+  private commitSave(): void {
+    if (!this.board || this.settled) return;
+
+    let items: ExportedDrawingItem[];
+    try {
+      items = this.board.exportItems() as ExportedDrawingItem[];
+    } catch (error) {
+      console.error('Could not export the drawing from the editor:', error);
+      this.statusEl?.setText('The drawing could not be prepared for saving. Nothing was changed.');
+      new Notice('Could not prepare the drawing for saving.');
+      return;
+    }
+
+    if (this.saveButton) this.saveButton.disabled = true;
+    this.settled = true;
+    this.resolveResult({ items });
+    this.close();
+  }
+
   onClose(): void {
     this.isClosed = true;
+    this.unsavedPrompt?.close();
+    this.unsavedPrompt = null;
     // Deliberately also on cancel: the pen's size and colour are preferences
     // for the tool, independent of whether this particular drawing was kept.
     this.persistPenPreferences();
@@ -128,6 +244,8 @@ class DrawingModal extends Modal {
     this.inputController = null;
     this.pressurePen = null;
     this.board = null;
+    this.statusEl = null;
+    this.saveButton = null;
     this.contentEl.replaceChildren();
     this.lifecycleCleanup?.();
     this.lifecycleCleanup = null;
@@ -244,6 +362,9 @@ class DrawingModal extends Modal {
     board.setCurrentTool('pen');
     board.draw();
     this.board = board;
+    // Taken from the board rather than from initialItems, so the import's own
+    // normalisation is part of the baseline instead of looking like an edit.
+    this.savedSnapshot = this.snapshotBoard(board);
 
     // Applied after the board can already be drawn on, not before. The size
     // and colour from the last session only affect how the next stroke looks,

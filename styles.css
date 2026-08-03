@@ -1921,6 +1921,22 @@ body.is-mobile .mindmap-wrapper .vertical-toolbar .toolbar-buttons-group[data-vi
   font-size: var(--font-ui-smaller);
 }
 
+.eome-drawing-unsaved p {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.eome-drawing-unsaved-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.eome-drawing-unsaved-buttons button {
+  min-height: 36px;
+}
+
 body.is-mobile .modal.eome-drawing-modal,
 .is-mobile .modal.eome-drawing-modal {
   width: 100vw;

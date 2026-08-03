@@ -126,6 +126,7 @@ If the file contains non-outline content outside list items, the mindmap view ma
 - A drawing node is a normal Obsidian SVG embed such as `![[Idea drawing.svg]]`.
 - The SVG attachment contains both the visible vector preview and versioned editable drawing data in its SVG `<metadata>` element. The parent Markdown file therefore stays readable, and the image remains visible even when the plugin is disabled.
 - **Edit** on a drawing node reopens that metadata in the editor; on a text node the same entry edits the text. Everything stays local to the vault.
+- Closing the editor with unsaved strokes asks whether to save, discard, or keep editing. Cancel, Escape, and clicking outside all go through that question.
 
 ### Excalidraw drawings
 
