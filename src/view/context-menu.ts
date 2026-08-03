@@ -5,9 +5,9 @@ import {
   addDrawingAsChild,
   addDrawingAsSibling,
   editDrawing,
+  warmDrawingEditor,
 } from '../drawing/drawing-actions';
 import { extractDrawingLink } from '../drawing/drawing-link';
-import { warmWhiteboardRuntime } from '../drawing/whiteboard-runtime';
 
 export function showNodeContextMenu(
   view: MindmapView,
@@ -85,7 +85,7 @@ export function showNodeContextMenu(
 
     // This menu is the last step before any of the drawing actions below, so
     // it is where the editor's one-off module cost can be absorbed.
-    warmWhiteboardRuntime();
+    warmDrawingEditor();
 
     menu.addItem((item) => {
       item

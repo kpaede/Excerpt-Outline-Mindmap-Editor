@@ -3,7 +3,53 @@ import type { OutlineNode } from '../utils/outline';
 import type { MindmapView } from '../view/mindmap-view';
 import { createDrawingSvg, parseDrawingSvg } from './drawing-svg';
 import { extractDrawingLink } from './drawing-link';
-import { openDrawingModal } from './drawing-modal';
+import { warmWhiteboardRuntime } from './whiteboard-runtime';
+import type { DrawingModalResult } from './drawing-modal';
+import type { ExportedDrawingItem } from './types';
+
+/**
+ * Opens the editor, loading it on first use.
+ *
+ * The import must stay dynamic. This module is reachable from the node
+ * context menu and therefore part of the bundle's eagerly evaluated startup
+ * graph, while the editor pulls in Lit and the whiteboard element
+ * definitions - both of which touch `document` and `HTMLElement` at module
+ * scope. A static import here would evaluate all of that during Obsidian's
+ * plugin startup and defer nothing but the whiteboard module itself.
+ */
+async function openDrawingEditor(
+  view: MindmapView,
+  items: ExportedDrawingItem[]
+): Promise<DrawingModalResult | null> {
+  let openDrawingModal: typeof import('./drawing-modal').openDrawingModal;
+  try {
+    ({ openDrawingModal } = await import('./drawing-modal'));
+  } catch (error) {
+    console.error('Could not load the drawing editor:', error);
+    new Notice('Could not open the drawing editor. See the developer console for details.');
+    return null;
+  }
+
+  return openDrawingModal(
+    view.app,
+    items,
+    (close) => view.registerTransientCloser(close),
+    view.penPreferences
+  );
+}
+
+/**
+ * Evaluates the editor and the whiteboard module ahead of the first drawing,
+ * without blocking the caller. Called when the menu offering the drawing
+ * actions opens, so the one-off cost overlaps with the user reading the menu.
+ */
+export function warmDrawingEditor(): void {
+  void import('./drawing-modal').catch(() => {
+    // Purely an optimisation: openDrawingEditor reports real failures when
+    // the editor is actually opened.
+  });
+  warmWhiteboardRuntime();
+}
 
 function drawingBaseName(view: MindmapView, node: OutlineNode): string {
   const readableNode = node.text
@@ -85,7 +131,7 @@ function resolveLiveTarget(view: MindmapView, original: OutlineNode, sourcePath:
 export async function addDrawingAsChild(view: MindmapView, node: OutlineNode): Promise<void> {
   const sourcePath = view.file?.path;
   if (!sourcePath) return;
-  const result = await openDrawingModal(view.app, [], (close) => view.registerTransientCloser(close), view.penPreferences);
+  const result = await openDrawingEditor(view, []);
   if (!result) return;
   const liveTarget = resolveLiveTarget(view, node, sourcePath);
   if (!liveTarget) {
@@ -109,7 +155,7 @@ export async function addDrawingAsChild(view: MindmapView, node: OutlineNode): P
 export async function addDrawingAsSibling(view: MindmapView, node: OutlineNode): Promise<void> {
   const sourcePath = view.file?.path;
   if (!sourcePath) return;
-  const result = await openDrawingModal(view.app, [], (close) => view.registerTransientCloser(close), view.penPreferences);
+  const result = await openDrawingEditor(view, []);
   if (!result) return;
   const liveTarget = resolveLiveTarget(view, node, sourcePath);
   if (!liveTarget) {
@@ -147,12 +193,7 @@ export async function editDrawing(view: MindmapView, node: OutlineNode): Promise
       new Notice('This SVG is not an editable drawing created by this plugin.');
       return;
     }
-    const result = await openDrawingModal(
-      view.app,
-      document.items,
-      (close) => view.registerTransientCloser(close),
-      view.penPreferences
-    );
+    const result = await openDrawingEditor(view, document.items);
     if (!result) return;
     const latestSvg = await view.app.vault.read(attachment);
     if (latestSvg !== originalSvg) {
