@@ -9,7 +9,6 @@ interface AttachDesktopNodeDndOptions {
   nodeToUse: OutlineNode;
   nodeId: string;
   flatCurrent: OutlineNode[];
-  isTouchDevice: boolean;
   getActiveDraggedNodeLine: () => number | null;
   setActiveDraggedNodeLine: (line: number | null) => void;
   isInvalidMoveTarget: (source: OutlineNode, target: OutlineNode) => boolean;
@@ -31,26 +30,24 @@ export function attachDesktopNodeDndHandlers({
   nodeToUse,
   nodeId,
   flatCurrent,
-  isTouchDevice,
   getActiveDraggedNodeLine,
   setActiveDraggedNodeLine,
   isInvalidMoveTarget,
   updateMoveDropPreview,
 }: AttachDesktopNodeDndOptions): void {
-  box.draggable = !isTouchDevice;
+  // Keep native HTML DnD available to a mouse/trackpad even when the same
+  // device also has a touchscreen. The direct-input coordinator disables it
+  // only for the lifetime of an actual touch/Pencil contact.
+  box.draggable = true;
 
   box.addEventListener('dragstart', (event) => {
-    if (isTouchDevice) {
-      event.preventDefault();
-      event.stopPropagation();
-      return false;
-    }
-
     if (event.target !== box) {
       event.preventDefault();
       event.stopPropagation();
       return false;
     }
+
+    view.dismissNodeContextMenu();
 
     event.dataTransfer!.setData('text/mindmap-line', String(nodeToUse.line));
     event.dataTransfer!.setData('text/mindmap-node-id', nodeId);
@@ -83,13 +80,16 @@ export function attachDesktopNodeDndHandlers({
       left: '-9999px',
       zoom: '50%',
     });
-    document.body.appendChild(clone);
+    box.ownerDocument.body.appendChild(clone);
 
     event.dataTransfer!.setDragImage(clone, rect.width / 4, rect.height / 4);
 
-    setTimeout(() => {
-      if (clone.parentElement) clone.parentElement.removeChild(clone);
-    }, 0);
+    const ownerWindow = box.ownerDocument.defaultView;
+    if (ownerWindow) {
+      ownerWindow.setTimeout(() => clone.remove(), 0);
+    } else {
+      clone.remove();
+    }
   });
 
   let dragCounter = 0;

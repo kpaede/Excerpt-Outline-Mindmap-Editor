@@ -11,6 +11,11 @@ import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
 
 import { around } from "monkey-around";
 
+// Obsidian keeps this editor implementation stable for the lifetime of an App
+// instance. Resolving it creates a temporary embed, so do that at most once per
+// app instead of during every double-tap.
+const editorClassByApp = new WeakMap<App, any>();
+
 /**
  * Creates an embeddable markdown editor
  * @param app The Obsidian app instance
@@ -34,6 +39,9 @@ export function createEmbeddableMarkdownEditor(
  * Resolves the markdown editor prototype from the app
  */
 function resolveEditorPrototype(app: App): any {
+	const cachedEditorClass = editorClassByApp.get(app);
+	if (cachedEditorClass) return cachedEditorClass;
+
 	// Create a temporary editor to resolve the prototype of ScrollableMarkdownEditor
 	const widgetEditorView = (app as any).embedRegistry.embedByExtension.md(
 		{ app, containerEl: createDiv() },
@@ -52,7 +60,9 @@ function resolveEditorPrototype(app: App): any {
 	widgetEditorView.unload();
 
 	// Return the constructor, using 'any' type to bypass the abstract class check
-	return MarkdownEditor.constructor;
+	const EditorClass = MarkdownEditor.constructor;
+	editorClassByApp.set(app, EditorClass);
+	return EditorClass;
 }
 
 export interface MarkdownEditorProps {
@@ -101,6 +111,7 @@ export class EmbeddableMarkdownEditor {
 	scope: Scope;
 	editor: any;
 	private activeEditorInfo: MarkdownFileInfo | null = null;
+	private isActivated = false;
 
 	// Expose commonly accessed properties
 	get editorEl(): HTMLElement {
@@ -123,8 +134,19 @@ export class EmbeddableMarkdownEditor {
 	}
 
 	activate(): void {
+		if (this.isActivated) return;
+		this.isActivated = true;
 		this.app.keymap.pushScope(this.scope);
 		this.app.workspace.activeEditor = this.activeEditorInfo;
+	}
+
+	deactivate(): void {
+		if (!this.isActivated) return;
+		this.isActivated = false;
+		this.app.keymap.popScope(this.scope);
+		if (this.app.workspace.activeEditor === this.activeEditorInfo) {
+			this.app.workspace.activeEditor = null;
+		}
 	}
 
 	/**
@@ -173,8 +195,7 @@ export class EmbeddableMarkdownEditor {
 									self.options.onPaste(event, self);
 								},
 								blur: () => {
-									// Always trigger blur callback and let it handle the logic
-									app.keymap.popScope(self.scope);
+									self.deactivate();
 									if (self.options.onBlur) {
 										self.options.onBlur(self);
 									}
@@ -346,8 +367,7 @@ export class EmbeddableMarkdownEditor {
 			this.editor.unload();
 		}
 
-		this.app.keymap.popScope(this.scope);
-		this.app.workspace.activeEditor = null;
+		this.deactivate();
 		this.containerEl.empty();
 
 		if (this.editor.destroy) {

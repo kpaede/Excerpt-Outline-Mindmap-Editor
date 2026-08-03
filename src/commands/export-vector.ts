@@ -440,7 +440,9 @@ async function renderFitToViewPdf(view: MindmapView): Promise<ArrayBuffer> {
       marginsType: 1,
     });
     pdfArtifact.remove();
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return copy.buffer;
   });
 }
 

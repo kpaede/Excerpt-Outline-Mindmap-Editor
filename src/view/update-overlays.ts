@@ -1,27 +1,20 @@
-import { Notice } from 'obsidian';
 import { parseOutline, OutlineNode } from '../utils/outline';
 import { parseHeadingSections } from '../utils/heading-sections';
 import { MindmapView } from './mindmap-view';
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
-import { clearDropPreview, DropIntent, DropPointer, getOverlayAtPoint, updateDropPreview } from './overlay-dnd';
+import { clearDropPreview, DropIntent, DropPointer, updateDropPreview } from './overlay-dnd';
 import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
-import { renderHeadingFrames, startHeadingEditing } from './heading-frames';
+import { renderHeadingFrames, startHeadingEditing, updateHeadingFrameGeometry } from './heading-frames';
 import { attachDesktopNodeDndHandlers } from './node-desktop-dnd';
 import { appendCheckboxToggle, appendNodeControls, appendZoteroBadge } from './node-overlay-controls';
 
 export { startNodeEditing };
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
-
 export function updateOverlays(view: MindmapView): void {
-  if (!view.cy) return;
+  if (!view.cy || view.cy.destroyed() || !view.wrapper?.isConnected) return;
+  view.dismissNodeContextMenu();
 
-  if (
-    view.wrapper.querySelector('.node-editor, .mindmap-heading-editor') ||
-    document.querySelector('.mindmap-mobile-editor')
-  ) {
+  if (view.wrapper.querySelector('.node-editor, .mindmap-heading-editor')) {
     return;
   }
 
@@ -31,13 +24,10 @@ export function updateOverlays(view: MindmapView): void {
   }
   view.isUpdatingOverlays = true;
 
-  // Use requestAnimationFrame to batch overlay updates
-  requestAnimationFrame(() => {
+  // The view owns this frame so a newer render, reset, or close can cancel it.
+  const scheduled = view.requestOverlayUpdateFrame(() => {
     try {
-      const isTouchViewportGesture =
-        view.wrapper.classList.contains('is-touch-panning') ||
-        view.wrapper.classList.contains('is-touch-pinching') ||
-        view.wrapper.classList.contains('is-touch-dragging');
+      const isTouchViewportGesture = view.isDirectViewportGestureActive() || view.isDirectNodeDragActive();
 
       if (isTouchViewportGesture && updateOverlayGeometry(view)) {
         return;
@@ -48,10 +38,13 @@ export function updateOverlays(view: MindmapView): void {
       view.isUpdatingOverlays = false;
     }
   });
+  if (!scheduled) {
+    view.isUpdatingOverlays = false;
+  }
 }
 
 export function updateOverlayGeometry(view: MindmapView): boolean {
-  if (!view.cy) return false;
+  if (!view.cy || view.cy.destroyed() || !view.wrapper?.isConnected) return false;
 
   const overlays = new Map<number, HTMLElement>();
   view.wrapper.querySelectorAll<HTMLElement>('[data-overlay][data-node-line]').forEach((overlay) => {
@@ -87,28 +80,22 @@ export function updateOverlayGeometry(view: MindmapView): boolean {
     overlay.style.setProperty('--mindmap-zoom', String(zoom));
   }
 
-  renderHeadingFrames(view.wrapper, view.cy, parseHeadingSections(view.data), view.sizeMap, {
-    onEdit: (section, frame) => startHeadingEditing(frame, section, view),
-    onEmptyHeadingCreate: (section) => {
-      void view.executeCreateNodeInEmptyHeadingCommand(section.line);
-    },
-    onEmptyHeadingDrop: (section, sourceLine) => {
-      const sourceNode = view.getFlatNodes().find((node) => node.line === sourceLine);
-      if (!sourceNode) return;
-      void view.executeMoveSubtreeToEmptyHeadingCommand(sourceNode, section.line);
-    },
-  });
-  return true;
+  return updateHeadingFrameGeometry(view.wrapper, view.cy);
 }
 
 function performOverlayUpdate(view: MindmapView): void {
+  // Any full rebuild invalidates overlay elements retained by an in-flight
+  // direct gesture. End that gesture before replacing the DOM.
+  view.resetDirectGestures();
   // Remove all existing overlays before redrawing
   view.wrapper.querySelectorAll('[data-overlay]').forEach((e) => e.remove());
 
-  const css = getComputedStyle(document.documentElement);
+  const doc = view.wrapper.ownerDocument;
+  const css = doc.defaultView?.getComputedStyle(doc.documentElement) ?? getComputedStyle(doc.documentElement);
   const txt = css.getPropertyValue('--text-normal').trim() || '#000';
   const font = css.getPropertyValue('--font-family').trim() || 'inherit';
   const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
+  const border = css.getPropertyValue('--background-modifier-border').trim() || txt;
 
   const zoom = view.cy!.zoom();
 
@@ -137,10 +124,9 @@ function performOverlayUpdate(view: MindmapView): void {
     },
   });
 
-  let pendingEdit: {
-    box: HTMLElement;
-    node: OutlineNode;
-  } | null = null;
+  const pendingEdit: {
+    current: { box: HTMLElement; node: OutlineNode } | null;
+  } = { current: null };
   let activeDraggedNodeLine: number | null = null;
 
   const isInvalidMoveTarget = (source: OutlineNode, target: OutlineNode): boolean => (
@@ -204,7 +190,7 @@ function performOverlayUpdate(view: MindmapView): void {
     }
 
     // Always create a new box, as all old ones were removed
-    const box = document.createElement('div');
+    const box = doc.createElement('div');
     box.dataset.overlay = '1';
     box.dataset.nodeId = nodeId;
     box.dataset.nodeLine = String(nodeToUse.line);
@@ -212,13 +198,14 @@ function performOverlayUpdate(view: MindmapView): void {
 
     // Update position and styling using CSS variables where possible
     box.classList.add('mindmap-overlay');
+    box.createDiv({ cls: 'mindmap-node-selection-ring', attr: { 'aria-hidden': 'true' } });
     // Dynamic position variables for CSS positioning
     box.style.setProperty('--mindmap-left', `${p.x}px`);
     box.style.setProperty('--mindmap-top', `${p.y}px`);
     box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
     box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
     box.style.setProperty('--mindmap-zoom', String(zoom));
-    box.style.setProperty('--mindmap-border', '#000000');
+    box.style.setProperty('--mindmap-border', border);
     box.style.setProperty('--mindmap-bg', bg);
     box.style.setProperty('--mindmap-color', txt);
     if (font) {
@@ -234,18 +221,16 @@ function performOverlayUpdate(view: MindmapView): void {
     }
 
     if (view.pendingEditNodeLine === nodeToUse.line) {
-      pendingEdit = { box, node: nodeToUse };
+      pendingEdit.current = { box, node: nodeToUse };
     }
 
     appendZoteroBadge(box, nodeToUse);
 
-    const md = document.createElement('div');
+    const md = doc.createElement('div');
     renderNodeMarkdown(md, nodeToUse, view);
 
     box.classList.add('mindmap-overlay');
     box.insertBefore(md, box.firstChild);
-
-    const isTouchDevice = view.wrapper.classList.contains('is-touch-device');
 
     attachDesktopNodeDndHandlers({
       view,
@@ -253,7 +238,6 @@ function performOverlayUpdate(view: MindmapView): void {
       nodeToUse,
       nodeId,
       flatCurrent,
-      isTouchDevice,
       getActiveDraggedNodeLine: () => activeDraggedNodeLine,
       setActiveDraggedNodeLine: (line) => {
         activeDraggedNodeLine = line;
@@ -269,373 +253,6 @@ function performOverlayUpdate(view: MindmapView): void {
     box.onmouseleave = () => {
       box.classList.remove('hovering');
     };
-
-    let suppressNextTouchDblClick = false;
-
-    if (isTouchDevice) {
-      let longPressTimer: number | null = null;
-      let touchDragActive = false;
-      let touchDragGhost: HTMLElement | null = null;
-      let touchDropTarget: HTMLElement | null = null;
-      let touchDropIntent: DropIntent | null = null;
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let lastTapAt = 0;
-      let suppressNextClick = false;
-      let touchDragAbortController: AbortController | null = null;
-      let touchDragLastPoint: { clientX: number; clientY: number } | null = null;
-      let touchDragPointerId: number | null = null;
-      let longPressAbortController: AbortController | null = null;
-      let touchDragGhostSize: { width: number; height: number } | null = null;
-
-      const clearLongPressTimer = () => {
-        if (longPressTimer === null) return;
-        window.clearTimeout(longPressTimer);
-        longPressTimer = null;
-        longPressAbortController?.abort();
-        longPressAbortController = null;
-      };
-
-      const clearTouchDropTarget = () => {
-        if (!touchDropTarget) return;
-        touchDropTarget.classList.remove('mm-tgt');
-        clearDropPreview(touchDropTarget);
-        touchDropTarget = null;
-        touchDropIntent = null;
-        touchDragGhost?.classList.remove('is-over-target');
-      };
-
-      const removeTouchDragGhost = () => {
-        if (touchDragGhost?.parentElement) {
-          touchDragGhost.remove();
-        }
-        touchDragGhost = null;
-      };
-
-      const finishTouchDrag = () => {
-        clearLongPressTimer();
-        clearTouchDropTarget();
-        removeTouchDragGhost();
-        box.classList.remove('mm-src');
-        view.wrapper.classList.remove('is-touch-dragging');
-        view.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-drag-end'));
-        touchDragActive = false;
-        touchDragAbortController?.abort();
-        touchDragAbortController = null;
-        touchDragLastPoint = null;
-        touchDragPointerId = null;
-        touchDragGhostSize = null;
-      };
-
-      const moveTouchDragGhost = (event: PointerEvent) => {
-        if (!touchDragGhost) return;
-        touchDragGhost.style.setProperty('--touch-drag-left', `${event.clientX}px`);
-        touchDragGhost.style.setProperty('--touch-drag-top', `${event.clientY}px`);
-      };
-
-      const updateTouchDragGhostScale = () => {
-        if (!touchDragGhost) return;
-
-        const size = touchDragGhostSize ?? (() => {
-          const boxRect = box.getBoundingClientRect();
-          touchDragGhostSize = {
-            width: Math.max(80, Math.round(boxRect.width * 0.92)),
-            height: Math.max(40, Math.round(boxRect.height * 0.92)),
-          };
-          return touchDragGhostSize;
-        })();
-
-        touchDragGhost.style.setProperty('--touch-drag-width', `${size.width}px`);
-        touchDragGhost.style.setProperty('--touch-drag-height', `${size.height}px`);
-      };
-
-      const updateTouchDropTarget = (event: DropPointer) => {
-        const nextTarget = getOverlayAtPoint(event.clientX, event.clientY);
-        if (nextTarget === box) {
-          clearTouchDropTarget();
-          return;
-        }
-
-        if (nextTarget !== touchDropTarget) {
-          clearTouchDropTarget();
-          touchDropTarget = nextTarget;
-          if (touchDropTarget) {
-            touchDropTarget.classList.add('mm-tgt');
-          }
-        }
-
-        if (touchDropTarget) {
-          if (touchDropTarget.classList.contains('mindmap-empty-heading-drop-target')) {
-            touchDropTarget.classList.remove('mm-tgt-invalid');
-            touchDropTarget.classList.add('mm-tgt');
-            touchDragGhost?.classList.add('is-over-target');
-            touchDropIntent = { kind: 'child', childInsertPosition: 'last' };
-            return;
-          }
-
-          const targetLine = Number(touchDropTarget.dataset.nodeLine);
-          const targetNode = Number.isNaN(targetLine) ? undefined : getCurrentNodeByLine(targetLine);
-          if (targetNode && isInvalidMoveTarget(nodeToUse, targetNode)) {
-            setInvalidDropPreview(touchDropTarget);
-            touchDropIntent = null;
-            touchDragGhost?.classList.remove('is-over-target');
-            return;
-          }
-
-          touchDropTarget.classList.remove('mm-tgt-invalid');
-          touchDragGhost?.classList.add('is-over-target');
-          touchDropIntent = updateDropPreview(event, touchDropTarget, {
-            targetHasChildren: targetNode ? targetNode.children.length > 0 : true,
-          });
-        }
-      };
-
-      const startTouchDrag = (event: PointerEvent) => {
-        longPressTimer = null;
-        touchDragActive = true;
-        touchDragPointerId = event.pointerId;
-        suppressNextClick = true;
-        view.selectNode(nodeToUse.line);
-        box.classList.add('mm-src');
-        view.wrapper.classList.add('is-touch-dragging');
-        view.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-drag-start', {
-          detail: { pointerId: event.pointerId },
-        }));
-        touchDragAbortController?.abort();
-        touchDragAbortController = new AbortController();
-        touchDragLastPoint = { clientX: event.clientX, clientY: event.clientY };
-        view.wrapper.addEventListener('mindmap-touch-viewport-change', () => {
-          if (!touchDragActive || !touchDragLastPoint) return;
-          updateTouchDragGhostScale();
-          updateTouchDropTarget(touchDragLastPoint);
-        }, {
-          signal: touchDragAbortController.signal,
-        });
-        window.addEventListener('pointermove', (pointerEvent) => {
-          if (
-            pointerEvent.pointerType !== 'touch' ||
-            pointerEvent.pointerId !== touchDragPointerId ||
-            !touchDragActive
-          ) {
-            return;
-          }
-
-          pointerEvent.preventDefault();
-          pointerEvent.stopPropagation();
-          touchDragLastPoint = { clientX: pointerEvent.clientX, clientY: pointerEvent.clientY };
-          moveTouchDragGhost(pointerEvent);
-          updateTouchDropTarget(pointerEvent);
-        }, {
-          passive: false,
-          signal: touchDragAbortController.signal,
-        });
-
-        touchDragGhost = document.createElement('div');
-        touchDragGhost.className = 'mindmap-touch-drag-ghost';
-        const mdClone = md.cloneNode(true) as HTMLElement;
-        mdClone.classList.add('mindmap-touch-drag-ghost-content');
-        mdClone.style.removeProperty('--mindmap-scale');
-        touchDragGhost.appendChild(mdClone);
-        document.body.appendChild(touchDragGhost);
-        updateTouchDragGhostScale();
-        moveTouchDragGhost(event);
-      };
-
-      const completeTouchDrag = async (event: PointerEvent) => {
-        if (
-          event.pointerType !== 'touch' ||
-          event.pointerId !== touchDragPointerId ||
-          !touchDragActive
-        ) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        const targetBox = touchDropTarget;
-        const dropIntent = touchDropIntent;
-        finishTouchDrag();
-
-        const targetLine = Number(targetBox?.dataset.nodeLine);
-        const targetNode = Number.isNaN(targetLine) ? null : flatCurrent.find(n => n.line === targetLine);
-        const targetHeadingLine = Number(targetBox?.dataset.headingLine);
-        const srcNodeFromOutline = flatCurrent.find(n => n.line === nodeToUse.line);
-
-        if (
-          view.file &&
-          srcNodeFromOutline &&
-          targetBox?.classList.contains('mindmap-empty-heading-drop-target') &&
-          !Number.isNaN(targetHeadingLine)
-        ) {
-          try {
-            await view.executeMoveSubtreeToEmptyHeadingCommand(srcNodeFromOutline, targetHeadingLine);
-          } catch (error) {
-            console.error('Touch move subtree to empty heading failed:', error);
-            new Notice('Move failed: ' + errorMessage(error));
-          }
-          return;
-        }
-
-        if (view.file && srcNodeFromOutline && targetNode && targetNode.line !== srcNodeFromOutline.line && dropIntent) {
-          try {
-            await view.executeMoveSubtreeCommand(
-              srcNodeFromOutline,
-              targetNode,
-              dropIntent.kind === 'child',
-              dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
-              dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
-            );
-          } catch (error) {
-            console.error('Touch move subtree failed:', error);
-            new Notice('Move failed: ' + errorMessage(error));
-          }
-        }
-      };
-
-      box.addEventListener('pointerdown', (event) => {
-        if (
-          event.pointerType !== 'touch' ||
-          box.classList.contains('editing') ||
-          view.wrapper.classList.contains('is-touch-pinching')
-        ) return;
-
-        const target = event.target as HTMLElement;
-        if (target.closest('button, a, input, select, textarea, iframe, video, audio, [contenteditable="true"]')) {
-          return;
-        }
-
-        touchStartX = event.clientX;
-        touchStartY = event.clientY;
-        clearLongPressTimer();
-        longPressAbortController = new AbortController();
-        view.wrapper.addEventListener('mindmap-touch-gesture-start', clearLongPressTimer, {
-          signal: longPressAbortController.signal,
-        });
-
-        longPressTimer = window.setTimeout(() => {
-          if (
-            view.wrapper.classList.contains('is-touch-pinching') ||
-            view.wrapper.classList.contains('is-touch-panning')
-          ) {
-            clearLongPressTimer();
-            return;
-          }
-
-          startTouchDrag(event);
-          window.addEventListener('pointerup', (pointerEvent) => {
-            void completeTouchDrag(pointerEvent);
-          }, { signal: touchDragAbortController?.signal });
-          window.addEventListener('pointercancel', (pointerEvent) => {
-            if (
-              pointerEvent.pointerType === 'touch' &&
-              pointerEvent.pointerId === touchDragPointerId
-            ) finishTouchDrag();
-          }, { signal: touchDragAbortController?.signal });
-        }, 420);
-      }, { passive: true });
-
-      box.addEventListener('pointermove', (event) => {
-        if (event.pointerType !== 'touch') return;
-
-        const deltaX = Math.abs(event.clientX - touchStartX);
-        const deltaY = Math.abs(event.clientY - touchStartY);
-
-        if (!touchDragActive && view.wrapper.classList.contains('is-touch-pinching')) {
-          clearLongPressTimer();
-          return;
-        }
-
-        if (
-          !touchDragActive &&
-          (deltaX > 3 || deltaY > 3 || view.wrapper.classList.contains('is-touch-panning'))
-        ) {
-          clearLongPressTimer();
-          return;
-        }
-
-        if (!touchDragActive) return;
-        if (event.pointerId !== touchDragPointerId) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-        touchDragLastPoint = { clientX: event.clientX, clientY: event.clientY };
-        moveTouchDragGhost(event);
-        updateTouchDropTarget(event);
-      }, { passive: false });
-
-      box.addEventListener('pointerup', async (event) => {
-        if (event.pointerType !== 'touch') return;
-
-        const wasDragging = touchDragActive;
-        const hadPendingLongPress = longPressTimer !== null;
-        clearLongPressTimer();
-
-        if (wasDragging) {
-          await completeTouchDrag(event);
-          return;
-        }
-
-        const target = event.target as HTMLElement;
-        const tapDeltaX = Math.abs(event.clientX - touchStartX);
-        const tapDeltaY = Math.abs(event.clientY - touchStartY);
-        const checkboxHitPadding = 22;
-        const checkboxRect = checkboxToggle.getBoundingClientRect();
-        const isNearCheckbox =
-          hasCheckbox &&
-          tapDeltaX <= 10 &&
-          tapDeltaY <= 10 &&
-          event.clientX >= checkboxRect.left - checkboxHitPadding &&
-          event.clientX <= checkboxRect.right + checkboxHitPadding &&
-          event.clientY >= checkboxRect.top - checkboxHitPadding &&
-          event.clientY <= checkboxRect.bottom + checkboxHitPadding;
-
-        if (isNearCheckbox) {
-          event.preventDefault();
-          event.stopPropagation();
-          suppressNextClick = true;
-          await toggleCheckbox();
-          return;
-        }
-
-        if (
-          !hadPendingLongPress ||
-          target.closest('button, a, input, select, textarea, iframe, video, audio, [contenteditable="true"]')
-        ) {
-          return;
-        }
-
-        const now = Date.now();
-        if (now - lastTapAt < 360) {
-          event.preventDefault();
-          event.stopPropagation();
-          suppressNextClick = true;
-          suppressNextTouchDblClick = true;
-          view.selectNode(nodeToUse.line);
-          const contextEvent = new MouseEvent('contextmenu', {
-            bubbles: true,
-            cancelable: true,
-            clientX: event.clientX,
-            clientY: event.clientY,
-          });
-          box.dispatchEvent(contextEvent);
-          lastTapAt = 0;
-          window.setTimeout(() => {
-            suppressNextTouchDblClick = false;
-          }, 450);
-          return;
-        }
-
-        lastTapAt = now;
-      });
-
-      box.addEventListener('pointercancel', finishTouchDrag);
-
-      box.addEventListener('click', (event) => {
-        if (!suppressNextClick) return;
-        suppressNextClick = false;
-        event.preventDefault();
-        event.stopPropagation();
-      }, { capture: true });
-    }
 
     box.addEventListener('wheel', (e) => {
       const target = e.target as HTMLElement;
@@ -677,11 +294,7 @@ function performOverlayUpdate(view: MindmapView): void {
     }, { passive: false });
 
     box.addEventListener('click', (e) => {
-      if (
-        view.wrapper.classList.contains('is-touch-dragging') ||
-        view.wrapper.classList.contains('is-touch-panning') ||
-        view.wrapper.classList.contains('is-touch-pan-suppressed')
-      ) {
+      if (view.isDirectGestureBlockingNodeClick()) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -704,22 +317,16 @@ function performOverlayUpdate(view: MindmapView): void {
       view.selectNode(nodeToUse.line, e.shiftKey || e.metaKey || e.ctrlKey);
     });
 
-    // Enhanced double-click to edit with single-line input
+    // Mouse and trackpad keep the browser's native double-click path on every
+    // device, including iPads with an attached pointer device.
     box.addEventListener('dblclick', (e) => {
-      if (view.wrapper.classList.contains('is-touch-dragging')) {
+      if (view.isDirectNodeDragActive()) {
         e.preventDefault();
         e.stopPropagation();
         return;
       }
 
       if (box.classList.contains('editing')) {
-        return;
-      }
-
-      if (suppressNextTouchDblClick) {
-        e.preventDefault();
-        e.stopPropagation();
-        suppressNextTouchDblClick = false;
         return;
       }
 
@@ -745,6 +352,7 @@ function performOverlayUpdate(view: MindmapView): void {
       e.stopPropagation();
       e.preventDefault();
 
+      view.dismissNodeContextMenu();
       startNodeEditing(box, nodeToUse, view);
     });
 
@@ -766,17 +374,19 @@ function performOverlayUpdate(view: MindmapView): void {
       });
       
       // Ensure draggable is explicitly disabled for internal elements
-      if (element instanceof HTMLElement) {
+      if ('draggable' in element) {
         element.draggable = false;
       }
     });
   });
 
-  if (pendingEdit) {
-    view.pendingEditNodeLine = null;
-    view.clearSelection();
-    requestAnimationFrame(() => {
-      startNodeEditing(pendingEdit!.box, pendingEdit!.node, view, { isNewNode: true });
+  if (pendingEdit.current) {
+    const edit = pendingEdit.current;
+    view.requestPostOverlayFrame(() => {
+      if (!edit.box.isConnected) return;
+      view.pendingEditNodeLine = null;
+      view.clearSelection();
+      startNodeEditing(edit.box, edit.node, view, { isNewNode: true });
     });
   }
 }

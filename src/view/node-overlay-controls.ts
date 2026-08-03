@@ -18,7 +18,7 @@ export function appendCheckboxToggle(box: HTMLElement, node: OutlineNode, view: 
   box.classList.toggle('checkbox-hoverable', isCheckboxHoverable);
   box.classList.toggle('checkbox-checked', node.checkbox === 'checked');
 
-  const checkboxToggle = document.createElement('button');
+  const checkboxToggle = box.ownerDocument.createElement('button');
   checkboxToggle.type = 'button';
   checkboxToggle.className = 'checkbox-toggle';
   checkboxToggle.setAttribute('aria-label', node.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
@@ -30,18 +30,13 @@ export function appendCheckboxToggle(box: HTMLElement, node: OutlineNode, view: 
     await view.toggleNodeCheckbox(node);
   };
 
-  checkboxToggle.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-  checkboxToggle.addEventListener('pointerup', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void toggleCheckbox();
-  });
   checkboxToggle.addEventListener('click', (event) => {
-    event.preventDefault();
     event.stopPropagation();
+    // `click` is the one input-neutral activation event: browsers emit it for
+    // primary mouse, touch, Pencil and keyboard activation. Rejecting secondary
+    // buttons here prevents a right-click/context-menu sequence from toggling.
+    if (event.button !== 0) return;
+    void toggleCheckbox();
   });
 
   box.appendChild(checkboxToggle);
@@ -57,7 +52,7 @@ export function appendZoteroBadge(box: HTMLElement, node: OutlineNode): void {
   const primaryZoteroLink = getPrimaryZoteroLink(node.text);
   if (!primaryZoteroLink) return;
 
-  const zoteroBadge = document.createElement('button');
+  const zoteroBadge = box.ownerDocument.createElement('button');
   zoteroBadge.className = 'mindmap-zotero-badge';
   zoteroBadge.setAttribute('type', 'button');
   zoteroBadge.setAttribute('aria-label', 'Open Zotero source');
@@ -76,24 +71,29 @@ export function appendZoteroBadge(box: HTMLElement, node: OutlineNode): void {
 }
 
 export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: MindmapView): void {
-  const controls = document.createElement('div');
+  const controls = box.ownerDocument.createElement('div');
   controls.className = 'node-controls';
 
-  const deleteButton = document.createElement('span');
+  const deleteButton = box.ownerDocument.createElement('button');
+  deleteButton.type = 'button';
   deleteButton.textContent = '×';
   deleteButton.className = 'mindmap-node-delete';
+  deleteButton.setAttribute('aria-label', 'Delete node');
+  deleteButton.setAttribute('title', 'Delete node');
 
   const createControlButton = (icon: string, label: string, action: () => void) => {
-    const button = document.createElement('span');
+    const button = box.ownerDocument.createElement('button');
+    button.type = 'button';
     button.className = 'mindmap-node-control';
     button.setAttribute('aria-label', label);
     button.setAttribute('title', label);
     setIcon(button, icon);
-    button.onclick = async (event) => {
+    button.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (event.button !== 0) return;
       if (!view.file) return;
       action();
-    };
+    });
     return button;
   };
 
@@ -106,8 +106,9 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
     })
   );
 
-  deleteButton.onclick = async (event) => {
+  deleteButton.addEventListener('click', (event) => {
     event.stopPropagation();
+    if (event.button !== 0) return;
     if (!view.file) return;
 
     new DeleteNodeModal(view.app, async (result: DeleteOption) => {
@@ -119,7 +120,7 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
         await view.executeDeleteNodeKeepChildrenCommand(node);
       }
     }).open();
-  };
+  });
 
   box.append(controls, deleteButton);
 }

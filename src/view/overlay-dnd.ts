@@ -50,8 +50,3 @@ export function updateDropPreview(
 export function clearDropPreview(targetBox: HTMLElement): void {
   targetBox.classList.remove('mm-tgt-sibling-before', 'mm-tgt-sibling-after', 'mm-tgt-first-child', 'mm-tgt-last-child', 'mm-tgt-child', 'mm-tgt-invalid');
 }
-
-export function getOverlayAtPoint(clientX: number, clientY: number): HTMLElement | null {
-  const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
-  return element?.closest('.mindmap-overlay, .mindmap-empty-heading-drop-target') as HTMLElement | null;
-}

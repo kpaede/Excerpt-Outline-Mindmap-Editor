@@ -1,7 +1,10 @@
 import { Component, MarkdownRenderer, Notice } from 'obsidian';
 import { openInternalLink, OutlineNode } from '../utils/outline';
 import type { MindmapView } from '../view/mindmap-view';
-import { createEmbeddableMarkdownEditor } from './embeddable-markdown-editor';
+import {
+  createEmbeddableMarkdownEditor,
+  EmbeddableMarkdownEditor,
+} from './embeddable-markdown-editor';
 
 export function renderNodeMarkdown(
   container: HTMLElement,
@@ -74,168 +77,13 @@ export function renderNodeMarkdown(
   });
 }
 
-function startMobileNodeEditing(
-  box: HTMLElement,
-  nodeToUse: OutlineNode,
-  view: MindmapView,
-  options: { isNewNode?: boolean } = {}
-): void {
-  if (box.classList.contains('editing')) return;
-
-  box.classList.add('editing');
-  box.draggable = false;
-
-  const editor = document.createElement('div');
-  editor.className = 'mindmap-mobile-editor';
-
-  const panel = editor.createDiv({ cls: 'mindmap-mobile-editor-panel' });
-  panel.createDiv({ cls: 'mindmap-mobile-editor-title', text: 'Edit node' });
-
-  const inputContainer = document.createElement('div');
-  inputContainer.className = 'mindmap-mobile-editor-textarea';
-  inputContainer.style.overflow = 'auto';
-  inputContainer.style.width = '100%';
-  panel.appendChild(inputContainer);
-
-  let finished = false;
-  let markdownEditor: ReturnType<typeof createEmbeddableMarkdownEditor> | null = null;
-
-  const finish = async (save: boolean) => {
-    if (finished) return;
-    finished = true;
-
-    const newText = view.normalizeNodeText(markdownEditor?.value ?? nodeToUse.text);
-    closeEditor();
-
-    if (save && newText !== nodeToUse.text && view.file) {
-      await view.executeEditNodeCommand(nodeToUse, newText);
-    }
-
-    if (save) {
-      view.selectNode(nodeToUse.line);
-    } else if (options.isNewNode && nodeToUse.children.length === 0) {
-      await view.deleteNodesWithConfirmation([nodeToUse]);
-    }
-  };
-
-  const updatePanelMaxHeight = () => {
-    const visualViewport = window.visualViewport;
-    const visualHeight = visualViewport
-      ? Math.min(visualViewport.height, window.innerHeight, document.documentElement.clientHeight || window.innerHeight)
-      : Math.min(window.innerHeight, document.documentElement.clientHeight || window.innerHeight);
-    const offsetTop = visualViewport?.offsetTop ?? 0;
-    const mobileSheetCap = Math.max(260, Math.round(window.innerHeight * 0.58));
-    const viewportHeight = Math.max(160, Math.min(visualHeight, mobileSheetCap));
-
-    editor.style.height = `${viewportHeight}px`;
-    editor.style.top = `${offsetTop}px`;
-    editor.style.bottom = 'auto';
-
-    if (viewportHeight < 450) {
-      editor.style.paddingTop = '12px';
-      editor.style.paddingBottom = '12px';
-      editor.style.alignItems = 'center';
-    } else {
-      editor.style.paddingTop = '';
-      editor.style.paddingBottom = '8px';
-      editor.style.alignItems = '';
-    }
-
-    const overlayTop = parseFloat(getComputedStyle(editor).paddingTop) || 0;
-    const overlayBottom = parseFloat(getComputedStyle(editor).paddingBottom) || 0;
-    const maxPanelHeight = Math.max(120, viewportHeight - overlayTop - overlayBottom);
-    panel.style.maxHeight = `${maxPanelHeight}px`;
-    panel.style.height = `${maxPanelHeight}px`;
-
-    const maxTextareaHeight = maxPanelHeight - actions.offsetHeight - 52;
-    inputContainer.style.maxHeight = `${Math.max(48, maxTextareaHeight)}px`;
-  };
-
-  const actions = panel.createDiv({ cls: 'mindmap-mobile-editor-actions' });
-  const cancelButton = actions.createEl('button', { text: 'Cancel' });
-  const saveButton = actions.createEl('button', { text: 'Save' });
-  saveButton.addClass('mod-cta');
-  updatePanelMaxHeight();
-
-  const detachViewportListeners = () => {
-    window.removeEventListener('resize', updatePanelMaxHeight);
-    window.removeEventListener('orientationchange', updatePanelMaxHeight);
-    window.visualViewport?.removeEventListener('resize', updatePanelMaxHeight);
-    window.visualViewport?.removeEventListener('scroll', updatePanelMaxHeight);
-  };
-
-  const closeEditor = () => {
-    detachViewportListeners();
-    markdownEditor?.destroy();
-    markdownEditor = null;
-    editor.remove();
-    box.classList.remove('editing');
-    box.draggable = false;
-  };
-
-  editor.addEventListener('pointerdown', (event) => {
-    event.stopPropagation();
-  });
-  editor.addEventListener('click', (event) => {
-    if (event.target === editor) {
-      void finish(true);
-      return;
-    }
-
-    event.stopPropagation();
-  });
-
-  cancelButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    void finish(false);
-  });
-  saveButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    void finish(true);
-  });
-
-  document.body.appendChild(editor);
-  window.addEventListener('resize', updatePanelMaxHeight);
-  window.addEventListener('orientationchange', updatePanelMaxHeight);
-  window.visualViewport?.addEventListener('resize', updatePanelMaxHeight);
-  window.visualViewport?.addEventListener('scroll', updatePanelMaxHeight);
-
-  requestAnimationFrame(() => {
-    markdownEditor = createEmbeddableMarkdownEditor(view.app, inputContainer, {
-      value: nodeToUse.text,
-      placeholder: 'Edit node',
-      cls: 'mindmap-mobile-editor-cm',
-      file: view.file,
-      onEscape: () => void finish(false),
-      onEnter: (_editor, mod) => {
-        if (mod) {
-          void finish(true);
-          return true;
-        }
-        return false;
-      }
-    });
-
-    updatePanelMaxHeight();
-    markdownEditor.activate();
-    markdownEditor.activeCM?.focus();
-    window.setTimeout(updatePanelMaxHeight, 250);
-    window.setTimeout(updatePanelMaxHeight, 600);
-  });
-}
-
 export function startNodeEditing(
   box: HTMLElement,
   nodeToUse: OutlineNode,
   view: MindmapView,
   options: { isNewNode?: boolean } = {}
-): void {
-  if (box.classList.contains('editing')) return;
-
-  if (view.wrapper.classList.contains('is-touch-device')) {
-    startMobileNodeEditing(box, nodeToUse, view, options);
-    return;
-  }
+): EmbeddableMarkdownEditor | null {
+  if (box.classList.contains('editing')) return null;
 
   box.classList.add('editing');
   box.draggable = false;
@@ -243,7 +91,7 @@ export function startNodeEditing(
   const md = box.querySelector('div[data-text]') as HTMLElement;
   if (md) md.classList.add('mm-hidden');
 
-  const editorHost = document.createElement('div');
+  const editorHost = box.ownerDocument.createElement('div');
   editorHost.className = 'node-editor node-editor-host';
   box.appendChild(editorHost);
 
@@ -261,7 +109,9 @@ export function startNodeEditing(
     if (box.contains(editorHost)) box.removeChild(editorHost);
     if (md) md.classList.remove('mm-hidden');
     box.classList.remove('editing');
-    box.draggable = !view.wrapper.classList.contains('is-touch-device');
+    // A touch-capable device may still use a mouse or trackpad. Direct-input
+    // contacts suppress native DnD only while their gesture is active.
+    box.draggable = true;
   };
 
   const deleteCurrentNode = async () => {
@@ -317,6 +167,11 @@ export function startNodeEditing(
     onChange: () => resizeEditor(),
   });
 
+  // Pen/touch user activation is tied to the trusted pointerup. Focus the
+  // already-created CodeMirror synchronously; the next frame is layout only.
+  markdownEditor.activate();
+  markdownEditor.activeCM?.focus();
+
   editorHost.addEventListener('keydown', (event) => {
     if ((event.metaKey || event.ctrlKey) && (event.key === 'Delete' || event.key === 'Backspace')) {
       event.preventDefault();
@@ -352,12 +207,15 @@ export function startNodeEditing(
       ancestor = ancestor.parentElement;
     }
 
-    markdownEditor.activeCM?.focus();
-    markdownEditor.activate();
+    if (!markdownEditor.activeCM?.hasFocus) {
+      markdownEditor.activeCM?.focus();
+    }
 
     scrollContainers.forEach(({ element, left, top }) => {
       element.scrollLeft = left;
       element.scrollTop = top;
     });
   });
+
+  return markdownEditor;
 }

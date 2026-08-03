@@ -103,116 +103,124 @@ function fallbackMeasuredSize(box: HTMLElement, node: OutlineNode, targetWidth: 
   };
 }
 
-export async function measureNodesForLayout(view: MindmapView, flat: OutlineNode[]): Promise<void> {
-  const measureContainer = document.createElement('div');
+export async function measureNodesForLayout(
+  view: MindmapView,
+  flat: OutlineNode[]
+): Promise<Map<number, { w: number; h: number }>> {
+  const sizeMap = new Map<number, { w: number; h: number }>();
+  const doc = view.wrapper?.ownerDocument ?? document;
+  const measureContainer = doc.createElement('div');
   measureContainer.className = 'mindmap-measurement-container';
-  document.body.appendChild(measureContainer);
-  view.sizeMap.clear();
+  doc.body.appendChild(measureContainer);
 
-  for (const node of flat) {
-    const nodeOptions = view.getNodeOptions();
-    const targetWidth = nodeOptions.nodeWidth;
-    const measurementKey = `${targetWidth}\u0000${node.text}`;
-    const cachedMeasurement = view.measurementCache.get(measurementKey);
+  try {
+    for (const node of flat) {
+      const nodeOptions = view.getNodeOptions();
+      const targetWidth = nodeOptions.nodeWidth;
+      const measurementKey = `${targetWidth}\u0000${node.text}`;
+      const cachedMeasurement = view.measurementCache.get(measurementKey);
 
-    if (cachedMeasurement) {
-      view.sizeMap.set(node.line, { w: cachedMeasurement.w, h: cachedMeasurement.h });
-      if (cachedMeasurement.scaleFactor) {
-        node.scaleFactor = cachedMeasurement.scaleFactor;
+      if (cachedMeasurement) {
+        sizeMap.set(node.line, { w: cachedMeasurement.w, h: cachedMeasurement.h });
+        if (cachedMeasurement.scaleFactor) {
+          node.scaleFactor = cachedMeasurement.scaleFactor;
+        }
+        continue;
       }
-      continue;
-    }
 
-    const tmpBox = document.createElement('div');
-    tmpBox.className = 'mindmap-measure-box';
-    tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
+      const tmpBox = doc.createElement('div');
+      tmpBox.className = 'mindmap-measure-box';
+      tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
 
-    if (node.text.trim() === '') {
-      tmpBox.innerHTML = '&nbsp;';
-    } else {
-      try {
-        await MarkdownRenderer.render(
-          view.app,
-          preprocessNodeMarkdown(node.text),
-          tmpBox,
-          view.file?.path || '',
-          view as Component
-        );
+      if (node.text.trim() === '') {
+        tmpBox.innerHTML = '&nbsp;';
+      } else {
+        try {
+          await MarkdownRenderer.render(
+            view.app,
+            preprocessNodeMarkdown(node.text),
+            tmpBox,
+            view.file?.path || '',
+            view as Component
+          );
 
-        await waitForAsyncContent(tmpBox);
+          await waitForAsyncContent(tmpBox);
 
-        tmpBox.querySelectorAll('pre code').forEach((codeEl) => {
-          const preEl = codeEl.parentElement as HTMLPreElement;
-          if (preEl) {
-            preEl.classList.add('mindmap-code-block');
-            (codeEl as HTMLElement).classList.add('mindmap-code-content');
-          }
-        });
-
-        tmpBox.querySelectorAll('img').forEach((img) => {
-          img.classList.add('mindmap-image');
-        });
-
-        tmpBox.querySelectorAll('a.internal-link').forEach((link) => {
-          link.addEventListener('click', (event) => {
-            event.preventDefault();
-            const href = link.getAttribute('href');
-            if (href && view.file) {
-              void openInternalLink(view.app, href, view.file.path);
+          tmpBox.querySelectorAll('pre code').forEach((codeEl) => {
+            const preEl = codeEl.parentElement as HTMLPreElement;
+            if (preEl) {
+              preEl.classList.add('mindmap-code-block');
+              (codeEl as HTMLElement).classList.add('mindmap-code-content');
             }
           });
-        });
-      } catch (error) {
-        console.warn('MarkdownRenderer failed during measurement, using plain text:', error);
-        tmpBox.textContent = node.text;
+
+          tmpBox.querySelectorAll('img').forEach((img) => {
+            img.classList.add('mindmap-image');
+          });
+
+          tmpBox.querySelectorAll('a.internal-link').forEach((link) => {
+            link.addEventListener('click', (event) => {
+              event.preventDefault();
+              const href = link.getAttribute('href');
+              if (href && view.file) {
+                void openInternalLink(view.app, href, view.file.path);
+              }
+            });
+          });
+        } catch (error) {
+          console.warn('MarkdownRenderer failed during measurement, using plain text:', error);
+          tmpBox.textContent = node.text;
+        }
       }
+
+      measureContainer.appendChild(tmpBox);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      if (tmpBox.querySelector('svg, .verovio-container, pre code')) {
+        await new Promise<void>((resolve) => setTimeout(() => resolve(), 200));
+      }
+
+      const rect = tmpBox.getBoundingClientRect();
+      let measuredW = rect.width;
+      let measuredH = rect.height;
+
+      if (measuredW === 0 || measuredH === 0) {
+        console.warn('Zero dimensions detected for node:', node.text.substring(0, 50));
+        const fallbackSize = fallbackMeasuredSize(tmpBox, node, targetWidth);
+        measuredW = fallbackSize.w;
+        measuredH = fallbackSize.h;
+      }
+
+      if (measuredW > targetWidth) {
+        const scale = targetWidth / measuredW;
+        node.scaleFactor = scale;
+        measuredW = targetWidth;
+        measuredH = measuredH * scale;
+      } else {
+        measuredW = targetWidth;
+      }
+
+      if (measuredW < 80) {
+        measuredW = 80;
+      }
+
+      const measuredSize = { w: measuredW, h: measuredH };
+      sizeMap.set(node.line, measuredSize);
+      view.measurementCache.set(measurementKey, {
+        ...measuredSize,
+        scaleFactor: node.scaleFactor,
+      });
+
+      if (view.measurementCache.size > 1000) {
+        const oldestKey = view.measurementCache.keys().next().value;
+        if (oldestKey) view.measurementCache.delete(oldestKey);
+      }
+
+      measureContainer.removeChild(tmpBox);
     }
-
-    measureContainer.appendChild(tmpBox);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-    if (tmpBox.querySelector('svg, .verovio-container, pre code')) {
-      await new Promise<void>((resolve) => setTimeout(() => resolve(), 200));
-    }
-
-    const rect = tmpBox.getBoundingClientRect();
-    let measuredW = rect.width;
-    let measuredH = rect.height;
-
-    if (measuredW === 0 || measuredH === 0) {
-      console.warn('Zero dimensions detected for node:', node.text.substring(0, 50));
-      const fallbackSize = fallbackMeasuredSize(tmpBox, node, targetWidth);
-      measuredW = fallbackSize.w;
-      measuredH = fallbackSize.h;
-    }
-
-    if (measuredW > targetWidth) {
-      const scale = targetWidth / measuredW;
-      node.scaleFactor = scale;
-      measuredW = targetWidth;
-      measuredH = measuredH * scale;
-    } else {
-      measuredW = targetWidth;
-    }
-
-    if (measuredW < 80) {
-      measuredW = 80;
-    }
-
-    const measuredSize = { w: measuredW, h: measuredH };
-    view.sizeMap.set(node.line, measuredSize);
-    view.measurementCache.set(measurementKey, {
-      ...measuredSize,
-      scaleFactor: node.scaleFactor,
-    });
-
-    if (view.measurementCache.size > 1000) {
-      const oldestKey = view.measurementCache.keys().next().value;
-      if (oldestKey) view.measurementCache.delete(oldestKey);
-    }
-
-    measureContainer.removeChild(tmpBox);
+  } finally {
+    measureContainer.remove();
   }
 
-  document.body.removeChild(measureContainer);
+  return sizeMap;
 }

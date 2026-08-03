@@ -6,6 +6,7 @@ import {
   TFile,
   Notice,
   Platform,
+  Menu,
 } from 'obsidian';
 import { Core } from 'cytoscape';
 
@@ -51,6 +52,7 @@ import { NodeOptions } from '../ui/menus/node-options-menu';
 import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
 import { CommandHistory, MindmapCommand } from '../history/command-history';
+import { PenPreferenceStore } from '../drawing/pen-preferences';
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
 import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
 import { MindmapViewState, SelectionSnapshot } from './view-state';
@@ -65,6 +67,9 @@ import {
   getTopLevelNodes as getTopLevelNodesFn,
   pasteClipboardAsChildren as pasteClipboardAsChildrenFn,
 } from './clipboard';
+import { eventPathContainsSelector, eventTargetsObsidianMenu } from './menu-dismissal';
+import { MindmapGestureCoordinator } from './gesture-coordinator';
+import { AnimationFrameHost, RenderLifecycle } from './render-lifecycle';
 
 export type { LayoutOptions, MindmapViewState };
 
@@ -79,6 +84,12 @@ export class MindmapView extends TextFileView {
   public commandHistory: CommandHistory;
   public selectedNodeLines: Set<number> = new Set();
   public pendingEditNodeLine: number | null = null;
+  private activeNodeContextMenu: Menu | null = null;
+  private interactionDocument: Document | null = null;
+  private gestureCoordinator: MindmapGestureCoordinator | null = null;
+  private transientClosers = new Set<() => void>();
+  private readonly renderLifecycle = new RenderLifecycle();
+  private isViewClosed = false;
 
   // Box selection properties
   private selectionBoxEl: HTMLDivElement | null = null;
@@ -96,21 +107,18 @@ export class MindmapView extends TextFileView {
   private boxStartY: number = 0;
   private middlePanLastX: number = 0;
   private middlePanLastY: number = 0;
-  private touchViewportPointers = new Map<number, { x: number; y: number }>();
-  private touchPinchLastDistance: number | null = null;
-  private touchPinchLastCenter: { x: number; y: number } | null = null;
-  private touchPanLastPoint: { x: number; y: number } | null = null;
-  private touchGestureMode: 'pan' | 'pinch' | null = null;
-  private activeTouchDragPointerId: number | null = null;
   private mobileToolbarPlacementTimeouts: number[] = [];
   private orientationMediaQuery: MediaQueryList | null = null;
   private screenOrientation: ScreenOrientation | null = null;
   private viewEventController: AbortController | null = null;
   private zoomingClassTimeout: number | null = null;
   private handleMenuDismissPointerDown = (event: Event): void => {
-    const target = event.target as HTMLElement | null;
+    if (!eventTargetsObsidianMenu(event)) {
+      this.dismissNodeContextMenu();
+    }
     if (
-      target?.closest(
+      eventPathContainsSelector(
+        event,
         '.vertical-toolbar, .layout-options-menu, .node-options-menu, .general-settings-menu, .zoom-options-menu'
       )
     ) {
@@ -119,6 +127,22 @@ export class MindmapView extends TextFileView {
 
     this.toolbar?.closeMenus();
   };
+  public setActiveNodeContextMenu(menu: Menu): void {
+    this.activeNodeContextMenu?.hide();
+    this.activeNodeContextMenu = menu;
+    menu.onHide(() => {
+      if (this.activeNodeContextMenu === menu) {
+        this.activeNodeContextMenu = null;
+      }
+    });
+  }
+
+  public dismissNodeContextMenu(): void {
+    // onHide is the sole owner of clearing this reference. Obsidian can defer
+    // DOM-menu dismissal on iPad; retaining it lets subsequent outside events
+    // retry instead of leaving an orphaned, no-longer-addressable menu open.
+    this.activeNodeContextMenu?.hide();
+  }
 
   private readonly isTouchDevice: boolean =
     Platform.isMobile ||
@@ -154,6 +178,76 @@ export class MindmapView extends TextFileView {
     return updateOverlayGeometryFn(this);
   };
 
+  public isRenderGenerationCurrent(generation: number): boolean {
+    return !this.isViewClosed && this.renderLifecycle.isCurrent(generation);
+  }
+
+  public isRenderContextCurrent(generation: number, cy: Core): boolean {
+    return this.isRenderGenerationCurrent(generation) &&
+      this.cy === cy &&
+      !cy.destroyed() &&
+      !!this.wrapper?.isConnected;
+  }
+
+  public requestOverlayUpdateFrame(callback: () => void): boolean {
+    return this.requestRenderFrame('overlay-update', callback, () => {
+      this.isUpdatingOverlays = false;
+    });
+  }
+
+  public requestOverlayGeometryFrame(callback: () => void): boolean {
+    return this.requestRenderFrame('overlay-geometry', callback);
+  }
+
+  public requestPostOverlayFrame(callback: () => void): boolean {
+    return this.requestRenderFrame('post-overlay', callback);
+  }
+
+  public cancelScheduledRenderFrames(): void {
+    this.renderLifecycle.cancelFrames();
+    this.isUpdatingOverlays = false;
+  }
+
+  private requestRenderFrame(
+    key: string,
+    callback: () => void,
+    onDiscard?: () => void
+  ): boolean {
+    const cy = this.cy;
+    const wrapper = this.wrapper;
+    const frameHost = wrapper?.ownerDocument.defaultView as AnimationFrameHost | null | undefined;
+    if (!cy || !wrapper || !frameHost || !this.isRenderContextCurrent(this.renderLifecycle.currentGeneration(), cy)) {
+      onDiscard?.();
+      return false;
+    }
+
+    const generation = this.renderLifecycle.currentGeneration();
+    return this.renderLifecycle.scheduleFrame(
+      key,
+      frameHost,
+      generation,
+      () => this.wrapper === wrapper && this.isRenderContextCurrent(generation, cy),
+      callback,
+      onDiscard
+    );
+  }
+
+  public isDirectViewportGestureActive(): boolean {
+    return this.gestureCoordinator?.isViewportGestureActive() ?? false;
+  }
+
+  public isDirectNodeDragActive(): boolean {
+    return this.gestureCoordinator?.isNodeDragActive() ?? false;
+  }
+
+  public isDirectGestureBlockingNodeClick(): boolean {
+    return this.gestureCoordinator?.blocksNodeClick() ?? false;
+  }
+
+  public resetDirectGestures(): void {
+    this.gestureCoordinator?.reset();
+  }
+
   public prepareWrapper(): void {
     if (!this.wrapper) return;
     if (!this.viewEventController) {
@@ -165,6 +259,10 @@ export class MindmapView extends TextFileView {
     this.wrapper.onkeydown = this.handleWrapperKeydown;
     this.initBoxSelection();
     this.initViewportWheelControls();
+    if (!this.gestureCoordinator || this.gestureCoordinator.wrapper !== this.wrapper) {
+      this.gestureCoordinator?.destroy();
+      this.gestureCoordinator = new MindmapGestureCoordinator(this, this.wrapper);
+    }
   }
 
   private updateMobileToolbarPlacement = (): void => {
@@ -208,7 +306,7 @@ export class MindmapView extends TextFileView {
     }, { signal });
 
     this.wrapper.addEventListener('contextmenu', (e) => {
-      if (this.wrapper.classList.contains('is-touch-dragging')) {
+      if (this.isDirectNodeDragActive()) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -239,6 +337,7 @@ export class MindmapView extends TextFileView {
       
       e.preventDefault();
       e.stopPropagation();
+      this.dismissNodeContextMenu();
 
       this.isBoxSelecting = true;
       this.hasDraggedSelectionBox = false;
@@ -331,10 +430,6 @@ export class MindmapView extends TextFileView {
     this.isViewportWheelInitialized = true;
     const signal = this.viewEventController?.signal;
 
-    if (this.isTouchDevice) {
-      this.initTouchViewportControls();
-    }
-
     this.wrapper.addEventListener('mousedown', (event) => {
       if (event.button !== 1 || !this.cy) return;
 
@@ -390,11 +485,9 @@ export class MindmapView extends TextFileView {
 
     this.wrapper.addEventListener('wheel', (event) => {
       if (!this.cy) return;
+      this.dismissNodeContextMenu();
 
-      if (
-        this.wrapper.querySelector('.node-editor, .mindmap-heading-editor') ||
-        document.querySelector('.mindmap-mobile-editor')
-      ) {
+      if (this.wrapper.querySelector('.node-editor, .mindmap-heading-editor')) {
         event.preventDefault();
         event.stopPropagation();
         return;
@@ -436,277 +529,8 @@ export class MindmapView extends TextFileView {
     }, { capture: true, passive: false, signal });
   }
 
-  private initTouchViewportControls(): void {
-    const signal = this.viewEventController?.signal;
-    const getGesturePointers = () => {
-      return Array.from(this.touchViewportPointers.entries())
-        .filter(([pointerId]) => pointerId !== this.activeTouchDragPointerId)
-        .map(([, point]) => point);
-    };
-
-    const getPinchState = () => {
-      const points = getGesturePointers();
-      if (points.length < 2) return null;
-
-      const [first, second] = points;
-      const dx = second.x - first.x;
-      const dy = second.y - first.y;
-
-      return {
-        distance: Math.hypot(dx, dy),
-        center: {
-          x: (first.x + second.x) / 2,
-          y: (first.y + second.y) / 2,
-        },
-      };
-    };
-
-    const resetPinch = () => {
-      this.touchPinchLastDistance = null;
-      this.touchPinchLastCenter = null;
-      if (this.touchGestureMode === 'pinch') {
-        this.touchGestureMode = null;
-      }
-      this.wrapper.classList.remove('is-touch-pinching');
-    };
-
-    const resetTouchState = () => {
-      for (const pointerId of this.touchViewportPointers.keys()) {
-        try {
-          if (this.wrapper.hasPointerCapture(pointerId)) {
-            this.wrapper.releasePointerCapture(pointerId);
-          }
-        } catch {
-          // Pointer capture can already be gone when iOS cancels a gesture.
-        }
-      }
-      this.touchViewportPointers.clear();
-      this.touchPinchLastDistance = null;
-      this.touchPinchLastCenter = null;
-      this.touchPanLastPoint = null;
-      this.touchGestureMode = null;
-      const wasPanning = this.wrapper.classList.contains('is-touch-panning');
-      const wasViewportGesture =
-        wasPanning ||
-        this.wrapper.classList.contains('is-touch-pinching') ||
-        this.wrapper.classList.contains('is-touch-dragging');
-      this.wrapper.classList.remove('is-touch-pinching', 'is-touch-panning');
-      if (wasPanning) {
-        this.wrapper.classList.add('is-touch-pan-suppressed');
-        window.setTimeout(() => {
-          this.wrapper?.classList.remove('is-touch-pan-suppressed');
-        }, 220);
-      }
-      if (wasViewportGesture) {
-        requestAnimationFrame(() => this.updateOverlays());
-      }
-    };
-
-    const resetGestureState = () => {
-      this.touchPinchLastDistance = null;
-      this.touchPinchLastCenter = null;
-      this.touchPanLastPoint = null;
-      this.touchGestureMode = null;
-      this.wrapper.classList.remove('is-touch-pinching', 'is-touch-panning');
-    };
-
-    this.wrapper.addEventListener('mindmap-touch-drag-start', (event) => {
-      const customEvent = event as CustomEvent<{ pointerId: number }>;
-      this.activeTouchDragPointerId = customEvent.detail.pointerId;
-      resetGestureState();
-    }, { signal });
-
-    this.wrapper.addEventListener('mindmap-touch-drag-end', () => {
-      this.activeTouchDragPointerId = null;
-      resetGestureState();
-    }, { signal });
-
-    this.wrapper.addEventListener('pointerdown', (event) => {
-      if (event.pointerType !== 'touch') return;
-
-      if (document.querySelector('.mindmap-mobile-editor')) {
-        resetTouchState();
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (!target?.closest('.vertical-toolbar, .layout-options-menu, .node-options-menu, .general-settings-menu, .zoom-options-menu')) {
-        this.toolbar?.closeMenus();
-      }
-      if (target?.closest('.vertical-toolbar, button, a, input, textarea, select, iframe, video, audio, [contenteditable="true"]')) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (event.isPrimary && this.touchGestureMode !== 'pinch') {
-        resetTouchState();
-      }
-
-      this.touchViewportPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (!this.wrapper.hasPointerCapture(event.pointerId)) {
-        try {
-          this.wrapper.setPointerCapture(event.pointerId);
-        } catch {
-          // Some WebViews reject capture if the pointer is already cancelled.
-        }
-      }
-      const gesturePointers = getGesturePointers();
-
-      if (gesturePointers.length >= 2) {
-        const state = getPinchState();
-        this.touchPinchLastDistance = state?.distance ?? null;
-        this.touchPinchLastCenter = state?.center ?? null;
-        this.touchPanLastPoint = null;
-        this.touchGestureMode = 'pinch';
-        this.wrapper.classList.add('is-touch-pinching');
-        this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-pinch-start'));
-        this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-gesture-start'));
-        event.preventDefault();
-      } else if (gesturePointers.length === 1 && event.pointerId !== this.activeTouchDragPointerId) {
-        this.touchGestureMode = 'pan';
-        this.touchPanLastPoint = { x: event.clientX, y: event.clientY };
-      }
-    }, { capture: true, passive: false, signal });
-
-    this.wrapper.addEventListener('pointermove', (event) => {
-      if (event.pointerType !== 'touch' || !this.touchViewportPointers.has(event.pointerId)) return;
-
-      if (document.querySelector('.mindmap-mobile-editor')) {
-        resetTouchState();
-        return;
-      }
-
-      this.touchViewportPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      event.preventDefault();
-      const gesturePointers = getGesturePointers();
-
-      if (event.pointerId === this.activeTouchDragPointerId) {
-        return;
-      }
-
-      if (gesturePointers.length === 0) {
-        this.touchPanLastPoint = null;
-        return;
-      }
-
-      if (gesturePointers.length === 1) {
-        if (this.touchGestureMode === 'pinch') {
-          this.touchGestureMode = 'pan';
-          this.touchPinchLastDistance = null;
-          this.touchPinchLastCenter = null;
-          this.wrapper.classList.remove('is-touch-pinching');
-          this.touchPanLastPoint = { x: event.clientX, y: event.clientY };
-          return;
-        }
-
-        this.touchGestureMode = 'pan';
-
-        if (
-          this.cy &&
-          this.touchPanLastPoint
-        ) {
-          const deltaX = event.clientX - this.touchPanLastPoint.x;
-          const deltaY = event.clientY - this.touchPanLastPoint.y;
-
-          if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-            if (!this.wrapper.classList.contains('is-touch-panning')) {
-              this.wrapper.classList.add('is-touch-panning');
-              this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-pan-start'));
-              this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-gesture-start'));
-            }
-            if (!this.wrapper.hasPointerCapture(event.pointerId)) {
-              try {
-                this.wrapper.setPointerCapture(event.pointerId);
-              } catch {
-                // Some WebViews reject capture after pointer cancellation.
-              }
-            }
-          }
-
-          this.cy.panBy({
-            x: deltaX,
-            y: deltaY,
-          });
-          this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-viewport-change'));
-        }
-
-        this.touchPanLastPoint = { x: event.clientX, y: event.clientY };
-        return;
-      }
-
-      this.touchPanLastPoint = null;
-      this.touchGestureMode = 'pinch';
-
-      if (!this.cy) return;
-
-      const state = getPinchState();
-      if (!state || state.distance <= 0) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (this.touchPinchLastDistance && this.touchPinchLastCenter) {
-        const containerRect = this.cy.container()?.getBoundingClientRect();
-        const nextZoom = this.cy.zoom() * (state.distance / this.touchPinchLastDistance);
-
-        this.setZoomFactor(nextZoom, true, {
-          x: containerRect ? state.center.x - containerRect.left : state.center.x,
-          y: containerRect ? state.center.y - containerRect.top : state.center.y,
-        });
-
-        this.cy.panBy({
-          x: state.center.x - this.touchPinchLastCenter.x,
-          y: state.center.y - this.touchPinchLastCenter.y,
-        });
-        this.wrapper.dispatchEvent(new CustomEvent('mindmap-touch-viewport-change'));
-      }
-
-      this.touchPinchLastDistance = state.distance;
-      this.touchPinchLastCenter = state.center;
-    }, { capture: true, passive: false, signal });
-
-    const endPointer = (event: PointerEvent) => {
-      if (event.pointerType !== 'touch') return;
-
-      try {
-        if (this.wrapper.hasPointerCapture(event.pointerId)) {
-          this.wrapper.releasePointerCapture(event.pointerId);
-        }
-      } catch {
-        // Ignore stale pointer capture after cancelled gestures.
-      }
-
-      this.touchViewportPointers.delete(event.pointerId);
-      const gesturePointers = getGesturePointers();
-
-      if (this.touchViewportPointers.size === 0 || gesturePointers.length === 0) {
-        resetTouchState();
-        return;
-      }
-
-      if (gesturePointers.length < 2) {
-        resetPinch();
-        const remainingPoint = gesturePointers[0];
-        this.touchPanLastPoint = remainingPoint ? { ...remainingPoint } : null;
-        this.touchGestureMode = 'pan';
-        return;
-      }
-
-      const state = getPinchState();
-      this.touchPinchLastDistance = state?.distance ?? null;
-      this.touchPinchLastCenter = state?.center ?? null;
-    };
-
-    this.wrapper.addEventListener('pointerup', endPointer, { capture: true, signal });
-    this.wrapper.addEventListener('pointercancel', endPointer, { capture: true, signal });
-    window.addEventListener('pointerup', endPointer, { capture: true, signal });
-    window.addEventListener('pointercancel', endPointer, { capture: true, signal });
-    window.addEventListener('blur', resetTouchState, { signal });
-  }
-
-  public showNodeContextMenu(event: MouseEvent): void {
-    showNodeContextMenuFn(this, event);
+  public showNodeContextMenu(event: MouseEvent, explicitNodeLine?: number): void {
+    showNodeContextMenuFn(this, event, explicitNodeLine);
   }
 
   private getTopLevelNodes(nodes: OutlineNode[]): OutlineNode[] {
@@ -914,10 +738,14 @@ export class MindmapView extends TextFileView {
     nodeWidth: 300
   };
 
-  constructor(leaf: WorkspaceLeaf, _plugin: MindmapPlugin) {
+  /** Pen size and colour, persisted in the plugin's data.json across sessions. */
+  public readonly penPreferences: PenPreferenceStore;
+
+  constructor(leaf: WorkspaceLeaf, plugin: MindmapPlugin) {
     super(leaf);
     this.frontmatterStorage = new FrontmatterStorage(this.app);
     this.commandHistory = new CommandHistory(this.app);
+    this.penPreferences = new PenPreferenceStore(plugin);
   }
 
   getViewType(): string {
@@ -972,12 +800,17 @@ export class MindmapView extends TextFileView {
   }
 
   private resetRenderedMindmap(): void {
-    this.cy?.destroy();
+    this.cancelScheduledRenderFrames();
+    this.dismissNodeContextMenu();
+    this.gestureCoordinator?.reset();
+    const cy = this.cy;
     this.cy = undefined;
+    cy?.destroy();
     this.toolbar?.closeMenus();
     this.toolbar = undefined;
     this.firstFitDone = false;
     this.isUpdatingOverlays = false;
+    this.sizeMap = new Map();
     this.selectionBoxEl = null;
     this.ensureMindmapWrapper();
     this.wrapper.empty();
@@ -1087,6 +920,7 @@ export class MindmapView extends TextFileView {
 
   /* ── Lifecycle ───────────────────────────── */
   async onOpen(): Promise<void> {
+    this.isViewClosed = false;
     const st = this.leaf.getViewState().state as MindmapViewState | undefined;
     if (!st?.file) {
       return;
@@ -1128,20 +962,26 @@ export class MindmapView extends TextFileView {
     }
     this.screenOrientation = window.screen.orientation ?? null;
     this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
-    document.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
-    document.addEventListener('touchstart', this.handleMenuDismissPointerDown, true);
+    this.interactionDocument = this.wrapper.ownerDocument;
+    this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
   }
 
   async onClose(): Promise<void> {
+    this.isViewClosed = true;
+    this.renderLifecycle.invalidate();
+    this.isUpdatingOverlays = false;
+    for (const close of Array.from(this.transientClosers)) close();
+    this.transientClosers.clear();
+    this.activeNodeContextMenu?.hide();
+    this.activeNodeContextMenu = null;
     this.viewEventController?.abort();
     this.viewEventController = null;
     this.isBoxSelectionInitialized = false;
     this.isViewportWheelInitialized = false;
     this.isBoxSelecting = false;
     this.isMiddleMousePanning = false;
-    this.touchViewportPointers.clear();
-    this.touchGestureMode = null;
-    this.activeTouchDragPointerId = null;
+    this.gestureCoordinator?.destroy();
+    this.gestureCoordinator = null;
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
@@ -1157,8 +997,8 @@ export class MindmapView extends TextFileView {
     }
     this.screenOrientation?.removeEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
     this.screenOrientation = null;
-    document.removeEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
-    document.removeEventListener('touchstart', this.handleMenuDismissPointerDown, true);
+    this.interactionDocument?.removeEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
+    this.interactionDocument = null;
     if (this.zoomingClassTimeout !== null) {
       window.clearTimeout(this.zoomingClassTimeout);
       this.zoomingClassTimeout = null;
@@ -1166,7 +1006,9 @@ export class MindmapView extends TextFileView {
     this.mobileToolbarPlacementTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
     this.mobileToolbarPlacementTimeouts = [];
     if (this.wrapper) resetToolbarPlacement(this.wrapper);
-    this.cy?.destroy();
+    const cy = this.cy;
+    this.cy = undefined;
+    cy?.destroy();
     
     // Clean up CSS when last mindmap view closes
     const mindmapViews = this.app.workspace.getLeavesOfType(VIEW_TYPE_MINDMAP);
@@ -1178,18 +1020,26 @@ export class MindmapView extends TextFileView {
 
   /* ── draw-Wrapper ────────────────────────── */
   private async draw(): Promise<void> {
-    // Check content compatibility first
-    if (isEmptyContent(this.data)) {
-      this.showEmptyState();
-      return;
-    }
-    
-    if (!isOutlineCompatible(this.data)) {
-      this.showIncompatibleWarning();
-      return;
-    }
-    
-    await drawMindmap(this);
+    const data = this.data;
+    await this.renderLifecycle.enqueueLatest(async (render) => {
+      if (!render.isCurrent() || this.isViewClosed) return;
+
+      if (isEmptyContent(data)) {
+        this.showEmptyState();
+        return;
+      }
+
+      if (!isOutlineCompatible(data)) {
+        this.showIncompatibleWarning();
+        return;
+      }
+
+      await drawMindmap(this, {
+        generation: render.generation,
+        data,
+        isCurrent: () => render.isCurrent() && !this.isViewClosed,
+      });
+    });
   }
 
   /* ── relayout() ─────────────────────────── */
@@ -1862,11 +1712,23 @@ export class MindmapView extends TextFileView {
       }
     }
     
-    // Clear size map to force remeasurement with new options
-    this.sizeMap.clear();
+    // Keep the currently displayed dimensions intact until the replacement
+    // measurement pass commits its complete map atomically.
     this.measurementCache.clear();
     // Trigger full redraw
     void this.draw();
+  }
+
+  public refreshRenderedAttachments(): Promise<void> {
+    // The old graph remains internally consistent while the fresh attachment
+    // measurements are prepared in a render-local map.
+    this.measurementCache.clear();
+    return this.draw();
+  }
+
+  public registerTransientCloser(close: () => void): () => void {
+    this.transientClosers.add(close);
+    return () => this.transientClosers.delete(close);
   }
 
   public async updateLayoutOptions(newOptions: Partial<LayoutOptions>): Promise<void> {
@@ -1911,16 +1773,16 @@ export class MindmapView extends TextFileView {
     this.markViewportZooming();
 
     const nextZoom = Math.max(this.cy.minZoom(), Math.min(this.cy.maxZoom(), zoomFactor));
-    const roundedZoom = this.isTouchDevice
+    const displayedZoom = this.isTouchDevice
       ? Number((Math.round(nextZoom * 100) / 100).toFixed(2))
       : Number(nextZoom.toFixed(3));
 
     if (renderedPosition) {
-      this.cy.zoom({ level: roundedZoom, renderedPosition });
+      this.cy.zoom({ level: nextZoom, renderedPosition });
     } else {
       const containerRect = this.cy.container()?.getBoundingClientRect();
       this.cy.zoom({
-        level: roundedZoom,
+        level: nextZoom,
         renderedPosition: {
           x: containerRect ? containerRect.width / 2 : 0,
           y: containerRect ? containerRect.height / 2 : 0,
@@ -1928,11 +1790,13 @@ export class MindmapView extends TextFileView {
       });
     }
 
-    this.layoutOptions.zoomFactor = roundedZoom;
-    this.toolbar?.setZoomFactor(roundedZoom);
+    // Cytoscape keeps the exact gesture target. Only the visible and persisted
+    // value is rounded, so repeated tiny Pinch deltas remain cumulative.
+    this.layoutOptions.zoomFactor = displayedZoom;
+    this.toolbar?.setZoomFactor(displayedZoom);
 
     if (save) {
-      this.queueZoomFactorSave(roundedZoom);
+      this.queueZoomFactorSave(displayedZoom);
     }
   }
 
@@ -1945,6 +1809,9 @@ export class MindmapView extends TextFileView {
 
     this.zoomingClassTimeout = window.setTimeout(() => {
       this.wrapper?.classList.remove('is-viewport-zooming');
+      // Refresh only positions and CSS variables. This prompts a final crisp
+      // paint without rebuilding Markdown renderers or node overlays.
+      this.updateOverlayGeometry();
       this.zoomingClassTimeout = null;
     }, 180);
   }
@@ -2097,6 +1964,7 @@ export class MindmapView extends TextFileView {
   }
 
   public async enterEditModeForNodeByLine(nodeLine: number, isNewNode: boolean = false): Promise<void> {
+    this.dismissNodeContextMenu();
     for (let i = 0; i < 60; i++) {
       const overlay = this.wrapper?.querySelector(`[data-overlay][data-node-line="${nodeLine}"]`) as HTMLElement | null;
       if (overlay && !this.isUpdatingOverlays) {
@@ -2139,14 +2007,17 @@ export class MindmapView extends TextFileView {
     window.setTimeout(startAfterOverlayUpdate, 350);
   }
 
-  public async enterEditModeForHeadingByLine(headingLine: number): Promise<void> {
+  public async enterEditModeForHeadingByLine(
+    headingLine: number,
+    selectHeadingTextOnly: boolean = false
+  ): Promise<void> {
     for (let i = 0; i < 60; i++) {
       const frame = this.wrapper?.querySelector(`[data-heading-frame][data-heading-line="${headingLine}"]`) as HTMLElement | null;
       if (frame && !this.isUpdatingOverlays) {
         const section = parseHeadingSections(this.data).find(candidate => candidate.line === headingLine);
         if (!section) return;
 
-        startHeadingEditing(frame, section, this, { selectHeadingTextOnly: true });
+        startHeadingEditing(frame, section, this, { selectHeadingTextOnly });
         return;
       }
 
@@ -2165,7 +2036,7 @@ export class MindmapView extends TextFileView {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            void this.enterEditModeForHeadingByLine(headingLine);
+            void this.enterEditModeForHeadingByLine(headingLine, true);
           });
         });
       });

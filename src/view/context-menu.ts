@@ -1,14 +1,24 @@
 import { Menu } from 'obsidian';
 import type { OutlineNode } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
+import {
+  addDrawingAsChild,
+  addDrawingAsSibling,
+  editDrawing,
+} from '../drawing/drawing-actions';
+import { extractDrawingLink } from '../drawing/drawing-link';
+import { warmWhiteboardRuntime } from '../drawing/whiteboard-runtime';
 
-export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void {
+export function showNodeContextMenu(
+  view: MindmapView,
+  event: MouseEvent,
+  explicitNodeLine?: number
+): void {
   event.preventDefault();
-  if (view.wrapper?.classList.contains('is-touch-dragging')) return;
+  event.stopPropagation();
+  if (view.isDirectNodeDragActive()) return;
 
-  const target = event.target as HTMLElement | null;
-  const overlay = target?.closest('.mindmap-overlay') as HTMLElement | null;
-  const contextLine = overlay ? Number(overlay.dataset.nodeLine) : NaN;
+  const contextLine = explicitNodeLine ?? contextLineFromEvent(event);
   const contextNode = Number.isNaN(contextLine) ? null : view.getNodeByLine(contextLine);
 
   if (contextNode && !view.selectedNodeLines.has(contextNode.line)) {
@@ -20,6 +30,8 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
   const selectedNodes = getSelectedNodesForContext(view, contextNode);
   const copyCount = selectedNodes.length;
   const targetNode = contextNode ?? (view.selectedNodeLines.size === 1 ? selectedNodes[0] : null);
+  const selectionIsBullets = copyCount > 0 && selectedNodes.every((node) => node.checkbox === 'none');
+  const selectionIsTasks = copyCount > 0 && selectedNodes.every((node) => node.checkbox !== 'none');
   const menu = new Menu();
 
   if (targetNode) {
@@ -38,13 +50,6 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
       item
         .setTitle(copyCount > 1 ? `Copy ${copyCount} nodes` : 'Copy')
         .setIcon('copy')
-        .onClick(() => void view.copyNodesToClipboard(selectedNodes));
-    });
-
-    menu.addItem((item) => {
-      item
-        .setTitle('Copy selection as Markdown')
-        .setIcon('file-text')
         .onClick(() => void view.copyNodesToClipboard(selectedNodes));
     });
 
@@ -78,6 +83,33 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
         .onClick(() => void view.executeAddSiblingCommand(targetNode));
     });
 
+    // This menu is the last step before any of the drawing actions below, so
+    // it is where the editor's one-off module cost can be absorbed.
+    warmWhiteboardRuntime();
+
+    menu.addItem((item) => {
+      item
+        .setTitle('Add drawing as child')
+        .setIcon('pen-tool')
+        .onClick(() => void addDrawingAsChild(view, targetNode));
+    });
+
+    menu.addItem((item) => {
+      item
+        .setTitle('Add drawing as sibling')
+        .setIcon('pen-tool')
+        .onClick(() => void addDrawingAsSibling(view, targetNode));
+    });
+
+    if (extractDrawingLink(targetNode.text)) {
+      menu.addItem((item) => {
+        item
+          .setTitle('Edit drawing')
+          .setIcon('edit-3')
+          .onClick(() => void editDrawing(view, targetNode));
+      });
+    }
+
     menu.addItem((item) => {
       item
         .setTitle('Add heading for this tree')
@@ -85,26 +117,28 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
         .onClick(() => void view.executeAddHeadingCommand(targetNode));
     });
 
-    menu.addItem((item) => {
-      item
-        .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to unchecked tasks` : 'Convert to unchecked task')
-        .setIcon('check-square')
-        .onClick(() => void view.convertNodesToTask(selectedNodes));
-    });
+    if (selectionIsBullets) {
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to unchecked tasks` : 'Convert to unchecked task')
+          .setIcon('square')
+          .onClick(() => void view.convertNodesToTask(selectedNodes));
+      });
 
-    menu.addItem((item) => {
-      item
-        .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to checked tasks` : 'Convert to checked task')
-        .setIcon('check-square')
-        .onClick(() => void view.convertNodesToCheckedTask(selectedNodes));
-    });
-
-    menu.addItem((item) => {
-      item
-        .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to bullet points` : 'Convert to bullet point')
-        .setIcon('list')
-        .onClick(() => void view.convertNodesToBulletPoint(selectedNodes));
-    });
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to checked tasks` : 'Convert to checked task')
+          .setIcon('square-check-big')
+          .onClick(() => void view.convertNodesToCheckedTask(selectedNodes));
+      });
+    } else if (selectionIsTasks) {
+      menu.addItem((item) => {
+        item
+          .setTitle(copyCount > 1 ? `Convert ${copyCount} selected nodes to bullet points` : 'Convert to bullet point')
+          .setIcon('list')
+          .onClick(() => void view.convertNodesToBulletPoint(selectedNodes));
+      });
+    }
 
     menu.addSeparator();
 
@@ -127,7 +161,40 @@ export function showNodeContextMenu(view: MindmapView, event: MouseEvent): void 
     menu.addItem((item) => item.setTitle('No node selected').setDisabled(true));
   }
 
-  menu.showAtMouseEvent(event);
+  view.setActiveNodeContextMenu(menu);
+  if (explicitNodeLine !== undefined && typeof menu.showAtPosition === 'function') {
+    // Supplying the originating document is important in Obsidian's pop-out
+    // windows and mobile WebViews. It also avoids relying on a synthetic
+    // event's retargeted `view` when a Pencil long-press opens the menu.
+    menu.showAtPosition({ x: event.clientX, y: event.clientY }, view.wrapper.ownerDocument);
+  } else {
+    // Preserve Obsidian's trusted desktop/contextmenu path and compatibility
+    // with app versions predating showAtPosition.
+    menu.showAtMouseEvent(event);
+  }
+}
+
+function contextLineFromEvent(event: MouseEvent): number {
+  const path = typeof event.composedPath === 'function'
+    ? event.composedPath()
+    : [event.target];
+
+  for (const candidate of path) {
+    if (!candidate || typeof candidate !== 'object') continue;
+    const element = candidate as {
+      classList?: { contains?: (className: string) => boolean };
+      dataset?: { nodeLine?: string };
+      closest?: (selector: string) => Element | null;
+    };
+    const overlay = element.classList?.contains?.('mindmap-overlay')
+      ? element
+      : element.closest?.('.mindmap-overlay');
+    if (!overlay) continue;
+    const line = Number((overlay as HTMLElement).dataset.nodeLine);
+    if (!Number.isNaN(line)) return line;
+  }
+
+  return NaN;
 }
 
 function getSelectedNodesForContext(view: MindmapView, contextNode: OutlineNode | null): OutlineNode[] {

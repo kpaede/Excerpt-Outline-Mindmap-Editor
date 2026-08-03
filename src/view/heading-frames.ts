@@ -11,6 +11,23 @@ interface RenderHeadingFrameOptions {
   onEmptyHeadingDrop?: (section: HeadingSection, sourceLine: number) => void;
 }
 
+export function updateHeadingFrameGeometry(wrapper: HTMLElement, cy: Core): boolean {
+  const zoom = cy.zoom();
+  const pan = cy.pan();
+
+  for (const frame of Array.from(wrapper.querySelectorAll<HTMLElement>('[data-heading-frame]'))) {
+    const centerX = Number(frame.dataset.headingCenterX);
+    const centerY = Number(frame.dataset.headingCenterY);
+    if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return false;
+
+    frame.style.setProperty('--heading-frame-left', `${pan.x + centerX * zoom}px`);
+    frame.style.setProperty('--heading-frame-top', `${pan.y + centerY * zoom}px`);
+    frame.style.setProperty('--heading-frame-zoom', String(zoom));
+  }
+
+  return true;
+}
+
 function isValidHeadingText(text: string): boolean {
   return /^#{1,6}\s+\S/.test(text.trim());
 }
@@ -24,6 +41,7 @@ export function renderHeadingFrames(
 ): void {
   wrapper.querySelectorAll('[data-heading-frame]').forEach((frame) => frame.remove());
 
+  const ownerDocument = wrapper.ownerDocument;
   const zoom = cy.zoom();
   const pan = cy.pan();
   const attributeName = options.attributeName ?? 'overlay';
@@ -109,20 +127,22 @@ export function renderHeadingFrames(
     const height = resolvedBounds.bottom - resolvedBounds.top + padding * 2 + titleSpace;
     const centerX = resolvedBounds.left + (resolvedBounds.right - resolvedBounds.left) / 2;
     const centerY = resolvedBounds.top + (resolvedBounds.bottom - resolvedBounds.top) / 2 - titleSpace / 2;
-    const frame = document.createElement('div');
+    const frame = ownerDocument.createElement('div');
     frame.className = 'mindmap-heading-frame';
     frame.classList.toggle('is-empty-heading-frame', isEmptySection);
     frame.dataset.headingFrame = '1';
     frame.dataset[attributeName] = '1';
     frame.dataset.headingLevel = String(section.level);
     frame.dataset.headingLine = String(section.line);
+    frame.dataset.headingCenterX = String(centerX);
+    frame.dataset.headingCenterY = String(centerY);
     frame.style.setProperty('--heading-frame-left', `${pan.x + centerX * zoom}px`);
     frame.style.setProperty('--heading-frame-top', `${pan.y + centerY * zoom}px`);
     frame.style.setProperty('--heading-frame-width', `${width}px`);
     frame.style.setProperty('--heading-frame-height', `${height}px`);
     frame.style.setProperty('--heading-frame-zoom', String(zoom));
 
-    const title = document.createElement('div');
+    const title = ownerDocument.createElement('div');
     title.className = 'mindmap-heading-frame-title';
     title.addClass('markdown-rendered');
     title.createEl(`h${section.level}` as keyof HTMLElementTagNameMap, { text: section.text });
@@ -136,7 +156,8 @@ export function renderHeadingFrames(
     frame.appendChild(title);
 
     if (isEmptySection) {
-      const dropTarget = document.createElement('div');
+      const dropTarget = ownerDocument.createElement('button');
+      dropTarget.type = 'button';
       dropTarget.className = 'mindmap-empty-heading-drop-target';
       dropTarget.dataset.headingLine = String(section.line);
       dropTarget.textContent = 'Create new node';
@@ -192,7 +213,7 @@ export function startHeadingEditing(
   const title = frame.querySelector('.mindmap-heading-frame-title') as HTMLElement | null;
   if (title) title.classList.add('mm-hidden');
 
-  const editorHost = document.createElement('div');
+  const editorHost = frame.ownerDocument.createElement('div');
   editorHost.className = 'mindmap-heading-editor node-editor-host';
   frame.appendChild(editorHost);
 
