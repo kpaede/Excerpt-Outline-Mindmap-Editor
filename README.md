@@ -6,6 +6,8 @@ It is especially useful for literature excerpting, research notes, and other sit
 
 ![](images/screenshot.png)
 
+![](images/drawing.png)
+
 ---
 
 ## Core idea
