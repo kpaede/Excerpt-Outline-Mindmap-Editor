@@ -348,15 +348,15 @@ class DrawingModal extends Modal {
     // plugin's save-to-vault model and just a confusing extra button here.
     // Its host element is reachable because simple-whiteboard's shadow root
     // is open; that reference stays stable across re-renders.
-    const menuHost = board.shadowRoot?.querySelector('simple-whiteboard-menu') as HTMLElement | null;
-    if (menuHost) menuHost.style.display = 'none';
+    const menuHost = board.shadowRoot?.querySelector<HTMLElement>('simple-whiteboard-menu');
+    menuHost?.setCssStyles({ display: 'none' });
     // The library's own floating footer duplicates undo/redo (now in the
     // header above) and adds a zoom selector that only snaps the display to
     // the nearest of a handful of fixed presets (25/50/75/100/150/200/400%)
     // rather than showing the actual live zoom - removing it rather than
     // keeping a control that doesn't do what it visually claims to.
-    const footerHost = board.shadowRoot?.querySelector('.footer-tools') as HTMLElement | null;
-    if (footerHost) footerHost.style.display = 'none';
+    const footerHost = board.shadowRoot?.querySelector<HTMLElement>('.footer-tools');
+    footerHost?.setCssStyles({ display: 'none' });
     this.inputController = new WhiteboardInputAdapter(board, canvas);
     if (this.initialItems.length > 0) board.importItems(this.initialItems, true);
     board.setCurrentTool('pen');

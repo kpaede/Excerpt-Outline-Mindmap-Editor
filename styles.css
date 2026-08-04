@@ -1966,16 +1966,20 @@ body.is-mobile .eome-drawing-footer button,
 
 /* Export-only overrides.
    The exporter clones the rendered tree into a hidden root and reads it back
-   through getComputedStyle, so these rules have to outrank the plugin's own
-   node styling on that clone - which is what the !important is for. Only the
-   values that differ per export arrive as custom properties. */
-.mindmap-export-scaled {
-  transform: scale(var(--mindmap-export-scale, 1)) !important;
-  transform-origin: top left !important;
+   through getComputedStyle, so these have to outrank the node styling that
+   already applies to the clone. Each selector below is the competing one
+   plus the export class, which beats it on specificity alone; the bare class
+   covers a clone that sits outside the wrapper, where nothing competes.
+   Only the values that differ per export arrive as custom properties. */
+.mindmap-export-scaled,
+.mindmap-wrapper > .mindmap-overlay[data-overlay].mindmap-export-scaled {
+  transform: scale(var(--mindmap-export-scale, 1));
+  transform-origin: top left;
 }
 
-.mindmap-export-checked {
-  background: var(--mindmap-export-checked-bg) !important;
-  background-color: var(--mindmap-export-checked-bg) !important;
-  background-image: none !important;
+.mindmap-export-checked,
+.mindmap-overlay.checkbox-checked.mindmap-export-checked {
+  background: var(--mindmap-export-checked-bg);
+  background-color: var(--mindmap-export-checked-bg);
+  background-image: none;
 }
