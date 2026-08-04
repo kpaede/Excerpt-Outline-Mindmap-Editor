@@ -220,7 +220,7 @@ function performOverlayUpdate(view: MindmapView): void {
       '--mindmap-box-shadow': '0 1px 3px rgba(0,0,0,.08)',
     });
 
-    const { checkboxToggle, hasCheckbox, toggleCheckbox } = appendCheckboxToggle(box, nodeToUse, view);
+    appendCheckboxToggle(box, nodeToUse, view);
 
     if (view.selectedNodeLines.has(nodeToUse.line)) {
       box.classList.add('selected');

@@ -27,3 +27,6 @@ data.json
 # Exclude iCloud/Finder conflict copies
 * 2
 * 2.*
+
+# Arbeitsdatei fuer den Review-Stand, kein Bestandteil des Plugins
+"fix this"

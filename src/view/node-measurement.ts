@@ -1,4 +1,4 @@
-import { Component, MarkdownRenderer } from 'obsidian';
+import { MarkdownRenderer } from 'obsidian';
 import type { OutlineNode } from '../utils/outline';
 import { openInternalLink } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';

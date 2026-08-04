@@ -1,7 +1,6 @@
 import { Notice } from 'obsidian';
 import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
 import { startNodeEditing } from '../editor/node-editing';
-import type { OutlineNode } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
 import { clearDropPreview, DropIntent, updateDropPreview } from './overlay-dnd';
 import {

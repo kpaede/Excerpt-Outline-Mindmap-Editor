@@ -4,7 +4,6 @@ import {
   TFile,
   MarkdownView,
   Menu,
-  View,
 } from 'obsidian';
 import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './integration/context-menu';
@@ -217,7 +216,7 @@ export default class MindmapPlugin extends Plugin {
 
     this.autoOpenRunning = true;
     try {
-      const activeLeaf = this.app.workspace.activeLeaf;
+      const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView)?.leaf ?? null;
       if (!activeLeaf || !this.leafHasMarkdownFileState(activeLeaf, file)) {
         if (attempt < 5) {
           window.setTimeout(() => {

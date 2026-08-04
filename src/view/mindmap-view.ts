@@ -1004,11 +1004,7 @@ export class MindmapView extends TextFileView {
 
     this.orientationMediaQuery = window.matchMedia?.('(orientation: landscape)') ?? null;
     if (this.orientationMediaQuery) {
-      if (this.orientationMediaQuery.addEventListener) {
-        this.orientationMediaQuery.addEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
-      } else {
-        this.orientationMediaQuery.addListener(this.scheduleMobileToolbarPlacementUpdate);
-      }
+      this.orientationMediaQuery.addEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
     }
     this.screenOrientation = window.screen.orientation ?? null;
     this.screenOrientation?.addEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);
@@ -1187,11 +1183,7 @@ export class MindmapView extends TextFileView {
     window.visualViewport?.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.visualViewport?.removeEventListener('scroll', this.scheduleMobileToolbarPlacementUpdate);
     if (this.orientationMediaQuery) {
-      if (this.orientationMediaQuery.removeEventListener) {
-        this.orientationMediaQuery.removeEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
-      } else {
-        this.orientationMediaQuery.removeListener(this.scheduleMobileToolbarPlacementUpdate);
-      }
+      this.orientationMediaQuery.removeEventListener('change', this.scheduleMobileToolbarPlacementUpdate);
       this.orientationMediaQuery = null;
     }
     this.screenOrientation?.removeEventListener?.('change', this.scheduleMobileToolbarPlacementUpdate);

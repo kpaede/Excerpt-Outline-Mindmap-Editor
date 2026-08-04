@@ -1,0 +1,95 @@
+# Obsidian review, 0.2.1 — Arbeitsstand
+
+Zahlen sind mit `npm run lint` gemessen, nicht geschätzt.
+Nach jeder Änderung: tsc 0 Fehler, 150/150 Tests, Build reproduzierbar.
+
+## Releases
+
+- [x] main.js — verified GitHub artifact attestation → **Pass**
+- [x] styles.css — verified GitHub artifact attestation → **Pass**
+
+Das war der Check, an dem 0.2.0 gescheitert war (eingebauter Build-Zeitstempel).
+Behoben; ein frischer Klon des Tags baut byte-identisch nach.
+
+## Behavior
+
+- [ ] Clipboard Access (Recommendation) — nur ein Hinweis, dass das Plugin die
+      Zwischenablage nutzt. Das tut es absichtlich (Knoten kopieren/einfügen).
+      Nichts zu beheben.
+- [x] Vault Read → Pass
+- [x] Vault Write → Pass
+
+## Source code
+
+### Error
+
+- [x] `no-static-styles-assignment` — **86 → 0**
+      Alle Element-Stile laufen über `setCssStyles` / `setCssProps`.
+      Die erzwungenen Export-Overrides sind CSS-Klassen geworden.
+      Zuletzt: `drawing-modal.ts:352,359`.
+
+**Es gibt keinen Error mehr im Quelltext.**
+
+### Erledigt
+
+- [x] `no-plugin-as-component` (2) — der Code-Block-Embed besitzt jetzt ein
+      eigenes `MarkdownRenderChild` statt der Plugin-Instanz, die die ganze
+      Sitzung lebt und jeden je gezeichneten Embed festgehalten hat.
+- [x] `<style>`-Element erzeugen (1)
+- [x] `lit`, `@codemirror/state`, `@codemirror/view` fehlten in den
+      Abhängigkeiten (3) — nachgetragen.
+- [x] Ungenutzte Variablen und Funktionen (12) — inklusive ~180 Zeilen toten
+      Codes im Export, der niemandem mehr aufgefallen wäre.
+- [x] Veraltete APIs (3) — `activeLeaf`, `MediaQueryList.addListener` /
+      `removeListener`.
+- [x] `!important` in styles.css (5) — **die hatte ich selbst verursacht**, beim
+      Verschieben der Export-Overrides. Jetzt über Spezifität gelöst.
+
+### Offen
+
+- [ ] `prefer-create-el` (18) — **bewusst offen.** Der Vorschlag des Linters
+      (`ownerDocument.win.createEl`) existiert in Obsidians Typen nicht;
+      `createEl` liegt auf `Node` und als Globale. Die globale Form bindet an
+      `activeDocument` statt an das Dokument des Elements — genau gegen die
+      Pop-out-Korrektheit, für die diese Aufrufe geschrieben wurden. Umgesetzt,
+      gemessen (5 Tests brachen), zurückgenommen.
+- [ ] `no-unsafe-*` / `no-explicit-any` (~77) — alle in
+      `embeddable-markdown-editor.ts`, dem Zugriff auf Obsidians nicht
+      öffentliches Editor-API. Siehe unten.
+- [ ] `no-misused-promises` (11), `no-floating-promises` (5),
+      `prefer-promise-reject-errors` (1)
+- [ ] `no-inner-html` (7)
+- [ ] `unbound-method` (1), `no-this-alias` (1), `no-base-to-string` (1),
+      `no-tfile-tfolder-cast` (1), `fetch` statt `requestUrl` (1),
+      `no-unnecessary-type-assertion` (3)
+- [ ] CSS: doppelte Eigenschaften (4), `all: unset` (1)
+- [ ] Lint in die CI hängen — der Workflow heißt `lint.yml`, führt aber nur
+      Build und Tests aus. Solange das so bleibt, sammelt sich alles wieder an.
+
+## Gesamtzahl
+
+| Zeitpunkt | Befunde |
+|---|---|
+| Erstmessung | 423 |
+| jetzt | 177 |
+
+## Zu `embeddable-markdown-editor.ts`
+
+Diese Datei greift auf Obsidians eingebauten Texteditor über eine nicht
+dokumentierte Hintertür zu — dadurch bearbeitest du Knoten mit dem echten
+Obsidian-Editor statt mit einem simplen Textfeld. Weil die Hintertür nicht
+dokumentiert ist, kann der Code nicht wissen, was dahinter liegt, und sagt an
+~77 Stellen sinngemäß „unbekannt".
+
+Möglichkeiten:
+
+1. Beschreiben, wie wir das Innenleben vermuten. Warnungen weg — aber ändert
+   Obsidian etwas, stimmt die Beschreibung nicht mehr und der Fehler zeigt sich
+   erst im Betrieb statt beim Prüfen.
+2. Abschalten — geht nicht, die Prüfkonfiguration verbietet genau das.
+3. Stehen lassen.
+
+Frühere Annahme von mir: „war in 0.1.0 auch so, hat nie gestört" — **falsch**.
+Der Vergleich am Quelltext zeigt, dass 0.1.0 sogar mehr solcher Stellen hatte
+(`.style.`: 211 Zeilen gegenüber 12 heute). Die Warnungen sind nicht neu, die
+**Prüfung** ist neu. Dass sie früher niemanden gestört haben, heißt also nichts.

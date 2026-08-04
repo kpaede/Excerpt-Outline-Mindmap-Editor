@@ -127,7 +127,7 @@ export async function addChild(
   let fileText: string;
   try {
     fileText = await app.vault.read(file);
-  } catch (err) {
+  } catch {
     return "";
   }
 
@@ -143,7 +143,7 @@ export async function addSibling(
   let fileText: string;
   try {
     fileText = await app.vault.read(file);
-  } catch (err) {
+  } catch {
     return "";
   }
   const { lines, newline } = splitDoc(fileText);
