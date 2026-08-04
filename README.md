@@ -5,7 +5,7 @@ Excerpt-Outline-Mindmap-Editor is an Obsidian plugin for working with Markdown o
 It is especially useful for literature excerpting, research notes, and other situations where a spatial view makes it easy to navigate and structure quotes and thoughts. For this reason every node can also be greyed out with checkboxes.
 
 ![](images/screenshot.png)
-
+---
 ![](images/drawing.png)
 
 ---
