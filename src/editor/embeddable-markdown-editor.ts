@@ -45,7 +45,7 @@ function resolveEditorPrototype(app: App): any {
 	// Create a temporary editor to resolve the prototype of ScrollableMarkdownEditor
 	const widgetEditorView = (app as any).embedRegistry.embedByExtension.md(
 		{ app, containerEl: createDiv() },
-		null as unknown as TFile,
+		null,
 		""
 	) as any;
 
@@ -53,7 +53,7 @@ function resolveEditorPrototype(app: App): any {
 	widgetEditorView.editable = true;
 	widgetEditorView.showEditor();
 	const MarkdownEditor = Object.getPrototypeOf(
-		Object.getPrototypeOf(widgetEditorView.editMode!)
+		Object.getPrototypeOf(widgetEditorView.editMode)
 	);
 
 	// Unload to remove the temporary editor

@@ -78,7 +78,7 @@ async function measureNodes(
     box.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
 
     if (node.text.trim() === '') {
-      box.innerHTML = '&nbsp;';
+      box.textContent = '\u00a0';
     } else {
       await MarkdownRenderer.render(plugin.app, node.text, box, file.path, component);
       await waitForAsyncContent(box);
@@ -196,7 +196,7 @@ async function renderOverlays(
     }
 
     if (node.text.trim() === '') {
-      content.innerHTML = '&nbsp;';
+      content.textContent = '\u00a0';
     } else {
       await MarkdownRenderer.render(plugin.app, node.text, content, file.path, component);
       await waitForAsyncContent(content);

@@ -864,20 +864,20 @@ export class MindmapView extends TextFileView {
     const container = this.wrapper.createDiv({ cls: 'mindmap-warning-state' });
 
     const icon = container.createDiv({ cls: 'mindmap-warning-icon' });
-    icon.innerHTML = '⚠️';
+    icon.setText('⚠️');
 
     const title = container.createEl('h2', { text: 'Incompatible Content' });
     title.addClass('mindmap-warning-title');
 
     const description = container.createDiv({ cls: 'mindmap-warning-description' });
-    description.innerHTML = `
-      <p>This file contains content that isn't compatible with the mindmap view.</p>
-      <p>The mindmap requires an outline structure using list items:</p>
-      <ul class="mindmap-warning-list">
-        <li>like this
-      </ul>
-      <p>Please start with an empty file or the mentioned format.</p>
-    `;
+    description.createEl('p', {
+      text: "This file contains content that isn't compatible with the mindmap view.",
+    });
+    description.createEl('p', { text: 'The mindmap requires an outline structure using list items:' });
+    description
+      .createEl('ul', { cls: 'mindmap-warning-list' })
+      .createEl('li', { text: 'like this' });
+    description.createEl('p', { text: 'Please start with an empty file or the mentioned format.' });
 
   }
 

@@ -151,7 +151,7 @@ export async function measureNodesForLayout(
       measureContainer.appendChild(tmpBox);
 
       if (node.text.trim() === '') {
-        tmpBox.innerHTML = '&nbsp;';
+        tmpBox.textContent = '\u00a0';
       } else {
         try {
           await MarkdownRenderer.render(

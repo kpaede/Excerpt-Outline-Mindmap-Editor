@@ -18,7 +18,7 @@ export function renderNodeMarkdown(
   }
 
   if (node.text.trim() === '') {
-    container.innerHTML = '&nbsp;';
+    container.textContent = '\u00a0';
     return;
   }
 

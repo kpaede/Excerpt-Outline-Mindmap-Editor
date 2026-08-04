@@ -1,4 +1,4 @@
-import { Notice, Platform, normalizePath, type TFile } from 'obsidian';
+import { Notice, Platform, normalizePath, requestUrl, type TFile } from 'obsidian';
 import type MindmapPlugin from '../main';
 import type { MindmapView } from '../view/mindmap-view';
 
@@ -518,11 +518,11 @@ async function inlineElementUrl(
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
+    const response = await requestUrl({ url, throw: false });
+    if (response.status < 200 || response.status >= 300) return null;
 
-    const blob = await response.blob();
-    return await blobToDataUrl(blob);
+    const contentType = response.headers['content-type'] ?? 'application/octet-stream';
+    return await blobToDataUrl(new Blob([response.arrayBuffer], { type: contentType }));
   } catch (error) {
     console.warn('Could not inline media for mindmap export:', url, error);
     return null;
@@ -532,7 +532,7 @@ async function fetchAsDataUrl(url: string): Promise<string | null> {
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
     reader.onerror = () => reject(reader.error ?? new Error('Could not read media blob.'));
     reader.readAsDataURL(blob);
   });
