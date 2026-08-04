@@ -186,7 +186,7 @@ export class GeneralSettingsMenu {
         this.close();
       }
     };
-    setTimeout(() => { document.addEventListener('click', handler); }, 100);
+    window.setTimeout(() => { document.addEventListener('click', handler); }, 100);
     const container = this.container as ClickHandlerElement;
     container._clickHandler = handler;
   }

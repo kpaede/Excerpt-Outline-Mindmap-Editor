@@ -50,7 +50,7 @@ export class FrontmatterStorage {
   private parseFromString(str: string): ExcerptOutlineMindmapData {
     const result: Partial<ExcerptOutlineMindmapData> = {};
     
-    if (!str || typeof str !== 'string') return result as ExcerptOutlineMindmapData;
+    if (!str || typeof str !== 'string') return result;
     const typedResult = result as Record<string, unknown>;
     const parts = str.split(';');
     parts.forEach(part => {
@@ -176,7 +176,7 @@ export class FrontmatterStorage {
       }
     });
 
-    await this.saveMindmapData(file, currentData as ExcerptOutlineMindmapData);
+    await this.saveMindmapData(file, currentData);
   }
 
   async resetLayoutOptions(file: TFile): Promise<void> {

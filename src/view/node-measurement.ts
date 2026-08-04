@@ -11,7 +11,7 @@ function waitForImages(container: HTMLElement): Promise<unknown> {
     return new Promise<void>((resolve) => {
       img.onload = () => resolve();
       img.onerror = () => resolve();
-      setTimeout(() => resolve(), 2000);
+      window.setTimeout(() => resolve(), 2000);
     });
   }));
 }
@@ -59,7 +59,7 @@ async function waitForAsyncContent(view: MindmapView, container: HTMLElement): P
     if (verovioReady && codeBlocksReady && !excalidrawPending) break;
     if ((Date.now() - startTime) >= (excalidrawPending ? EXCALIDRAW_WAIT_MS : DEFAULT_WAIT_MS)) break;
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
     attempts++;
   }
 
@@ -67,7 +67,7 @@ async function waitForAsyncContent(view: MindmapView, container: HTMLElement): P
   // freshly created image, so an image list taken before the loop would miss
   // exactly the element the node has to be sized around.
   await waitForImages(container);
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 function preprocessNodeMarkdown(text: string): string {
@@ -159,7 +159,7 @@ export async function measureNodesForLayout(
             preprocessNodeMarkdown(node.text),
             tmpBox,
             view.file?.path || '',
-            view as Component
+            view
           );
 
           // Before waiting: the node has to be measured around the image it
@@ -195,10 +195,10 @@ export async function measureNodesForLayout(
         }
       }
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
       if (tmpBox.querySelector('svg, .verovio-container, pre code')) {
-        await new Promise<void>((resolve) => setTimeout(() => resolve(), 200));
+        await new Promise<void>((resolve) => window.setTimeout(() => resolve(), 200));
       }
 
       const rect = tmpBox.getBoundingClientRect();

@@ -62,25 +62,9 @@ async function openCanvasFile(plugin: MindmapPlugin, file: TFile): Promise<void>
 }
 
 function getWorkspaceLeaf(plugin: MindmapPlugin, split: boolean): WorkspaceLeaf {
-  const ws: any = plugin.app.workspace;
-  if (typeof ws.getLeaf === 'function') {
-    return ws.getLeaf(split);
-  }
-
-  if (split && typeof ws.splitActiveLeaf === 'function') {
-    return ws.splitActiveLeaf();
-  }
-
-  return ws.activeLeaf;
+  return plugin.app.workspace.getLeaf(split);
 }
 
 function revealLeaf(plugin: MindmapPlugin, leaf: WorkspaceLeaf): void {
-  const ws: any = plugin.app.workspace;
-  if (typeof ws.revealLeaf === 'function') {
-    ws.revealLeaf(leaf);
-    return;
-  }
-  if (typeof ws.setActiveLeaf === 'function') {
-    ws.setActiveLeaf(leaf);
-  }
+  void plugin.app.workspace.revealLeaf(leaf);
 }

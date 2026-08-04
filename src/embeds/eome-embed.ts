@@ -56,7 +56,7 @@ async function waitForAsyncContent(container: HTMLElement): Promise<void> {
     });
   }));
 
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 async function measureNodes(
@@ -66,12 +66,12 @@ async function measureNodes(
 ): Promise<Map<number, { w: number; h: number }>> {
   const sizeMap = new Map<number, { w: number; h: number }>();
   const targetWidth = 300;
-  const measureContainer = document.createElement('div');
+  const measureContainer = createDiv();
   measureContainer.className = 'mindmap-eome-measurement-container';
   document.body.appendChild(measureContainer);
 
   for (const node of flat) {
-    const box = document.createElement('div');
+    const box = createDiv();
     box.className = 'mindmap-measure-box';
     box.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
 
@@ -83,7 +83,7 @@ async function measureNodes(
     }
 
     measureContainer.appendChild(box);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
     const rect = box.getBoundingClientRect();
     let measuredW = rect.width || targetWidth;
@@ -171,7 +171,7 @@ async function renderOverlays(
     if (!cyNode || cyNode.empty() || !dims) continue;
 
     const position = cyNode.renderedPosition();
-    const box = document.createElement('div');
+    const box = createDiv();
     box.className = 'mindmap-overlay mindmap-eome-overlay';
     box.dataset.mindmapEomeOverlay = '1';
     box.style.setProperty('--mindmap-left', `${position.x}px`);
@@ -184,7 +184,7 @@ async function renderOverlays(
     box.style.setProperty('--mindmap-color', txt);
     box.style.setProperty('--mindmap-font', font);
 
-    const content = document.createElement('div');
+    const content = createDiv();
     content.className = 'markdown-rendered';
     if (node.scaleFactor && node.scaleFactor !== 1) {
       content.style.setProperty('--mindmap-scale', String(node.scaleFactor));

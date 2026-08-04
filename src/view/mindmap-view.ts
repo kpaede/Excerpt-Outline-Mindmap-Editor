@@ -363,7 +363,7 @@ export class MindmapView extends TextFileView {
       this.boxStartY = e.clientY - rect.top;
 
       if (!this.selectionBoxEl) {
-        this.selectionBoxEl = document.createElement('div');
+        this.selectionBoxEl = createDiv();
         this.selectionBoxEl.className = 'mindmap-selection-box';
         this.wrapper.appendChild(this.selectionBoxEl);
       }
@@ -917,7 +917,7 @@ export class MindmapView extends TextFileView {
     this.forceToolbarUpdate();
 
     // Reset local update flag after giving file watcher time to catch up
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.isLocalUpdate = false;
     }, 1000);
   }
@@ -2097,7 +2097,7 @@ export class MindmapView extends TextFileView {
   public forceToolbarUpdate(): void {
     if (this.toolbar) {
       // Use requestAnimationFrame for immediate update
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         if (this.toolbar) {
           this.toolbar.updateUndoRedoButtons();
         }
@@ -2143,7 +2143,7 @@ export class MindmapView extends TextFileView {
   private restoreSelectionAfterDeletion(candidate: SelectionSnapshot | null): void {
     if (!candidate) return;
 
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       const nodes = this.getFlatNodes();
       const exact = nodes.find((node) => node.line === candidate.line && node.text === candidate.text);
       const sameText = nodes.find((node) => node.text === candidate.text);
@@ -2200,7 +2200,7 @@ export class MindmapView extends TextFileView {
     const cyNode = this.cy.getElementById(`n${nodeLine}`);
     if (!cyNode || cyNode.empty()) return;
 
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       this.cy?.animate({
         center: { eles: cyNode },
         duration: 140,
@@ -2211,12 +2211,12 @@ export class MindmapView extends TextFileView {
   public async enterEditModeForNodeByLine(nodeLine: number, isNewNode: boolean = false): Promise<void> {
     this.dismissNodeContextMenu();
     for (let i = 0; i < 60; i++) {
-      const overlay = this.wrapper?.querySelector(`[data-overlay][data-node-line="${nodeLine}"]`) as HTMLElement | null;
+      const overlay = this.wrapper?.querySelector<HTMLElement>(`[data-overlay][data-node-line="${nodeLine}"]`);
       if (overlay && !this.isUpdatingOverlays) {
         const node = this.getFlatNodes().find(candidate => candidate.line === nodeLine);
         if (!node) return;
 
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
         if (!overlay.isConnected || this.isUpdatingOverlays) continue;
 
         this.clearSelection();
@@ -2227,7 +2227,7 @@ export class MindmapView extends TextFileView {
         return;
       }
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     }
 
     console.warn(`Overlay not found for line ${nodeLine} to start editing.`);
@@ -2239,9 +2239,9 @@ export class MindmapView extends TextFileView {
       if (started) return;
       started = true;
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
             void this.enterEditModeForNodeByLine(nodeLine, true);
           });
         });
@@ -2257,7 +2257,7 @@ export class MindmapView extends TextFileView {
     selectHeadingTextOnly: boolean = false
   ): Promise<void> {
     for (let i = 0; i < 60; i++) {
-      const frame = this.wrapper?.querySelector(`[data-heading-frame][data-heading-line="${headingLine}"]`) as HTMLElement | null;
+      const frame = this.wrapper?.querySelector<HTMLElement>(`[data-heading-frame][data-heading-line="${headingLine}"]`);
       if (frame && !this.isUpdatingOverlays) {
         const section = parseHeadingSections(this.data).find(candidate => candidate.line === headingLine);
         if (!section) return;
@@ -2266,7 +2266,7 @@ export class MindmapView extends TextFileView {
         return;
       }
 
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     }
 
     console.warn(`Heading frame not found for line ${headingLine} to start editing.`);
@@ -2278,9 +2278,9 @@ export class MindmapView extends TextFileView {
       if (started) return;
       started = true;
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
             void this.enterEditModeForHeadingByLine(headingLine, true);
           });
         });

@@ -80,8 +80,8 @@ async function exportMindmapView(plugin: MindmapPlugin, view: MindmapView, forma
 
 async function refreshOverlays(view: MindmapView): Promise<void> {
   view.updateOverlays();
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 async function createFitToViewExportScene(view: MindmapView): Promise<ExportScene> {
@@ -330,7 +330,7 @@ function collectDocumentCss(): string {
 
   Array.from(document.styleSheets).forEach((sheet) => {
     try {
-      const rules = (sheet as CSSStyleSheet).cssRules;
+      const rules = (sheet).cssRules;
       if (!rules) return;
       chunks.push(Array.from(rules).map((rule) => rule.cssText).join('\n'));
     } catch (_error) {
@@ -479,7 +479,7 @@ async function withPreparedExportDom<T>(
   const width = Math.max(1, Math.ceil(originalRect.width));
   const height = Math.max(1, Math.ceil(originalRect.height));
   const background = getDocumentBackgroundColor();
-  const printRoot = document.createElement('div');
+  const printRoot = createDiv();
   printRoot.className = 'mindmap-vector-print-root';
   printRoot.style.width = `${width}px`;
   printRoot.style.height = `${height}px`;
@@ -498,7 +498,7 @@ async function withPreparedExportDom<T>(
   };
   let printEdgeLayer: SVGSVGElement | null = null;
   let snapshot: HTMLElement | null = null;
-  const exportStyle = document.createElement('style');
+  const exportStyle = createEl('style');
   exportStyle.textContent = `
     @page { size: ${(width / 96).toFixed(4)}in ${(height / 96).toFixed(4)}in; margin: 0; }
     body.mindmap-vector-printing .mindmap-vector-print-root .mindmap-canvas {
@@ -618,7 +618,7 @@ function createSvgPrintArtifact(svg: string, width: number, height: number): HTM
     throw new Error('Could not prepare SVG for PDF export.');
   }
 
-  const container = document.createElement('div');
+  const container = createDiv();
   container.className = 'mindmap-vector-pdf-artifact';
   container.style.display = 'block';
   container.style.width = `${width}px`;
@@ -912,8 +912,8 @@ function compareExportBoxes(a: ExportBox, b: ExportBox): number {
 }
 
 async function waitForCurrentDocumentReady(root: HTMLElement): Promise<void> {
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
   try {
     const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts;

@@ -207,7 +207,7 @@ class DrawingModal extends Modal {
 
   private snapshotBoard(board: SimpleWhiteboard): string | null {
     try {
-      return canonicalizeDrawing(board.exportItems() as ExportedDrawingItem[]);
+      return canonicalizeDrawing(board.exportItems());
     } catch (error) {
       console.error('Could not read the drawing back from the editor:', error);
       return null;
@@ -272,7 +272,7 @@ class DrawingModal extends Modal {
     const pendingPreferences = this.penPreferences?.load();
     const runtime = await loadWhiteboardRuntime(ownerDocument);
     if (this.isClosed) return;
-    const board = ownerDocument.createElement('simple-whiteboard') as SimpleWhiteboard;
+    const board = ownerDocument.createElement('simple-whiteboard');
     if (typeof board.updateComplete === 'undefined') {
       throw new Error('The simple-whiteboard custom element was not registered in the active Obsidian window.');
     }

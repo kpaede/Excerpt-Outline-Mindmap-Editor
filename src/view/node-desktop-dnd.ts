@@ -152,7 +152,7 @@ export function attachDesktopNodeDndHandlers({
         }
 
         try {
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
           await view.executeMoveSubtreeCommand(
             srcNodeFromOutline,
             nodeToUse,
@@ -171,7 +171,7 @@ export function attachDesktopNodeDndHandlers({
     const txtData = event.dataTransfer!.getData('text/plain').trim();
     if (txtData && view.file) {
       try {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
         if (dropIntent.kind === 'sibling') {
           await view.executeAddSiblingTextCommand(nodeToUse, txtData, dropIntent.siblingInsertPosition);
         } else {

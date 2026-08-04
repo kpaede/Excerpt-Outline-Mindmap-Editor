@@ -17,7 +17,7 @@ export class LayoutOptionsMenu {
   }
 
   private createMenu(anchorEl: HTMLElement): HTMLDivElement {
-    const menu = document.createElement('div');
+    const menu = createDiv();
     menu.className = 'layout-options-menu';
 
     // Position relative to anchor element
@@ -222,7 +222,7 @@ export class LayoutOptionsMenu {
     slider.step = String(step);
     slider.value = String(getValue());
     
-    const valueEl = controlEl.createEl('span', {
+    const valueEl = controlEl.createSpan({
       text: formatValue(getValue()),
       cls: 'setting-item-value',
     });
@@ -249,7 +249,7 @@ export class LayoutOptionsMenu {
       }
     };
     
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.addEventListener('click', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }, 10);

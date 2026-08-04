@@ -132,14 +132,14 @@ export class NodeOptionsMenu {
     
     const controlDiv = settingDiv.createDiv({ cls: 'setting-item-control' });
     
-    const slider = controlDiv.createEl('input', { attr: { type: 'range' } }) as HTMLInputElement;
+    const slider = controlDiv.createEl('input', { attr: { type: 'range' } });
     slider.min = String(min);
     slider.max = String(max);
     slider.step = String(step);
     slider.value = String(getValue());
     slider.classList.add('slider-margin-right');
     
-    const valueEl = controlDiv.createEl('span', { text: `${getValue()}px` });
+    const valueEl = controlDiv.createSpan({ text: `${getValue()}px` });
     
     slider.oninput = async () => {
       const newVal = Number(slider.value);
@@ -165,7 +165,7 @@ export class NodeOptionsMenu {
       }
     };
     
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.addEventListener('click', handler);
     }, 100);
     

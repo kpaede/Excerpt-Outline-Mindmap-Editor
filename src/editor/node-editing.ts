@@ -101,7 +101,7 @@ export function startNodeEditing(
   box.appendChild(editorHost);
 
   const resizeEditor = () => {
-    const scroller = editorHost.querySelector('.cm-scroller') as HTMLElement | null;
+    const scroller = editorHost.querySelector('.cm-scroller');
     if (!scroller) return;
 
     editorHost.style.height = 'auto';
@@ -201,7 +201,7 @@ export function startNodeEditing(
     event.stopPropagation();
   }, { capture: true, passive: false });
 
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     resizeEditor();
 
     const scrollContainers: Array<{ element: HTMLElement; left: number; top: number }> = [];

@@ -14,8 +14,6 @@ import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 import { exportMindmapViewToCanvas } from './commands/export-canvas';
 import { exportMindmapViewToPdf, exportMindmapViewToSvg } from './commands/export-vector';
 
-declare const __EOME_BUILD__: string;
-
 export default class MindmapPlugin extends Plugin {
   private suppressNextAutoOpen = new Set<string>();
   private autoOpenTimer: number | null = null;
@@ -23,13 +21,6 @@ export default class MindmapPlugin extends Plugin {
   private autoOpenQueued = false;
 
   async onload() {
-    // Readable as `EOME_BUILD` in the developer console. Silent by design:
-    // its only job is to answer whether a device is running the bundle that
-    // was just built, which matters here because this plugin folder is synced
-    // rather than installed.
-    (globalThis as { EOME_BUILD?: string }).EOME_BUILD =
-      typeof __EOME_BUILD__ === 'string' ? __EOME_BUILD__ : 'dev';
-
     this.registerView(
       VIEW_TYPE_MINDMAP,
       (leaf: WorkspaceLeaf) => new MindmapView(leaf, this)
@@ -99,24 +90,16 @@ export default class MindmapPlugin extends Plugin {
     );
 
     this.registerEvent(
-      (this.app.workspace.on as any)(
-        'editor-menu',
-        (menu: Menu, _editor: unknown, view: View) => {
-          if (view.getViewType() === 'markdown') {
-            const mdView = view as MarkdownView;
-            const file = mdView.file;
-            if (file && file.extension === 'md') {
-              menu.addItem((item) => {
-                item
-                  .setTitle('Open as Mindmap')
-                  .onClick(async () => {
-                    await this.openMindmapReplacingLeaf(file);
-                  });
-              });
-            }
-          }
-        }
-      )
+      this.app.workspace.on('editor-menu', (menu, _editor, info) => {
+        const file = info instanceof MarkdownView ? info.file : null;
+        if (!file || file.extension !== 'md') return;
+
+        menu.addItem((item) => {
+          item
+            .setTitle('Open as mindmap')
+            .onClick(() => void this.openMindmapReplacingLeaf(file));
+        });
+      })
     );
 
     this.registerEvent(
@@ -288,35 +271,15 @@ export default class MindmapPlugin extends Plugin {
   }
 
   private getWorkspaceLeaf(split: boolean): WorkspaceLeaf {
-    const ws: any = this.app.workspace;
-    if (typeof ws.getLeaf === 'function') {
-      return ws.getLeaf(split);
-    }
-
-    if (split && typeof ws.splitActiveLeaf === 'function') {
-      return ws.splitActiveLeaf();
-    }
-
-    return ws.activeLeaf;
+    return this.app.workspace.getLeaf(split);
   }
 
   private revealLeaf(leaf: WorkspaceLeaf): void {
-    const ws: any = this.app.workspace;
-    if (typeof ws.revealLeaf === 'function') {
-      ws.revealLeaf(leaf);
-      return;
-    }
-    if (typeof ws.setActiveLeaf === 'function') {
-      ws.setActiveLeaf(leaf);
-    }
+    void this.app.workspace.revealLeaf(leaf);
   }
 
   private getActiveMindmapView(): MindmapView | null {
-    const activeView = this.app.workspace.activeLeaf?.view;
-    if (activeView instanceof MindmapView) {
-      return activeView;
-    }
-    return null;
+    return this.app.workspace.getActiveViewOfType(MindmapView);
   }
 
   private async updateMindmapViews(file: TFile): Promise<void> {

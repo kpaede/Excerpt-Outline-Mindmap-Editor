@@ -38,9 +38,6 @@ const context = await esbuild.context({
 		"@lezer/lr"],
 	format: "cjs",
 	platform: "browser",
-	// This folder is synced to other devices, where "is the bundle I just built
-	// the one actually running?" is otherwise unanswerable from inside the app.
-	define: { __EOME_BUILD__: JSON.stringify(new Date().toISOString()) },
 	target: "es2018",
 	logLevel: "info",
 	// This workspace is also the live, iCloud-synced Obsidian plugin folder.

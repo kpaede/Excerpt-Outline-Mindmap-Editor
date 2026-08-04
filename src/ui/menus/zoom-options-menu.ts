@@ -13,7 +13,7 @@ export class ZoomOptionsMenu {
   }
 
   private createMenu(anchorEl: HTMLElement): HTMLDivElement {
-    const menu = document.createElement('div');
+    const menu = createDiv();
     menu.className = 'zoom-options-menu';
 
     const rect = anchorEl.getBoundingClientRect();
@@ -77,7 +77,7 @@ export class ZoomOptionsMenu {
     slider.value = String(currentZoom);
     slider.classList.add('slider-margin-right');
 
-    const valueEl = controlEl.createEl('span', {
+    const valueEl = controlEl.createSpan({
       text: this.formatZoom(currentZoom),
       cls: 'setting-item-value',
     });
@@ -126,7 +126,7 @@ export class ZoomOptionsMenu {
       }
     };
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.addEventListener('click', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }, 10);

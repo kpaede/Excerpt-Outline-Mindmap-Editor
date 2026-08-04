@@ -417,14 +417,14 @@ export class MindmapGestureCoordinator {
     if (this.mode === 'pinch') {
       if (this.contacts.size >= 2) {
         const state = this.getPinchState();
-        const firstRemaining = this.contacts.values().next().value as DirectContact | undefined;
+        const firstRemaining = this.contacts.values().next().value;
         this.primaryPointerId = firstRemaining?.id ?? null;
         this.pinchDistance = state?.distance ?? null;
         this.pinchCenter = state?.center ?? null;
         return;
       }
 
-      const remaining = this.contacts.values().next().value as DirectContact | undefined;
+      const remaining = this.contacts.values().next().value;
       this.primaryPointerId = remaining?.id ?? null;
       this.pinchDistance = null;
       this.pinchCenter = null;
@@ -755,7 +755,7 @@ export class MindmapGestureCoordinator {
       : [doc.elementFromPoint(clientX, clientY)].filter((element): element is Element => Boolean(element));
 
     for (const candidate of candidates) {
-      const target = candidate.closest('.mindmap-overlay, .mindmap-empty-heading-drop-target') as HTMLElement | null;
+      const target = candidate.closest<HTMLElement>('.mindmap-overlay, .mindmap-empty-heading-drop-target');
       if (target && this.wrapper.contains(target)) return target;
     }
     return null;

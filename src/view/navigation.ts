@@ -81,7 +81,7 @@ function navigateSpatial(view: MindmapView, direction: NavigationDirection): voi
   let bestScore = Infinity;
 
   nodes.forEach(n => {
-    const node = n as NodeSingular;
+    const node = n;
     if (!node.isNode?.() || node.id() === currentCyNode.id()) return;
     const pos = node.position();
 

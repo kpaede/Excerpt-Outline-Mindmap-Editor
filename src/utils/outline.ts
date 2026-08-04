@@ -298,33 +298,16 @@ export function validateMoveOperation(
 }
 
 export async function openInternalLink(app: App, href: string, currentFilePath?: string): Promise<void> {
+  // A plain path opens directly; anything else - a heading, a block reference,
+  // a link that needs resolving against the source file - is left to Obsidian.
   try {
     const target = app.vault.getAbstractFileByPath(href);
-    if (target && target instanceof TFile) {
-      const ws: any = app.workspace;
-      let leaf = null;
-      if (typeof ws.getLeaf === 'function') {
-        leaf = ws.getLeaf(false);
-      } else if (ws.activeLeaf) {
-        leaf = ws.activeLeaf;
-      }
+    if (target instanceof TFile) {
+      await app.workspace.getLeaf(false).openFile(target);
+      return;
+    }
 
-      if (leaf) {
-        await leaf.openFile(target as TFile);
-        return;
-      }
-    }
-    // Fallback to workspace.openLinkText if available (newer Obsidian)
-    const ws: any = app.workspace;
-    if (ws && typeof ws.openLinkText === 'function') {
-      try {
-        await ws.openLinkText(href, currentFilePath || '', false);
-        return;
-      } catch (e) {
-        // ignore and fallback
-      }
-    }
-    console.warn('Unable to open internal link:', href);
+    await app.workspace.openLinkText(href, currentFilePath ?? '', false);
   } catch (error) {
     console.error('openInternalLink failed:', error);
   }

@@ -210,7 +210,7 @@ export function startHeadingEditing(
   if (frame.classList.contains('editing')) return;
 
   frame.classList.add('editing');
-  const title = frame.querySelector('.mindmap-heading-frame-title') as HTMLElement | null;
+  const title = frame.querySelector('.mindmap-heading-frame-title');
   if (title) title.classList.add('mm-hidden');
 
   const editorHost = frame.ownerDocument.createElement('div');
@@ -270,7 +270,7 @@ export function startHeadingEditing(
     });
   });
 
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     markdownEditor.activeCM?.focus();
     markdownEditor.activate();
   });

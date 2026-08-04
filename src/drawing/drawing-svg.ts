@@ -91,7 +91,7 @@ function textWidth(content: string, fontSize: number, fontFamily: string): numbe
     if (typeof OffscreenCanvas !== 'undefined') {
       context = new OffscreenCanvas(1, 1).getContext('2d');
     } else if (typeof document !== 'undefined') {
-      context = document.createElement('canvas').getContext('2d');
+      context = createEl('canvas').getContext('2d');
     }
     if (!context) return fallback;
     context.font = `${fontSize}px ${fontFamily}`;

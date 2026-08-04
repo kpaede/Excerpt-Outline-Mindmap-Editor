@@ -62,7 +62,7 @@ export function isExcalidrawAvailable(app: App): boolean {
  * starts empty.
  */
 function getAutomate(plugin: ExcalidrawPlugin): ExcalidrawAutomate | null {
-  const global = (globalThis as { ExcalidrawAutomate?: ExcalidrawAutomateFactory }).ExcalidrawAutomate;
+  const global = (window as { ExcalidrawAutomate?: ExcalidrawAutomateFactory }).ExcalidrawAutomate;
   if (global && typeof global.getAPI === 'function') {
     const instance = global.getAPI();
     if (instance && typeof instance.create === 'function') return instance;

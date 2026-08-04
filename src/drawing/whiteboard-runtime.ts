@@ -30,8 +30,10 @@ export class WhiteboardRuntimeCapabilityError extends Error {
 }
 
 function installOffscreenCanvasFallback(): void {
-  if ('OffscreenCanvas' in globalThis) return;
-  const runtimeDocument = globalThis.document;
+  // typeof rather than `in`: the `in` form narrows `window` itself, leaving
+  // the rest of this function with nothing left to read `document` from.
+  if (typeof window.OffscreenCanvas !== 'undefined') return;
+  const runtimeDocument = window.document;
   if (!runtimeDocument) {
     throw new WhiteboardRuntimeCapabilityError('The drawing editor needs a browser document.');
   }
@@ -53,11 +55,11 @@ function installOffscreenCanvasFallback(): void {
     set height(value: number) { this.canvas.height = value; }
 
     getContext(contextId: string): RenderingContext | null {
-      return this.canvas.getContext(contextId as '2d');
+      return this.canvas.getContext(contextId);
     }
   }
 
-  Object.defineProperty(globalThis, 'OffscreenCanvas', {
+  Object.defineProperty(window, 'OffscreenCanvas', {
     configurable: true,
     writable: true,
     value: HtmlCanvasFallback,
@@ -78,7 +80,7 @@ export function assertWhiteboardRuntimeInDocument(ownerDocument: Document): void
 
 export async function loadWhiteboardRuntime(ownerDocument: Document): Promise<RuntimeModule> {
   installOffscreenCanvasFallback();
-  const runtime = globalThis as typeof globalThis & { [MODULE_CACHE_KEY]?: RuntimeModule };
+  const runtime = window as typeof window & { [MODULE_CACHE_KEY]?: RuntimeModule };
   const cached = runtime[MODULE_CACHE_KEY];
   if (cached) {
     assertWhiteboardRuntimeInDocument(ownerDocument);
@@ -107,7 +109,7 @@ export async function loadWhiteboardRuntime(ownerDocument: Document): Promise<Ru
  * Safe to call repeatedly: after the first call the module is cached.
  */
 export function warmWhiteboardRuntime(): void {
-  const runtime = globalThis as typeof globalThis & { [MODULE_CACHE_KEY]?: RuntimeModule };
+  const runtime = window as typeof window & { [MODULE_CACHE_KEY]?: RuntimeModule };
   if (runtime[MODULE_CACHE_KEY]) return;
   void import('@ludovicm67/simple-whiteboard')
     .then((module) => {
