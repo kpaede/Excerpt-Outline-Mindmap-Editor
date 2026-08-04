@@ -25,3 +25,11 @@ jobs:
             - run: npm ci
             - run: npm run build --if-present
             - run: npm test
+            # Reported, not yet blocking. Everything left is in
+            # embeddable-markdown-editor.ts, which reaches into Obsidian's
+            # non-public editor API and therefore cannot be typed without
+            # inventing a contract Obsidian never gave. Once that is settled,
+            # drop continue-on-error so new findings fail the build - which is
+            # the point: these accumulated for months because nothing ran.
+            - run: npm run lint
+              continue-on-error: true
