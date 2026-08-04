@@ -1963,3 +1963,19 @@ body.is-mobile .eome-drawing-footer button,
   min-width: 72px;
   min-height: 44px;
 }
+
+/* Export-only overrides.
+   The exporter clones the rendered tree into a hidden root and reads it back
+   through getComputedStyle, so these rules have to outrank the plugin's own
+   node styling on that clone - which is what the !important is for. Only the
+   values that differ per export arrive as custom properties. */
+.mindmap-export-scaled {
+  transform: scale(var(--mindmap-export-scale, 1)) !important;
+  transform-origin: top left !important;
+}
+
+.mindmap-export-checked {
+  background: var(--mindmap-export-checked-bg) !important;
+  background-color: var(--mindmap-export-checked-bg) !important;
+  background-image: none !important;
+}

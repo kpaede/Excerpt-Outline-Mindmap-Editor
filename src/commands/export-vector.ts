@@ -218,17 +218,23 @@ function cleanExportElement(element: HTMLElement, rect: DOMRect): string {
 
   clone.classList.remove('hovering', 'selected', 'mm-src', 'mm-tgt', 'mm-tgt-child', 'mm-tgt-first-child', 'mm-tgt-last-child', 'mm-tgt-sibling-before', 'mm-tgt-sibling-after');
   clone.removeAttribute('draggable');
-  clone.style.position = 'relative';
-  clone.style.left = '0';
-  clone.style.top = '0';
-  clone.style.setProperty('transform', `scale(${scale})`, 'important');
-  clone.style.setProperty('transform-origin', 'top left', 'important');
-  clone.style.width = `${localWidth}px`;
-  clone.style.height = `${localHeight}px`;
-  clone.style.margin = '0';
-  clone.style.boxSizing = 'border-box';
+  clone.setCssStyles({
+    position: 'relative',
+    left: '0',
+    top: '0',
+  });
+  // The scale has to beat the plugin's own node rules on the cloned tree.
+  // That priority lives in styles.css; only the factor varies per export.
+  clone.classList.add('mindmap-export-scaled');
+  clone.setCssProps({ '--mindmap-export-scale': String(scale) });
+  clone.setCssStyles({
+    width: `${localWidth}px`,
+    height: `${localHeight}px`,
+    margin: '0',
+    boxSizing: 'border-box',
+  });
   if (clone.classList.contains('checkbox-checked')) {
-    clone.style.backgroundColor = flattenColor(computed.backgroundColor, getDocumentBackgroundColor());
+    clone.setCssStyles({ backgroundColor: flattenColor(computed.backgroundColor, getDocumentBackgroundColor()) });
   }
 
   clone.querySelectorAll<HTMLElement>('button').forEach((button) => {
@@ -312,7 +318,7 @@ function inlineComputedStyles(source: HTMLElement, target: HTMLElement): void {
     properties.forEach((property) => {
       const value = computed.getPropertyValue(property);
       if (value) {
-        targetElement.style.setProperty(property, value);
+        targetElement.setCssProps({ [property]: value });
       }
     });
   });
@@ -431,7 +437,7 @@ async function renderFitToViewPdf(view: MindmapView): Promise<ArrayBuffer> {
   return withPreparedExportDom(view, async (prepared) => {
     const svg = buildPreparedDomSvg(prepared);
     const pdfArtifact = createSvgPrintArtifact(svg, prepared.width, prepared.height);
-    prepared.snapshot.style.display = 'none';
+    prepared.snapshot.setCssStyles({ display: 'none' });
     prepared.printRoot.appendChild(pdfArtifact);
     await waitForCurrentDocumentReady(pdfArtifact);
     const bytes = await currentWindow.webContents.printToPDF({
@@ -481,13 +487,15 @@ async function withPreparedExportDom<T>(
   const background = getDocumentBackgroundColor();
   const printRoot = createDiv();
   printRoot.className = 'mindmap-vector-print-root';
-  printRoot.style.width = `${width}px`;
-  printRoot.style.height = `${height}px`;
-  printRoot.style.background = background;
-  printRoot.style.overflow = 'hidden';
-  printRoot.style.position = 'fixed';
-  printRoot.style.left = '-100000px';
-  printRoot.style.top = '0';
+  printRoot.setCssStyles({
+    width: `${width}px`,
+    height: `${height}px`,
+    background: background,
+    overflow: 'hidden',
+    position: 'fixed',
+    left: '-100000px',
+    top: '0',
+  });
 
   const previousWrapperStyle = {
     width: view.wrapper.style.width,
@@ -551,11 +559,13 @@ async function withPreparedExportDom<T>(
   originalParent.insertBefore(placeholder, view.wrapper);
   document.body.appendChild(printRoot);
   printRoot.appendChild(view.wrapper);
-  view.wrapper.style.width = `${width}px`;
-  view.wrapper.style.height = `${height}px`;
-  view.wrapper.style.position = 'relative';
-  view.wrapper.style.left = '0';
-  view.wrapper.style.top = '0';
+  view.wrapper.setCssStyles({
+    width: `${width}px`,
+    height: `${height}px`,
+    position: 'relative',
+    left: '0',
+    top: '0',
+  });
   document.head.appendChild(exportStyle);
   document.body.classList.add('mindmap-vector-printing');
 
@@ -576,11 +586,13 @@ async function withPreparedExportDom<T>(
     view.wrapper.classList.remove('mindmap-vector-source-wrapper');
     snapshot?.remove();
     printEdgeLayer?.remove();
-    view.wrapper.style.width = previousWrapperStyle.width;
-    view.wrapper.style.height = previousWrapperStyle.height;
-    view.wrapper.style.position = previousWrapperStyle.position;
-    view.wrapper.style.left = previousWrapperStyle.left;
-    view.wrapper.style.top = previousWrapperStyle.top;
+    view.wrapper.setCssStyles({
+      width: previousWrapperStyle.width,
+      height: previousWrapperStyle.height,
+      position: previousWrapperStyle.position,
+      left: previousWrapperStyle.left,
+      top: previousWrapperStyle.top,
+    });
     placeholder.parentNode?.insertBefore(view.wrapper, placeholder);
     placeholder.remove();
     printRoot.remove();
@@ -620,16 +632,20 @@ function createSvgPrintArtifact(svg: string, width: number, height: number): HTM
 
   const container = createDiv();
   container.className = 'mindmap-vector-pdf-artifact';
-  container.style.display = 'block';
-  container.style.width = `${width}px`;
-  container.style.height = `${height}px`;
-  container.style.overflow = 'hidden';
-  container.style.background = getDocumentBackgroundColor();
+  container.setCssStyles({
+    display: 'block',
+    width: `${width}px`,
+    height: `${height}px`,
+    overflow: 'hidden',
+    background: getDocumentBackgroundColor(),
+  });
 
   const importedSvg = document.importNode(svgElement, true) as unknown as SVGSVGElement;
-  importedSvg.style.display = 'block';
-  importedSvg.style.width = `${width}px`;
-  importedSvg.style.height = `${height}px`;
+  importedSvg.setCssStyles({
+    display: 'block',
+    width: `${width}px`,
+    height: `${height}px`,
+  });
   container.appendChild(importedSvg);
   return container;
 }
@@ -641,16 +657,18 @@ async function createExportSnapshot(source: HTMLElement, width: number, height: 
   await inlineExportMedia(snapshot);
   snapshot.classList.add('mindmap-vector-export-snapshot');
   snapshot.classList.remove('mindmap-vector-source-wrapper');
-  snapshot.style.display = 'block';
-  snapshot.style.width = `${width}px`;
-  snapshot.style.height = `${height}px`;
-  snapshot.style.position = 'relative';
-  snapshot.style.left = '0';
-  snapshot.style.top = '0';
-  snapshot.style.overflow = 'hidden';
-  snapshot.style.background = background;
-  snapshot.style.margin = '0';
-  snapshot.style.boxSizing = 'border-box';
+  snapshot.setCssStyles({
+    display: 'block',
+    width: `${width}px`,
+    height: `${height}px`,
+    position: 'relative',
+    left: '0',
+    top: '0',
+    overflow: 'hidden',
+    background: background,
+    margin: '0',
+    boxSizing: 'border-box',
+  });
   snapshot.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   return snapshot;
 }
@@ -676,22 +694,27 @@ function sanitizeExportDomClone(root: HTMLElement): void {
     });
 
   root.querySelectorAll<HTMLElement>('.mindmap-overlay.checkbox-checked').forEach((element) => {
-    element.style.setProperty('background', CHECKED_EXPORT_BACKGROUND, 'important');
-    element.style.setProperty('background-color', CHECKED_EXPORT_BACKGROUND, 'important');
-    element.style.setProperty('background-image', 'none', 'important');
-    element.style.borderColor = '#b8b8b8';
-    element.style.color = CHECKED_EXPORT_COLOR;
-    element.style.zIndex = '10';
+    element.classList.add('mindmap-export-checked');
+    element.setCssProps({ '--mindmap-export-checked-bg': CHECKED_EXPORT_BACKGROUND });
+    element.setCssStyles({
+      borderColor: '#b8b8b8',
+      color: CHECKED_EXPORT_COLOR,
+      zIndex: '10',
+    });
 
     element.querySelectorAll<HTMLElement>('.markdown-rendered, .markdown-rendered *').forEach((content) => {
-      content.style.color = CHECKED_EXPORT_COLOR;
-      content.style.opacity = '1';
+      content.setCssStyles({
+        color: CHECKED_EXPORT_COLOR,
+        opacity: '1',
+      });
     });
 
     element.querySelectorAll<HTMLElement>('.checkbox-toggle, .checkbox-toggle *').forEach((checkbox) => {
-      checkbox.style.color = CHECKED_EXPORT_COLOR;
-      checkbox.style.stroke = CHECKED_EXPORT_COLOR;
-      checkbox.style.opacity = '1';
+      checkbox.setCssStyles({
+        color: CHECKED_EXPORT_COLOR,
+        stroke: CHECKED_EXPORT_COLOR,
+        opacity: '1',
+      });
     });
   });
 
@@ -804,14 +827,16 @@ function createPrintEdgeLayer(view: MindmapView, width: number, height: number):
   svg.setAttribute('height', String(height));
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('aria-hidden', 'true');
-  svg.style.position = 'absolute';
-  svg.style.left = '0';
-  svg.style.top = '0';
-  svg.style.width = `${width}px`;
-  svg.style.height = `${height}px`;
-  svg.style.overflow = 'visible';
-  svg.style.pointerEvents = 'none';
-  svg.style.zIndex = '1';
+  svg.setCssStyles({
+    position: 'absolute',
+    left: '0',
+    top: '0',
+    width: `${width}px`,
+    height: `${height}px`,
+    overflow: 'visible',
+    pointerEvents: 'none',
+    zIndex: '1',
+  });
 
   view.cy?.edges().forEach((edge) => {
     const source = edge.source().renderedPosition();
