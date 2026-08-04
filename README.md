@@ -41,6 +41,8 @@ When you move a node, its whole subtree moves with it. The result is written bac
 
 ## Quick start
 
+Requires Obsidian 1.8.7 or newer. Desktop and mobile.
+
 1. Create a Markdown file, either empty or with an outline.
 2. Open the file as a mindmap:
    - Select the three-dot menu in the editor and choose **Open as mindmap**.
@@ -99,12 +101,12 @@ If the file contains non-outline content outside list items, the mindmap view ma
 
 ### Editing
 
-- Double-click a node, press **Enter**, or use the context menu to edit.
+- Double-click a node, press **Enter**, or choose **Edit** in the context menu. **Edit** opens whatever the node holds: a drawing opens in its editor, anything else as text.
 - Double-click a heading to edit its raw Markdown heading text, including the leading `#` characters.
 - The editor is actually the full Obsidian editor.
 - Newly created child and sibling nodes enter edit mode automatically.
 - Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.
-- Hard line breaks inside a single node are not supported and are replaced with spaces upon import.
+- A node is a single outline line, so hard line breaks inside one are not supported. Shift+Enter is refused, and multi-line text pasted into a node is joined with spaces.
 
 ### Tasks and sources
 
