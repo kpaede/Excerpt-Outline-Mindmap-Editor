@@ -68,7 +68,7 @@ export class LayoutOptionsMenu {
   }
 
   private buildMenuContent(container: HTMLElement): void {
-    const title = container.createEl('h3', { text: 'Layout Options' });
+    const title = container.createEl('h3', { text: 'Layout options' });
     title.addClass('layout-options-menu-title');
 
     const opts = this.view.layoutOptions;

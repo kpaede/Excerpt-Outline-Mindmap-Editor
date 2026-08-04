@@ -852,7 +852,7 @@ export class MindmapView extends TextFileView {
     const description = container.createEl('p', { text: 'Click the button below to create your first node' });
     description.addClass('mindmap-empty-description');
 
-    const button = container.createEl('button', { text: 'Create First Node' });
+    const button = container.createEl('button', { text: 'Create first node' });
     button.addClass('mindmap-empty-button');
     button.onclick = () => this.createFirstNode();
   }
@@ -866,7 +866,7 @@ export class MindmapView extends TextFileView {
     const icon = container.createDiv({ cls: 'mindmap-warning-icon' });
     icon.setText('⚠️');
 
-    const title = container.createEl('h2', { text: 'Incompatible Content' });
+    const title = container.createEl('h2', { text: 'Incompatible content' });
     title.addClass('mindmap-warning-title');
 
     const description = container.createDiv({ cls: 'mindmap-warning-description' });

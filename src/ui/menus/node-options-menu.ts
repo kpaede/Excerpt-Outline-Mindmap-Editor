@@ -101,7 +101,7 @@ export class NodeOptionsMenu {
 
   private buildContent() {
     // Header
-    this.container.createEl('h3', { text: 'Node Options' });
+    this.container.createEl('h3', { text: 'Node options' });
 
     // Node Width Slider
     this.addSliderSetting(

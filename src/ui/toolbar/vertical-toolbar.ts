@@ -68,11 +68,11 @@ export class VerticalToolbar {
     this.undoButton = undoBtn;
     this.redoButton = redoBtn;
 
-    // Fit to View Button (styled wie Undo/Redo)
+    // Fit to view button, styled like undo/redo
     const fitBtn = this.buttonsGroup.createEl('button');
     fitBtn.addClass('clickable-icon');
     setIcon(fitBtn, 'maximize-2');
-    fitBtn.setAttribute('aria-label', 'Fit to View');
+    fitBtn.setAttribute('aria-label', 'Fit to view');
     fitBtn.onclick = () => {
       this.view.fitToView();
     };
@@ -89,7 +89,7 @@ export class VerticalToolbar {
     const layoutBtn = this.buttonsGroup.createEl('button');
     layoutBtn.addClass('clickable-icon');
     setIcon(layoutBtn, 'layout-dashboard');
-    layoutBtn.setAttribute('aria-label', 'Layout Options');
+    layoutBtn.setAttribute('aria-label', 'Layout options');
     layoutBtn.onclick = () => {
       this.openLayoutOptions(layoutBtn);
     };
@@ -98,7 +98,7 @@ export class VerticalToolbar {
     const nodeBtn = this.buttonsGroup.createEl('button');
     nodeBtn.addClass('clickable-icon');
     setIcon(nodeBtn, 'square');
-    nodeBtn.setAttribute('aria-label', 'Node Options');
+    nodeBtn.setAttribute('aria-label', 'Node options');
     nodeBtn.onclick = () => {
       this.openNodeOptions(nodeBtn);
     };
@@ -107,7 +107,7 @@ export class VerticalToolbar {
     const generalBtn = this.buttonsGroup.createEl('button');
     generalBtn.addClass('clickable-icon');
     setIcon(generalBtn, 'settings');
-    generalBtn.setAttribute('aria-label', 'General Settings');
+    generalBtn.setAttribute('aria-label', 'General settings');
     generalBtn.onclick = () => {
       this.openGeneralSettings(generalBtn);
     };

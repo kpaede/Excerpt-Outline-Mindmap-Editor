@@ -70,7 +70,7 @@ export class ZoomOptionsMenu {
   private buildMenuContent(container: HTMLElement): void {
     const currentZoom = this.view.cy?.zoom() ?? this.view.layoutOptions.zoomFactor ?? 1;
 
-    container.createEl('h3', { text: 'Zoom Options' });
+    container.createEl('h3', { text: 'Zoom options' });
 
     const settingEl = container.createDiv({ cls: 'setting-item' });
     const infoEl = settingEl.createDiv({ cls: 'setting-item-info' });

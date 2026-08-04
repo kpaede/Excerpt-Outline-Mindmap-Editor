@@ -93,7 +93,7 @@ export class GeneralSettingsMenu {
   }
 
   private buildContent() {
-    this.container.createEl('h3', { text: 'General Settings' });
+    this.container.createEl('h3', { text: 'General settings' });
     // Header styling provided via CSS
 
     this.addSelectSetting(

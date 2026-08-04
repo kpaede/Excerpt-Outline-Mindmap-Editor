@@ -138,7 +138,7 @@ export class TextInputModal extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    contentEl.createEl('h2', { text: 'Neuen Text eingeben' });
+    contentEl.createEl('h2', { text: 'Enter new text' });
 
     new Setting(contentEl)
       .setName('Text')
@@ -150,7 +150,7 @@ export class TextInputModal extends Modal {
 
     contentEl.createEl('br');
 
-    const buttonEl = contentEl.createEl('button', { text: 'Speichern' });
+    const buttonEl = contentEl.createEl('button', { text: 'Save' });
     buttonEl.addEventListener('click', () => {
       this.close();
       this.onSubmit(this.result ?? this.initialValue);

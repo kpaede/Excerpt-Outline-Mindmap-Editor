@@ -16,7 +16,7 @@ export function addToggleMindmapMenuItem(
   if (existingMindmapLeaf) {
     menu.addItem((item) => {
       item
-        .setTitle('Open in Editor')
+        .setTitle('Open in editor')
         .setIcon('edit')
         .onClick(async () => {
           await plugin.openMarkdownReplacingLeaf(file);
