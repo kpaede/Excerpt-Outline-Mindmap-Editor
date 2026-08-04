@@ -1,4 +1,5 @@
 import {
+  Component,
   MarkdownPostProcessorContext,
   MarkdownRenderChild,
   MarkdownRenderer,
@@ -61,6 +62,7 @@ async function waitForAsyncContent(container: HTMLElement): Promise<void> {
 
 async function measureNodes(
   plugin: MindmapPlugin,
+  component: Component,
   file: TFile,
   flat: OutlineNode[]
 ): Promise<Map<number, { w: number; h: number }>> {
@@ -78,7 +80,7 @@ async function measureNodes(
     if (node.text.trim() === '') {
       box.innerHTML = '&nbsp;';
     } else {
-      await MarkdownRenderer.render(plugin.app, node.text, box, file.path, plugin);
+      await MarkdownRenderer.render(plugin.app, node.text, box, file.path, component);
       await waitForAsyncContent(box);
     }
 
@@ -147,6 +149,7 @@ function buildElements(flat: OutlineNode[], sizeMap: Map<number, { w: number; h:
 
 async function renderOverlays(
   plugin: MindmapPlugin,
+  component: Component,
   file: TFile,
   wrapper: HTMLElement,
   cy: cytoscape.Core,
@@ -195,7 +198,7 @@ async function renderOverlays(
     if (node.text.trim() === '') {
       content.innerHTML = '&nbsp;';
     } else {
-      await MarkdownRenderer.render(plugin.app, node.text, content, file.path, plugin);
+      await MarkdownRenderer.render(plugin.app, node.text, content, file.path, component);
       await waitForAsyncContent(content);
     }
 
@@ -246,6 +249,11 @@ export async function renderMindmapEomeEmbed(
 
   el.empty();
   const wrapper = el.createDiv({ cls: 'mindmap-eome-wrapper' });
+  // Registered before anything renders. Markdown rendered into this embed
+  // must be owned by something that dies with the embed; the plugin instance
+  // lives for the whole session and would retain every embed ever drawn.
+  const child = new MarkdownRenderChild(wrapper);
+  ctx.addChild(child);
   const canvas = wrapper.createDiv({ cls: 'mindmap-canvas mindmap-eome-canvas' });
   const openButton = wrapper.createEl('button', {
     cls: 'mindmap-eome-open-button',
@@ -258,7 +266,7 @@ export async function renderMindmapEomeEmbed(
     await plugin.openMindmapReplacingLeaf(file);
   });
 
-  const sizeMap = await measureNodes(plugin, file, flat);
+  const sizeMap = await measureNodes(plugin, child, file, flat);
   const elements = buildElements(flat, sizeMap);
   const layoutOptions = {
     name: 'dagre',
@@ -304,12 +312,10 @@ export async function renderMindmapEomeEmbed(
     arrangeTopLevelTrees(cy, roots, sizeMap, 'vertical', 160);
     cy.fit(cy.elements(), 28);
     cy.center(cy.elements());
-    void renderOverlays(plugin, file, wrapper, cy, flat, sizeMap);
+    void renderOverlays(plugin, child, file, wrapper, cy, flat, sizeMap);
   });
 
   cy.layout(layoutOptions).run();
 
-  const child = new MarkdownRenderChild(wrapper);
   child.onunload = () => cy.destroy();
-  ctx.addChild(child);
 }

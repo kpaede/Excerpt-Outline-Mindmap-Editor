@@ -1,5 +1,14 @@
 import type { NodeSingular } from 'cytoscape';
+import type { OutlineNode } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
+
+/**
+ * Cytoscape's data() is untyped by design; this is the one place that knows
+ * what the graph actually stores on a node.
+ */
+function outlineLineOf(element: NodeSingular): number | undefined {
+  return (element.data('node') as OutlineNode | undefined)?.line;
+}
 
 export type NavigationDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -64,14 +73,14 @@ function navigateSpatial(view: MindmapView, direction: NavigationDirection): voi
   const lastSelectedLine = selectedArray.length > 0 ? selectedArray[selectedArray.length - 1] : null;
 
   if (lastSelectedLine === null) {
-    const firstLine = nodes[0].data('node')?.line;
+    const firstLine = outlineLineOf(nodes[0]);
     if (firstLine !== undefined) view.selectNode(firstLine);
     return;
   }
 
   const currentCyNode = view.cy.getElementById(`n${lastSelectedLine}`);
   if (!currentCyNode || currentCyNode.empty()) {
-    const firstLine = nodes[0].data('node')?.line;
+    const firstLine = outlineLineOf(nodes[0]);
     if (firstLine !== undefined) view.selectNode(firstLine);
     return;
   }
@@ -107,7 +116,7 @@ function navigateSpatial(view: MindmapView, direction: NavigationDirection): voi
   });
 
   if (bestNode) {
-    const bestLine = (bestNode as NodeSingular).data('node')?.line;
+    const bestLine = outlineLineOf(bestNode);
     if (bestLine !== undefined) view.selectNode(bestLine);
   }
 }
