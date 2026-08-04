@@ -623,8 +623,10 @@ export class MindmapGestureCoordinator {
     sourceBox.ownerDocument.body.appendChild(ghost);
 
     const rect = sourceBox.getBoundingClientRect();
-    ghost.style.setProperty('--touch-drag-width', `${Math.max(80, Math.round(rect.width * 0.92))}px`);
-    ghost.style.setProperty('--touch-drag-height', `${Math.max(40, Math.round(rect.height * 0.92))}px`);
+    ghost.setCssProps({
+      '--touch-drag-width': `${Math.max(80, Math.round(rect.width * 0.92))}px`,
+      '--touch-drag-height': `${Math.max(40, Math.round(rect.height * 0.92))}px`,
+    });
     sourceBox.classList.add('mm-src');
     this.drag = {
       pointerId: contact.id,
@@ -639,8 +641,10 @@ export class MindmapGestureCoordinator {
 
   private moveDrag(clientX: number, clientY: number): void {
     if (!this.drag) return;
-    this.drag.ghost.style.setProperty('--touch-drag-left', `${clientX}px`);
-    this.drag.ghost.style.setProperty('--touch-drag-top', `${clientY}px`);
+    this.drag.ghost.setCssProps({
+      '--touch-drag-left': `${clientX}px`,
+      '--touch-drag-top': `${clientY}px`,
+    });
 
     const target = this.getDropTargetAtPoint(clientX, clientY);
     if (target !== this.drag.targetBox) {

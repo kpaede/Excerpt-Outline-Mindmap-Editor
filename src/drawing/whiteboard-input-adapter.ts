@@ -109,7 +109,7 @@ export class WhiteboardInputAdapter {
     private readonly board: SimpleWhiteboard,
     private readonly canvas: HTMLCanvasElement
   ) {
-    canvas.style.touchAction = 'none';
+    canvas.setCssStyles({ touchAction: 'none' });
 
     const pointerOptions: AddEventListenerOptions = {
       capture: true,

@@ -51,8 +51,10 @@ export class GeneralSettingsMenu {
       Math.min(rect.left + window.scrollX - menuWidth - 12, window.scrollX + window.innerWidth - menuWidth - 12)
     );
     // Only set dynamic position variables; other layout handled by CSS
-    this.container.style.setProperty('--menu-left', `${left}px`);
-    this.container.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
+    this.container.setCssProps({
+      '--menu-left': `${left}px`,
+      '--menu-top': `${rect.top + window.scrollY}px`,
+    });
     this.applyMobilePosition(left, menuWidth);
     applyMobileMenuPosition(this.container, menuWidth);
   }
@@ -67,20 +69,26 @@ export class GeneralSettingsMenu {
     const maxWidth = Math.max(180, viewportWidth - 24);
     const width = Math.min(menuWidth, maxWidth);
 
-    this.container.style.position = 'fixed';
-    this.container.style.top = `${top}px`;
-    this.container.style.right = 'auto';
-    this.container.style.width = `${width}px`;
-    this.container.style.maxWidth = `${maxWidth}px`;
-    this.container.style.maxHeight = `${Math.max(160, viewportHeight - top - 12)}px`;
-    this.container.style.overflowY = 'auto';
+    this.container.setCssStyles({
+      position: 'fixed',
+      top: `${top}px`,
+      right: 'auto',
+      width: `${width}px`,
+      maxWidth: `${maxWidth}px`,
+      maxHeight: `${Math.max(160, viewportHeight - top - 12)}px`,
+      overflowY: 'auto',
+    });
 
     if (document.body.classList.contains('mindmap-toolbar-side')) {
-      this.container.style.left = `${Math.max(12, Math.min(left, viewportWidth - width - 12))}px`;
-      this.container.style.transform = 'none';
+      this.container.setCssStyles({
+        left: `${Math.max(12, Math.min(left, viewportWidth - width - 12))}px`,
+        transform: 'none',
+      });
     } else {
-      this.container.style.left = '50%';
-      this.container.style.transform = 'translateX(-50%)';
+      this.container.setCssStyles({
+        left: '50%',
+        transform: 'translateX(-50%)',
+      });
     }
   }
 

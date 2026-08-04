@@ -23,8 +23,10 @@ export class ZoomOptionsMenu {
       Math.min(rect.left + window.scrollX - menuWidth - 12, window.scrollX + window.innerWidth - menuWidth - 12)
     );
 
-    menu.style.setProperty('--menu-left', `${left}px`);
-    menu.style.setProperty('--menu-top', `${rect.top + window.scrollY}px`);
+    menu.setCssProps({
+      '--menu-left': `${left}px`,
+      '--menu-top': `${rect.top + window.scrollY}px`,
+    });
 
     this.buildMenuContent(menu);
     this.applyMobilePosition(menu, left, menuWidth);
@@ -42,20 +44,26 @@ export class ZoomOptionsMenu {
     const maxWidth = Math.max(180, viewportWidth - 24);
     const width = Math.min(menuWidth, maxWidth);
 
-    menu.style.position = 'fixed';
-    menu.style.top = `${top}px`;
-    menu.style.right = 'auto';
-    menu.style.width = `${width}px`;
-    menu.style.maxWidth = `${maxWidth}px`;
-    menu.style.maxHeight = `${Math.max(160, viewportHeight - top - 12)}px`;
-    menu.style.overflowY = 'auto';
+    menu.setCssStyles({
+      position: 'fixed',
+      top: `${top}px`,
+      right: 'auto',
+      width: `${width}px`,
+      maxWidth: `${maxWidth}px`,
+      maxHeight: `${Math.max(160, viewportHeight - top - 12)}px`,
+      overflowY: 'auto',
+    });
 
     if (document.body.classList.contains('mindmap-toolbar-side')) {
-      menu.style.left = `${Math.max(12, Math.min(left, viewportWidth - width - 12))}px`;
-      menu.style.transform = 'none';
+      menu.setCssStyles({
+        left: `${Math.max(12, Math.min(left, viewportWidth - width - 12))}px`,
+        transform: 'none',
+      });
     } else {
-      menu.style.left = '50%';
-      menu.style.transform = 'translateX(-50%)';
+      menu.setCssStyles({
+        left: '50%',
+        transform: 'translateX(-50%)',
+      });
     }
   }
 

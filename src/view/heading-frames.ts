@@ -20,9 +20,11 @@ export function updateHeadingFrameGeometry(wrapper: HTMLElement, cy: Core): bool
     const centerY = Number(frame.dataset.headingCenterY);
     if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return false;
 
-    frame.style.setProperty('--heading-frame-left', `${pan.x + centerX * zoom}px`);
-    frame.style.setProperty('--heading-frame-top', `${pan.y + centerY * zoom}px`);
-    frame.style.setProperty('--heading-frame-zoom', String(zoom));
+    frame.setCssProps({
+      '--heading-frame-left': `${pan.x + centerX * zoom}px`,
+      '--heading-frame-top': `${pan.y + centerY * zoom}px`,
+      '--heading-frame-zoom': String(zoom),
+    });
   }
 
   return true;
@@ -136,11 +138,13 @@ export function renderHeadingFrames(
     frame.dataset.headingLine = String(section.line);
     frame.dataset.headingCenterX = String(centerX);
     frame.dataset.headingCenterY = String(centerY);
-    frame.style.setProperty('--heading-frame-left', `${pan.x + centerX * zoom}px`);
-    frame.style.setProperty('--heading-frame-top', `${pan.y + centerY * zoom}px`);
-    frame.style.setProperty('--heading-frame-width', `${width}px`);
-    frame.style.setProperty('--heading-frame-height', `${height}px`);
-    frame.style.setProperty('--heading-frame-zoom', String(zoom));
+    frame.setCssProps({
+      '--heading-frame-left': `${pan.x + centerX * zoom}px`,
+      '--heading-frame-top': `${pan.y + centerY * zoom}px`,
+      '--heading-frame-width': `${width}px`,
+      '--heading-frame-height': `${height}px`,
+      '--heading-frame-zoom': String(zoom),
+    });
 
     const title = ownerDocument.createElement('div');
     title.className = 'mindmap-heading-frame-title';

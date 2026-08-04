@@ -397,7 +397,11 @@ class FakeEventTarget {
 }
 
 class FakeCanvas extends FakeEventTarget {
-  readonly style = { touchAction: '' };
+  readonly style: Record<string, string> = { touchAction: '' };
+  setCssStyles(styles: Record<string, string>): void {
+    Object.assign(this.style, styles);
+  }
+
   readonly ownerWindow = new FakeEventTarget();
   readonly ownerDocument = { defaultView: this.ownerWindow };
   readonly capturedPointers = new Set<number>();

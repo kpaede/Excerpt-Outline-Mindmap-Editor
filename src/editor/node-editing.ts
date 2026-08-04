@@ -14,7 +14,7 @@ export function renderNodeMarkdown(
   container.dataset.text = node.text;
 
   if (node.scaleFactor && node.scaleFactor !== 1) {
-    container.style.setProperty('--mindmap-scale', String(node.scaleFactor));
+    container.setCssProps({ '--mindmap-scale': String(node.scaleFactor) });
   }
 
   if (node.text.trim() === '') {
@@ -104,8 +104,12 @@ export function startNodeEditing(
     const scroller = editorHost.querySelector('.cm-scroller');
     if (!scroller) return;
 
-    editorHost.style.height = 'auto';
-    editorHost.style.height = `${Math.max(box.clientHeight - 22, scroller.scrollHeight)}px`;
+    // Two steps on purpose: releasing the height lets the scroller take its
+    // natural size, which is what the second assignment then measures.
+    editorHost.setCssStyles({ height: 'auto' });
+    editorHost.setCssStyles({
+      height: `${Math.max(box.clientHeight - 22, scroller.scrollHeight)}px`,
+    });
   };
 
   let finished = false;

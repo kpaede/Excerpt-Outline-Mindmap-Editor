@@ -33,6 +33,16 @@ class FakeElement {
 
   constructor(readonly ownerDocument: FakeDocument, readonly tagName: string) {}
 
+  // Obsidian augments HTMLElement with these at runtime; the stubs mirror them
+  // onto the same `style` the assertions read.
+  setCssProps(props: Record<string, string>): void {
+    for (const [name, value] of Object.entries(props)) this.style.setProperty(name, value);
+  }
+
+  setCssStyles(styles: Record<string, string>): void {
+    for (const [name, value] of Object.entries(styles)) this.style.setProperty(name, value);
+  }
+
   set className(value: string) {
     value.split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
   }

@@ -368,11 +368,13 @@ export class MindmapView extends TextFileView {
         this.wrapper.appendChild(this.selectionBoxEl);
       }
 
-      this.selectionBoxEl.style.display = 'block';
-      this.selectionBoxEl.style.left = `${this.boxStartX}px`;
-      this.selectionBoxEl.style.top = `${this.boxStartY}px`;
-      this.selectionBoxEl.style.width = '0px';
-      this.selectionBoxEl.style.height = '0px';
+      this.selectionBoxEl.setCssStyles({
+        display: 'block',
+        left: `${this.boxStartX}px`,
+        top: `${this.boxStartY}px`,
+        width: '0px',
+        height: '0px',
+      });
       
       // Make overlays unclickable during drag so they don't interfere
       this.wrapper.classList.add('is-box-selecting');
@@ -396,10 +398,12 @@ export class MindmapView extends TextFileView {
       const height = Math.abs(currentY - this.boxStartY);
       this.hasDraggedSelectionBox = width > 3 || height > 3;
 
-      this.selectionBoxEl.style.left = `${left}px`;
-      this.selectionBoxEl.style.top = `${top}px`;
-      this.selectionBoxEl.style.width = `${width}px`;
-      this.selectionBoxEl.style.height = `${height}px`;
+      this.selectionBoxEl.setCssStyles({
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${width}px`,
+        height: `${height}px`,
+      });
     }, { signal });
 
     window.addEventListener('mouseup', (e) => {
@@ -437,7 +441,7 @@ export class MindmapView extends TextFileView {
         this.updateSelectionStyling();
         this.wrapper?.focus();
 
-        this.selectionBoxEl.style.display = 'none';
+        this.selectionBoxEl.setCssStyles({ display: 'none' });
       }
     }, { signal });
   }

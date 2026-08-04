@@ -73,7 +73,7 @@ async function measureNodes(
   for (const node of flat) {
     const box = createDiv();
     box.className = 'mindmap-measure-box';
-    box.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
+    box.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
 
     if (node.text.trim() === '') {
       box.innerHTML = '&nbsp;';
@@ -174,20 +174,22 @@ async function renderOverlays(
     const box = createDiv();
     box.className = 'mindmap-overlay mindmap-eome-overlay';
     box.dataset.mindmapEomeOverlay = '1';
-    box.style.setProperty('--mindmap-left', `${position.x}px`);
-    box.style.setProperty('--mindmap-top', `${position.y}px`);
-    box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
-    box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
-    box.style.setProperty('--mindmap-zoom', String(zoom));
-    box.style.setProperty('--mindmap-border', '#000000');
-    box.style.setProperty('--mindmap-bg', bg);
-    box.style.setProperty('--mindmap-color', txt);
-    box.style.setProperty('--mindmap-font', font);
+    box.setCssProps({
+      '--mindmap-left': `${position.x}px`,
+      '--mindmap-top': `${position.y}px`,
+      '--mindmap-box-width': `${dims.w}px`,
+      '--mindmap-box-height': `${dims.h}px`,
+      '--mindmap-zoom': String(zoom),
+      '--mindmap-border': '#000000',
+      '--mindmap-bg': bg,
+      '--mindmap-color': txt,
+      '--mindmap-font': font,
+    });
 
     const content = createDiv();
     content.className = 'markdown-rendered';
     if (node.scaleFactor && node.scaleFactor !== 1) {
-      content.style.setProperty('--mindmap-scale', String(node.scaleFactor));
+      content.setCssProps({ '--mindmap-scale': String(node.scaleFactor) });
     }
 
     if (node.text.trim() === '') {

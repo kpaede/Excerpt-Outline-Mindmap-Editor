@@ -142,7 +142,7 @@ export async function measureNodesForLayout(
 
       const tmpBox = doc.createElement('div');
       tmpBox.className = 'mindmap-measure-box';
-      tmpBox.style.setProperty('--mindmap-target-width', `${targetWidth}px`);
+      tmpBox.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
       // Attached before rendering, not after. Obsidian's Markdown
       // post-processors are free to skip work for disconnected nodes, and
       // Excalidraw does exactly that - it drops any embed whose placeholder is

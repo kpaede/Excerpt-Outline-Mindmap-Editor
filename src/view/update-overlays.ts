@@ -73,11 +73,13 @@ export function updateOverlayGeometry(view: MindmapView): boolean {
     }
 
     const position = node.renderedPosition();
-    overlay.style.setProperty('--mindmap-left', `${position.x}px`);
-    overlay.style.setProperty('--mindmap-top', `${position.y}px`);
-    overlay.style.setProperty('--mindmap-box-width', `${dims.w}px`);
-    overlay.style.setProperty('--mindmap-box-height', `${dims.h}px`);
-    overlay.style.setProperty('--mindmap-zoom', String(zoom));
+    overlay.setCssProps({
+      '--mindmap-left': `${position.x}px`,
+      '--mindmap-top': `${position.y}px`,
+      '--mindmap-box-width': `${dims.w}px`,
+      '--mindmap-box-height': `${dims.h}px`,
+      '--mindmap-zoom': String(zoom),
+    });
   }
 
   return updateHeadingFrameGeometry(view.wrapper, view.cy);
@@ -200,19 +202,23 @@ function performOverlayUpdate(view: MindmapView): void {
     box.classList.add('mindmap-overlay');
     box.createDiv({ cls: 'mindmap-node-selection-ring', attr: { 'aria-hidden': 'true' } });
     // Dynamic position variables for CSS positioning
-    box.style.setProperty('--mindmap-left', `${p.x}px`);
-    box.style.setProperty('--mindmap-top', `${p.y}px`);
-    box.style.setProperty('--mindmap-box-width', `${dims.w}px`);
-    box.style.setProperty('--mindmap-box-height', `${dims.h}px`);
-    box.style.setProperty('--mindmap-zoom', String(zoom));
-    box.style.setProperty('--mindmap-border', border);
-    box.style.setProperty('--mindmap-bg', bg);
-    box.style.setProperty('--mindmap-color', txt);
+    box.setCssProps({
+      '--mindmap-left': `${p.x}px`,
+      '--mindmap-top': `${p.y}px`,
+      '--mindmap-box-width': `${dims.w}px`,
+      '--mindmap-box-height': `${dims.h}px`,
+      '--mindmap-zoom': String(zoom),
+      '--mindmap-border': border,
+      '--mindmap-bg': bg,
+      '--mindmap-color': txt,
+    });
     if (font) {
-      box.style.setProperty('--mindmap-font', font);
+      box.setCssProps({ '--mindmap-font': font });
     }
-    box.style.setProperty('--mindmap-font-size', '16px');
-    box.style.setProperty('--mindmap-box-shadow', '0 1px 3px rgba(0,0,0,.08)');
+    box.setCssProps({
+      '--mindmap-font-size': '16px',
+      '--mindmap-box-shadow': '0 1px 3px rgba(0,0,0,.08)',
+    });
 
     const { checkboxToggle, hasCheckbox, toggleCheckbox } = appendCheckboxToggle(box, nodeToUse, view);
 
