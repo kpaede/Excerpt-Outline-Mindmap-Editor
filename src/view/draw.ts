@@ -205,7 +205,7 @@ async function runLayout(
       layout.run();
     } catch (error) {
       layout.off('layoutstop', onLayoutStop);
-      reject(error);
+      reject(error instanceof Error ? error : new Error(String(error)));
     }
   });
 }

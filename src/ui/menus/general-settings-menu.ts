@@ -175,15 +175,18 @@ export class GeneralSettingsMenu {
       }
     });
 
-    select.addEventListener('change', async () => {
-      setValue(select.value);
-      if (this.view?.file && this.view?.frontmatterStorage) {
-        try {
-          await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
-        } catch (error) {
-          console.error('Failed to save general settings to frontmatter:', error);
+    select.addEventListener('change', () => {
+      void (async () => {
+        setValue(select.value);
+        if (this.view?.file && this.view?.frontmatterStorage) {
+          try {
+            await this.view.frontmatterStorage.updateGeneralSettings(this.view.file, this.settings);
+          } catch (error) {
+            console.error('Failed to save general settings to frontmatter:', error);
+          }
         }
-      }
+    
+      })();
     });
   }
 

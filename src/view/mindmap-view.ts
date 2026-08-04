@@ -627,14 +627,17 @@ export class MindmapView extends TextFileView {
       return;
     }
 
-    new DeleteNodeModal(this.app, async (result) => {
-      if (!this.file) return;
+    new DeleteNodeModal(this.app, (result) => {
+      void (async () => {
+        if (!this.file) return;
 
-      if (result === "full") {
-        await this.executeDeleteMultipleNodesCommand(topLevelNodes);
-      } else if (result === "single") {
-        await this.deleteNodesKeepingChildren(nodes);
-      }
+        if (result === "full") {
+          await this.executeDeleteMultipleNodesCommand(topLevelNodes);
+        } else if (result === "single") {
+          await this.deleteNodesKeepingChildren(nodes);
+        }
+    
+      })();
     }).open();
   }
 
@@ -1269,7 +1272,7 @@ export class MindmapView extends TextFileView {
   }
 
   async onLoadFile(file: TFile): Promise<void> {
-    super.onLoadFile(file);
+    void super.onLoadFile(file);
     this.ensureViewListeners();
 
     if (this.frontmatterStorage && file) {

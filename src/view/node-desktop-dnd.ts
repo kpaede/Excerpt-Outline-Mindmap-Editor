@@ -130,57 +130,60 @@ export function attachDesktopNodeDndHandlers({
     updateMoveDropPreview(event, box, nodeToUse, getActiveDraggedNodeLine());
   });
 
-  box.addEventListener('drop', async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const dropIntent = getDropIntent(event, box, { targetHasChildren: nodeToUse.children.length > 0 });
-    box.classList.remove('mm-tgt');
-    clearDropPreview(box);
-    dragCounter = 0;
+  box.addEventListener('drop', (event) => {
+    void (async () => {
+      event.preventDefault();
+      event.stopPropagation();
+      const dropIntent = getDropIntent(event, box, { targetHasChildren: nodeToUse.children.length > 0 });
+      box.classList.remove('mm-tgt');
+      clearDropPreview(box);
+      dragCounter = 0;
 
-    const srcLine = event.dataTransfer!.getData('text/mindmap-line');
-    const srcNodeId = event.dataTransfer!.getData('text/mindmap-node-id');
+      const srcLine = event.dataTransfer!.getData('text/mindmap-line');
+      const srcNodeId = event.dataTransfer!.getData('text/mindmap-node-id');
 
-    if (srcLine && srcNodeId) {
-      if (!view.file) return;
+      if (srcLine && srcNodeId) {
+        if (!view.file) return;
 
-      const srcNodeFromOutline = flatCurrent.find((node) => node.line === parseInt(srcLine, 10));
-      if (srcNodeFromOutline && srcNodeFromOutline.line !== nodeToUse.line) {
-        if (isInvalidMoveTarget(srcNodeFromOutline, nodeToUse)) {
-          new Notice('Cannot move a node into its own children.');
-          return;
+        const srcNodeFromOutline = flatCurrent.find((node) => node.line === parseInt(srcLine, 10));
+        if (srcNodeFromOutline && srcNodeFromOutline.line !== nodeToUse.line) {
+          if (isInvalidMoveTarget(srcNodeFromOutline, nodeToUse)) {
+            new Notice('Cannot move a node into its own children.');
+            return;
+          }
+
+          try {
+            await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+            await view.executeMoveSubtreeCommand(
+              srcNodeFromOutline,
+              nodeToUse,
+              dropIntent.kind === 'child',
+              dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
+              dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
+            );
+          } catch (error) {
+            console.error('Move subtree failed:', error);
+            new Notice('Move failed: ' + errorMessage(error));
+          }
         }
+        return;
+      }
 
+      const txtData = event.dataTransfer!.getData('text/plain').trim();
+      if (txtData && view.file) {
         try {
           await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-          await view.executeMoveSubtreeCommand(
-            srcNodeFromOutline,
-            nodeToUse,
-            dropIntent.kind === 'child',
-            dropIntent.kind === 'child' ? dropIntent.childInsertPosition : 'last',
-            dropIntent.kind === 'sibling' ? dropIntent.siblingInsertPosition : 'after'
-          );
+          if (dropIntent.kind === 'sibling') {
+            await view.executeAddSiblingTextCommand(nodeToUse, txtData, dropIntent.siblingInsertPosition);
+          } else {
+            await view.executeAddChildTextCommand(nodeToUse, txtData, dropIntent.childInsertPosition);
+          }
         } catch (error) {
-          console.error('Move subtree failed:', error);
-          new Notice('Move failed: ' + errorMessage(error));
+          console.error('Add child text failed:', error);
+          new Notice('Failed to add content: ' + errorMessage(error));
         }
       }
-      return;
-    }
-
-    const txtData = event.dataTransfer!.getData('text/plain').trim();
-    if (txtData && view.file) {
-      try {
-        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-        if (dropIntent.kind === 'sibling') {
-          await view.executeAddSiblingTextCommand(nodeToUse, txtData, dropIntent.siblingInsertPosition);
-        } else {
-          await view.executeAddChildTextCommand(nodeToUse, txtData, dropIntent.childInsertPosition);
-        }
-      } catch (error) {
-        console.error('Add child text failed:', error);
-        new Notice('Failed to add content: ' + errorMessage(error));
-      }
-    }
+  
+    })();
   });
 }

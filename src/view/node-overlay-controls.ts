@@ -98,11 +98,11 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
   };
 
   controls.append(
-    createControlButton('plus', 'Add child', async () => {
-      await view.executeAddChildCommand(node);
+    createControlButton('plus', 'Add child', () => {
+      void view.executeAddChildCommand(node);
     }),
-    createControlButton('git-pull-request-create', 'Add sibling', async () => {
-      await view.executeAddSiblingCommand(node);
+    createControlButton('git-pull-request-create', 'Add sibling', () => {
+      void view.executeAddSiblingCommand(node);
     })
   );
 
@@ -111,14 +111,17 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
     if (event.button !== 0) return;
     if (!view.file) return;
 
-    new DeleteNodeModal(view.app, async (result: DeleteOption) => {
-      if (!view.file) return;
+    new DeleteNodeModal(view.app, (result: DeleteOption) => {
+      void (async () => {
+        if (!view.file) return;
 
-      if (result === 'full') {
-        await view.executeDeleteNodeCommand(node);
-      } else {
-        await view.executeDeleteNodeKeepChildrenCommand(node);
-      }
+        if (result === 'full') {
+          await view.executeDeleteNodeCommand(node);
+        } else {
+          await view.executeDeleteNodeKeepChildrenCommand(node);
+        }
+    
+      })();
     }).open();
   });
 

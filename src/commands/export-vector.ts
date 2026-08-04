@@ -617,8 +617,9 @@ async function waitForCurrentDocumentReady(root: HTMLElement): Promise<void> {
 
   try {
     const fonts = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts;
-    if (fonts?.ready) {
-      await fonts.ready;
+    const fontsReady = fonts?.ready;
+    if (fontsReady !== undefined) {
+      await fontsReady;
     }
   } catch {
     // Continue; font readiness should not block export forever.

@@ -260,10 +260,13 @@ export async function renderMindmapEomeEmbed(
     attr: { 'aria-label': 'Open mindmap' },
   });
   setIcon(openButton, 'external-link');
-  openButton.addEventListener('click', async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    await plugin.openMindmapReplacingLeaf(file);
+  openButton.addEventListener('click', (event) => {
+    void (async () => {
+      event.preventDefault();
+      event.stopPropagation();
+      await plugin.openMindmapReplacingLeaf(file);
+  
+    })();
   });
 
   const sizeMap = await measureNodes(plugin, child, file, flat);

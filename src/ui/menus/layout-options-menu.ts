@@ -168,9 +168,12 @@ export class LayoutOptionsMenu {
 
     const resetBtn = container.createEl('button', { text: 'Reset layout options' });
     resetBtn.addClass('fullwidth-button', 'layout-reset-button');
-    resetBtn.addEventListener('click', async () => {
-      await this.view.resetLayoutOptions();
-      this.close();
+    resetBtn.addEventListener('click', () => {
+      void (async () => {
+        await this.view.resetLayoutOptions();
+        this.close();
+    
+      })();
     });
 
     const closeBtn = container.createEl('button', { text: 'Close' });
@@ -202,7 +205,7 @@ export class LayoutOptionsMenu {
       }
     });
     
-    select.addEventListener('change', () => onChange(select.value));
+    select.addEventListener('change', () => void onChange(select.value));
   }
 
   private addSliderSetting(
@@ -235,10 +238,13 @@ export class LayoutOptionsMenu {
       cls: 'setting-item-value',
     });
     
-    slider.addEventListener('input', async () => {
-      const newVal = Number(slider.value);
-      await setValue(newVal);
-      valueEl.textContent = formatValue(newVal);
+    slider.addEventListener('input', () => {
+      void (async () => {
+        const newVal = Number(slider.value);
+        await setValue(newVal);
+        valueEl.textContent = formatValue(newVal);
+    
+      })();
     });
   }
 

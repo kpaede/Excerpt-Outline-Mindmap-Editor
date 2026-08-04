@@ -52,7 +52,7 @@ export class VerticalToolbar {
     setIcon(undoBtn, 'undo');
     undoBtn.setAttribute('aria-label', 'Undo');
     undoBtn.onclick = () => {
-      this.view.executeUndo();
+      void this.view.executeUndo();
     };
 
     // Redo Button  
@@ -61,7 +61,7 @@ export class VerticalToolbar {
     setIcon(redoBtn, 'redo');
     redoBtn.setAttribute('aria-label', 'Redo');
     redoBtn.onclick = () => {
-      this.view.executeRedo();
+      void this.view.executeRedo();
     };
 
     // Store references for updating button states
@@ -163,7 +163,7 @@ export class VerticalToolbar {
       this.nodeOptions,
       (newOptions) => {
         this.nodeOptions = { ...newOptions };
-        this.view.updateRenderingOptions(this.nodeOptions);
+        void this.view.updateRenderingOptions(this.nodeOptions);
       },
       this.view // Pass view reference
     );

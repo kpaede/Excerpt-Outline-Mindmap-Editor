@@ -104,7 +104,7 @@ export default class MindmapPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on('modify', (file) => {
         if (file instanceof TFile && file.extension === 'md') {
-          this.updateMindmapViews(file);
+          void this.updateMindmapViews(file);
         }
       })
     );
