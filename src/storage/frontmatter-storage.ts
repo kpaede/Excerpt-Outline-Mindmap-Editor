@@ -155,8 +155,8 @@ export class FrontmatterStorage {
 
     if (!frontmatter || !frontmatter['excerpt-outline-mindmap']) return {};
 
-    const mindmapDataString = frontmatter['excerpt-outline-mindmap'];
-    return this.parseFromString(String(mindmapDataString));
+    const mindmapData: unknown = frontmatter['excerpt-outline-mindmap'];
+    return this.parseFromString(typeof mindmapData === 'string' ? mindmapData : '');
   }
 
   async updateNodeOptions(file: TFile, nodeOptions: NodeOptions): Promise<void> {

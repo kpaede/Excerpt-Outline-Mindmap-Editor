@@ -518,7 +518,6 @@ If your plugin does not need CSS, delete this file.
   /* Was `all: unset`, which also discards inherited theme values and leaves
      what a button looks like up to the engine. These are the button defaults
      that actually had to go; everything else this rule needs is set below. */
-  appearance: none;
   margin: 0;
   font: inherit;
   line-height: normal;

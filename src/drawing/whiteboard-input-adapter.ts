@@ -449,7 +449,7 @@ export class WhiteboardInputAdapter {
 
   private suspendDrawingStartForCurrentEvent(): void {
     if (this.restoreDrawingStart) return;
-    const original = this.board.handleDrawingStart;
+    const original = this.board.handleDrawingStart.bind(this.board);
     const blocked = (): void => undefined;
     this.board.handleDrawingStart = blocked;
     this.restoreDrawingStart = () => {

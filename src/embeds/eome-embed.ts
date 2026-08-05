@@ -7,7 +7,6 @@ import {
   setIcon,
 } from 'obsidian';
 import cytoscape, { ElementDefinition, type LayoutOptions } from 'cytoscape';
-// @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
 import type MindmapPlugin from '../main';

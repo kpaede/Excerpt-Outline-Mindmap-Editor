@@ -57,19 +57,16 @@ export function appendZoteroBadge(box: HTMLElement, node: OutlineNode): void {
   zoteroBadge.setAttribute('type', 'button');
   zoteroBadge.setAttribute('aria-label', 'Open Zotero source');
   zoteroBadge.setAttribute('title', 'Open Zotero source');
-  const badgeSvg = zoteroBadge.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  badgeSvg.setAttribute('width', '16');
-  badgeSvg.setAttribute('height', '16');
-  badgeSvg.setAttribute('viewBox', '0 0 16 16');
-  badgeSvg.setAttribute('aria-hidden', 'true');
-  const badgeShape = zoteroBadge.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  badgeShape.setAttribute('fill', 'currentColor');
-  badgeShape.setAttribute(
-    'points',
-    '13.863 2.73 13.027 1 2.137 1 2.137 3.8 2.137 3.921 8.822 3.921 1.289 13.233 2.137 15 13.863 15 13.863 12.142 13.863 12.021 6.448 12.021 13.863 2.73'
-  );
-  badgeSvg.appendChild(badgeShape);
-  zoteroBadge.appendChild(badgeSvg);
+  const badgeSvg = zoteroBadge.createSvg('svg', {
+    attr: { width: '16', height: '16', viewBox: '0 0 16 16', 'aria-hidden': 'true' },
+  });
+  badgeSvg.createSvg('polygon', {
+    attr: {
+      fill: 'currentColor',
+      points:
+        '13.863 2.73 13.027 1 2.137 1 2.137 3.8 2.137 3.921 8.822 3.921 1.289 13.233 2.137 15 13.863 15 13.863 12.142 13.863 12.021 6.448 12.021 13.863 2.73',
+    },
+  });
   zoteroBadge.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();

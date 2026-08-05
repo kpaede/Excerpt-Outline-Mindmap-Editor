@@ -1,5 +1,4 @@
 import cytoscape, { Core, ElementDefinition, type LayoutOptions } from 'cytoscape';
-// @ts-ignore - no types available for cytoscape-dagre
 import dagre from 'cytoscape-dagre';
 
 import { parseOutline, OutlineNode } from '../utils/outline';
