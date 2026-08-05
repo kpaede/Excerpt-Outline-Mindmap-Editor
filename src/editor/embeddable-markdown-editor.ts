@@ -178,11 +178,8 @@ function patchLocalExtensions(
 				function (this: InternalMarkdownEditor) {
 					const extensions = originalMethod.call(this);
 
+					// Only add our extensions to our own editor instance
 					if (this === self.editor) {
-				const extensions = originalMethod.call(this);
-
-				// Only add our custom extensions if this is our editor instance
-				if (this === self.editor) {
 					// Add placeholder if configured
 					if (self.options.placeholder) {
 						extensions.push(
@@ -277,7 +274,6 @@ function patchLocalExtensions(
 					extensions.push(
 						Prec.highest(keymap.of(keyBindings))
 					);
-				}
 					}
 
 					return extensions;
