@@ -96,9 +96,8 @@ export function startNodeEditing(
   const md = box.querySelector('div[data-text]') as HTMLElement;
   if (md) md.classList.add('mm-hidden');
 
-  const editorHost = box.ownerDocument.createElement('div');
+  const editorHost = box.createDiv();
   editorHost.className = 'node-editor node-editor-host';
-  box.appendChild(editorHost);
 
   const resizeEditor = () => {
     const scroller = editorHost.querySelector('.cm-scroller');

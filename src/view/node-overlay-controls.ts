@@ -18,7 +18,7 @@ export function appendCheckboxToggle(box: HTMLElement, node: OutlineNode, view: 
   box.classList.toggle('checkbox-hoverable', isCheckboxHoverable);
   box.classList.toggle('checkbox-checked', node.checkbox === 'checked');
 
-  const checkboxToggle = box.ownerDocument.createElement('button');
+  const checkboxToggle = box.createEl('button');
   checkboxToggle.type = 'button';
   checkboxToggle.className = 'checkbox-toggle';
   checkboxToggle.setAttribute('aria-label', node.checkbox === 'checked' ? 'Uncheck task' : 'Toggle checkbox');
@@ -39,7 +39,6 @@ export function appendCheckboxToggle(box: HTMLElement, node: OutlineNode, view: 
     void toggleCheckbox();
   });
 
-  box.appendChild(checkboxToggle);
 
   return {
     checkboxToggle,
@@ -52,7 +51,7 @@ export function appendZoteroBadge(box: HTMLElement, node: OutlineNode): void {
   const primaryZoteroLink = getPrimaryZoteroLink(node.text);
   if (!primaryZoteroLink) return;
 
-  const zoteroBadge = box.ownerDocument.createElement('button');
+  const zoteroBadge = box.createEl('button');
   zoteroBadge.className = 'mindmap-zotero-badge';
   zoteroBadge.setAttribute('type', 'button');
   zoteroBadge.setAttribute('aria-label', 'Open Zotero source');
@@ -72,14 +71,13 @@ export function appendZoteroBadge(box: HTMLElement, node: OutlineNode): void {
     event.stopPropagation();
     window.open(primaryZoteroLink, '_blank');
   });
-  box.appendChild(zoteroBadge);
 }
 
 export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: MindmapView): void {
-  const controls = box.ownerDocument.createElement('div');
+  const controls = box.createDiv();
   controls.className = 'node-controls';
 
-  const deleteButton = box.ownerDocument.createElement('button');
+  const deleteButton = box.createEl('button');
   deleteButton.type = 'button';
   deleteButton.textContent = '×';
   deleteButton.className = 'mindmap-node-delete';

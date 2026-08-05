@@ -27,6 +27,19 @@ class FakeElement {
 
   constructor(readonly ownerDocument: FakeDocument, readonly tagName: string) {}
 
+  // Obsidian's createEl creates in this element's document and appends in one
+  // step; the stub mirrors that so the assertions still see the same tree.
+  createEl(tagName: string, options?: { prepend?: boolean }): FakeElement {
+    const child = this.ownerDocument.createElement(tagName);
+    if (options?.prepend) this.children.unshift(child);
+    else this.appendChild(child);
+    return child;
+  }
+
+  createDiv(options?: { prepend?: boolean }): FakeElement {
+    return this.createEl('div', options);
+  }
+
   set className(value: string) {
     value.split(/\s+/).filter(Boolean).forEach((name) => this.classList.add(name));
   }

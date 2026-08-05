@@ -192,11 +192,10 @@ function performOverlayUpdate(view: MindmapView): void {
     }
 
     // Always create a new box, as all old ones were removed
-    const box = doc.createElement('div');
+    const box = view.wrapper.createDiv();
     box.dataset.overlay = '1';
     box.dataset.nodeId = nodeId;
     box.dataset.nodeLine = String(nodeToUse.line);
-    view.wrapper.appendChild(box);
 
     // Update position and styling using CSS variables where possible
     box.classList.add('mindmap-overlay');
@@ -232,13 +231,12 @@ function performOverlayUpdate(view: MindmapView): void {
 
     appendZoteroBadge(box, nodeToUse);
 
-    const md = doc.createElement('div');
+    const md = box.createDiv({ prepend: true });
     box.classList.add('mindmap-overlay');
     // Inserted before rendering. Markdown post-processors are free to skip
     // work for elements that are not in the document - Excalidraw drops any
     // embed whose placeholder is disconnected - and rendering into a detached
     // div first left that up to how far into the render the first await lands.
-    box.insertBefore(md, box.firstChild);
     renderNodeMarkdown(md, nodeToUse, view);
 
     attachDesktopNodeDndHandlers({
