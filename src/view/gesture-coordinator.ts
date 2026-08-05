@@ -611,15 +611,13 @@ export class MindmapGestureCoordinator {
     this.capturePointer(contact.id);
     this.view.selectNode(contact.nodeLine);
 
-    const ghost = sourceBox.ownerDocument.createElement('div');
-    ghost.className = 'mindmap-touch-drag-ghost';
+    const ghost = sourceBox.ownerDocument.body.createDiv({ cls: 'mindmap-touch-drag-ghost' });
     const content = sourceBox.querySelector('.markdown-rendered')?.cloneNode(true) as HTMLElement | undefined;
     if (content) {
       content.classList.add('mindmap-touch-drag-ghost-content');
       content.style.removeProperty('--mindmap-scale');
       ghost.appendChild(content);
     }
-    sourceBox.ownerDocument.body.appendChild(ghost);
 
     const rect = sourceBox.getBoundingClientRect();
     ghost.setCssProps({

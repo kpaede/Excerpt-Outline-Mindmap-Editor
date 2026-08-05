@@ -30,5 +30,11 @@ export default tseslint.config(
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",
+		// Not part of the shipped plugin and not covered by tsconfig, so the
+		// type-aware rules have no project to resolve them against. The test
+		// suite is type-checked by vitest instead.
+		"tests",
+		"scripts",
+		"*.config.mts",
 	]),
 );

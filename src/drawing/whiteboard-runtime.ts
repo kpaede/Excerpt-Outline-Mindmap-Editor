@@ -33,8 +33,7 @@ function installOffscreenCanvasFallback(): void {
   // typeof rather than `in`: the `in` form narrows `window` itself, leaving
   // the rest of this function with nothing left to read `document` from.
   if (typeof window.OffscreenCanvas !== 'undefined') return;
-  const runtimeDocument = window.document;
-  if (!runtimeDocument) {
+  if (!window.document) {
     throw new WhiteboardRuntimeCapabilityError('The drawing editor needs a browser document.');
   }
 
@@ -42,7 +41,7 @@ function installOffscreenCanvasFallback(): void {
     // This canvas is used only for text measurement and is never attached. Use
     // the stable module realm instead of capturing whichever Obsidian window
     // happened to open the first drawing.
-    private readonly canvas = runtimeDocument.createElement('canvas');
+    private readonly canvas = window.document.body.createEl('canvas', {}, (el) => el.detach());
 
     constructor(width: number, height: number) {
       this.canvas.width = width;

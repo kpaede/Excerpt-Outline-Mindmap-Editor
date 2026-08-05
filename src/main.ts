@@ -43,7 +43,7 @@ export default class MindmapPlugin extends Plugin {
 
     this.addCommand({
       id: 'export-current-mindmap-to-canvas',
-      name: 'Export current mindmap to Canvas',
+      name: 'Canvas export of the current mindmap',
       checkCallback: (checking: boolean) => {
         const view = this.getActiveMindmapView();
         const canRun = !!view?.file;
@@ -95,7 +95,7 @@ export default class MindmapPlugin extends Plugin {
 
         menu.addItem((item) => {
           item
-            .setTitle('Open as mindmap')
+            .setTitle('Mindmap view of this file')
             .onClick(() => void this.openMindmapReplacingLeaf(file));
         });
       })

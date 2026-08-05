@@ -43,7 +43,6 @@ export function renderHeadingFrames(
 ): void {
   wrapper.querySelectorAll('[data-heading-frame]').forEach((frame) => frame.remove());
 
-  const ownerDocument = wrapper.ownerDocument;
   const zoom = cy.zoom();
   const pan = cy.pan();
   const attributeName = options.attributeName ?? 'overlay';
@@ -129,7 +128,7 @@ export function renderHeadingFrames(
     const height = resolvedBounds.bottom - resolvedBounds.top + padding * 2 + titleSpace;
     const centerX = resolvedBounds.left + (resolvedBounds.right - resolvedBounds.left) / 2;
     const centerY = resolvedBounds.top + (resolvedBounds.bottom - resolvedBounds.top) / 2 - titleSpace / 2;
-    const frame = ownerDocument.createElement('div');
+    const frame = wrapper.createDiv();
     frame.className = 'mindmap-heading-frame';
     frame.classList.toggle('is-empty-heading-frame', isEmptySection);
     frame.dataset.headingFrame = '1';
@@ -146,7 +145,7 @@ export function renderHeadingFrames(
       '--heading-frame-zoom': String(zoom),
     });
 
-    const title = ownerDocument.createElement('div');
+    const title = frame.createDiv();
     title.className = 'mindmap-heading-frame-title';
     title.addClass('markdown-rendered');
     title.createEl(`h${section.level}` as keyof HTMLElementTagNameMap, { text: section.text });
@@ -157,10 +156,9 @@ export function renderHeadingFrames(
         options.onEdit?.(section, frame);
       });
     }
-    frame.appendChild(title);
 
     if (isEmptySection) {
-      const dropTarget = ownerDocument.createElement('button');
+      const dropTarget = frame.createEl('button');
       dropTarget.type = 'button';
       dropTarget.className = 'mindmap-empty-heading-drop-target';
       dropTarget.dataset.headingLine = String(section.line);
@@ -198,10 +196,8 @@ export function renderHeadingFrames(
         }
       });
 
-      frame.appendChild(dropTarget);
     }
 
-    wrapper.appendChild(frame);
   });
 }
 
@@ -217,9 +213,8 @@ export function startHeadingEditing(
   const title = frame.querySelector('.mindmap-heading-frame-title');
   if (title) title.classList.add('mm-hidden');
 
-  const editorHost = frame.ownerDocument.createElement('div');
+  const editorHost = frame.createDiv();
   editorHost.className = 'mindmap-heading-editor node-editor-host';
-  frame.appendChild(editorHost);
 
   let finished = false;
   const closeEditor = () => {

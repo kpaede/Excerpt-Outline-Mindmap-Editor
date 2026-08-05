@@ -33,6 +33,20 @@ class FakeElement {
 
   constructor(readonly ownerDocument: FakeDocument, readonly tagName: string) {}
 
+  // Obsidian's createEl creates in this element's document and appends in one
+  // step; the stub mirrors that so the assertions still see the same tree.
+  createEl(tagName: string, options?: { cls?: string; prepend?: boolean }): FakeElement {
+    const child = this.ownerDocument.createElement(tagName);
+    if (options?.cls) child.className = options.cls;
+    if (options?.prepend) this.children.unshift(child);
+    else this.appendChild(child);
+    return child;
+  }
+
+  createDiv(options?: { cls?: string; prepend?: boolean }): FakeElement {
+    return this.createEl('div', options);
+  }
+
   // Obsidian augments HTMLElement with these at runtime; the stubs mirror them
   // onto the same `style` the assertions read.
   setCssProps(props: Record<string, string>): void {

@@ -9,7 +9,7 @@ export async function exportMindmapViewToCanvas(
   view: MindmapView
 ): Promise<void> {
   if (!view.file) {
-    new Notice('Open a mindmap before exporting to Canvas.');
+    new Notice('Canvas export needs an open mindmap.');
     return;
   }
 
@@ -33,8 +33,8 @@ export async function exportMindmapViewToCanvas(
     new Notice(`Created Canvas: ${canvasFile.name}`);
     await openCanvasFile(plugin, canvasFile);
   } catch (error) {
-    console.error('Failed to export mindmap to Canvas:', error);
-    new Notice('Failed to export mindmap to Canvas.');
+    console.error('Canvas export failed:', error);
+    new Notice('Canvas export failed.');
   }
 }
 

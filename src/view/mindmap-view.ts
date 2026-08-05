@@ -876,7 +876,7 @@ export class MindmapView extends TextFileView {
     description.createEl('p', { text: 'The mindmap requires an outline structure using list items:' });
     description
       .createEl('ul', { cls: 'mindmap-warning-list' })
-      .createEl('li', { text: 'like this' });
+      .createEl('li', { text: 'Like this' });
     description.createEl('p', { text: 'Please start with an empty file or the mentioned format.' });
 
   }

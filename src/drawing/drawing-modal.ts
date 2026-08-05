@@ -102,7 +102,7 @@ class DrawingModal extends Modal {
 
     const header = this.contentEl.createDiv({ cls: 'eome-drawing-header' });
     header.createEl('h2', { text: this.initialItems.length > 0 ? 'Edit drawing' : 'New drawing' });
-    header.createEl('p', { text: 'Draw with Apple Pencil or a finger. Hold briefly at the end of a stroke to straighten it.' });
+    header.createEl('p', { text: 'Pencil and finger input both draw. Hold briefly at the end of a stroke to straighten it.' });
 
     const stage = this.contentEl.createDiv({ cls: 'eome-drawing-stage' });
     // The library's own tool palette is a floating pill it re-renders on every
@@ -272,7 +272,11 @@ class DrawingModal extends Modal {
     const pendingPreferences = this.penPreferences?.load();
     const runtime = await loadWhiteboardRuntime(ownerDocument);
     if (this.isClosed) return;
-    const board = ownerDocument.createElement('simple-whiteboard');
+    // Created through the document so the custom element lands in the right
+    // realm; it moves into the modal's stage further down.
+    const board = ownerDocument.body.createEl(
+      'simple-whiteboard' as 'div'
+    ) as unknown as SimpleWhiteboard;
     if (typeof board.updateComplete === 'undefined') {
       throw new Error('The simple-whiteboard custom element was not registered in the active Obsidian window.');
     }
@@ -289,8 +293,7 @@ class DrawingModal extends Modal {
     // resize call goes through the patched version.
     applyRetinaCanvasFix(board);
 
-    const defaults = ownerDocument.createElement('simple-whiteboard--tool-defaults');
-    board.appendChild(defaults);
+    board.createEl('simple-whiteboard--tool-defaults' as 'div');
 
     const requiredTools = new Set([
       'move', 'pointer', 'rect', 'circle', 'line', 'arrow',

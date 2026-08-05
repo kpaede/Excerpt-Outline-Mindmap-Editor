@@ -85,7 +85,7 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
   deleteButton.setAttribute('title', 'Delete node');
 
   const createControlButton = (icon: string, label: string, action: () => void) => {
-    const button = box.ownerDocument.createElement('button');
+    const button = controls.createEl('button');
     button.type = 'button';
     button.className = 'mindmap-node-control';
     button.setAttribute('aria-label', label);
@@ -100,14 +100,14 @@ export function appendNodeControls(box: HTMLElement, node: OutlineNode, view: Mi
     return button;
   };
 
-  controls.append(
-    createControlButton('plus', 'Add child', () => {
-      void view.executeAddChildCommand(node);
-    }),
-    createControlButton('git-pull-request-create', 'Add sibling', () => {
-      void view.executeAddSiblingCommand(node);
-    })
-  );
+  // createControlButton already appends to `controls`; appending the return
+  // values again would add each button twice.
+  createControlButton('plus', 'Add child', () => {
+    void view.executeAddChildCommand(node);
+  });
+  createControlButton('git-pull-request-create', 'Add sibling', () => {
+    void view.executeAddSiblingCommand(node);
+  });
 
   deleteButton.addEventListener('click', (event) => {
     event.stopPropagation();

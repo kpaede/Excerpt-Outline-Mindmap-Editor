@@ -3,18 +3,77 @@ import {
 	MarkdownFileInfo,
 	Scope,
 	TFile,
-	WorkspaceLeaf,
 } from "obsidian";
 
-import { EditorSelection, Prec } from "@codemirror/state";
+import { EditorSelection, Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
 
 import { around } from "monkey-around";
 
+/*
+ * Obsidian's embedded Markdown editor is not part of the public API. What
+ * follows describes only the surface this wrapper touches, so the unchecked
+ * access disappears without claiming to describe the rest. Every entry point
+ * is still guarded at runtime, because a private API can change.
+ */
+
+/** The editor instance Obsidian's internal editor class produces. */
+interface InternalMarkdownEditor {
+	app: App;
+	editorEl: HTMLElement;
+	containerEl: HTMLElement;
+	activeCM: EditorView;
+	owner?: MarkdownFileInfo;
+	_loaded: boolean;
+	editor?: { cm?: EditorView };
+	onUpdate(update: ViewUpdate, changed: boolean): void;
+	set(content: string, focus?: boolean): void;
+	register(callback: () => void): void;
+	unload?: () => void;
+	onunload?: () => void;
+	destroy?: () => void;
+}
+
+type InternalMarkdownEditorClass = new (
+	app: App,
+	container: HTMLElement,
+	owner: { app: App; onMarkdownScroll: () => void; getMode: () => string }
+) => InternalMarkdownEditor;
+
+/** The throwaway embed used once to reach the editor class behind it. */
+interface WidgetEditorView {
+	editable: boolean;
+	showEditor(): void;
+	editMode?: object;
+	unload(): void;
+}
+
+interface AppWithEmbedRegistry {
+	embedRegistry: {
+		embedByExtension: {
+			md(
+				context: { app: App; containerEl: HTMLElement },
+				file: TFile | null,
+				subpath: string
+			): WidgetEditorView;
+		};
+	};
+}
+
+type LocalExtensionBuilder = (this: InternalMarkdownEditor) => Extension[];
+
+/**
+ * Workspace.setActiveLeaf is overloaded, and a wrapper cannot satisfy both
+ * signatures at once. The patch only decides whether to forward, so it is
+ * typed as the pass-through it is.
+ */
+type SetActiveLeaf = (...args: never[]) => void;
+
+
 // Obsidian keeps this editor implementation stable for the lifetime of an App
 // instance. Resolving it creates a temporary embed, so do that at most once per
 // app instead of during every double-tap.
-const editorClassByApp = new WeakMap<App, any>();
+const editorClassByApp = new WeakMap<App, InternalMarkdownEditorClass>();
 
 /**
  * Creates an embeddable markdown editor
@@ -38,29 +97,29 @@ export function createEmbeddableMarkdownEditor(
 /**
  * Resolves the markdown editor prototype from the app
  */
-function resolveEditorPrototype(app: App): any {
+function resolveEditorPrototype(app: App): InternalMarkdownEditorClass {
 	const cachedEditorClass = editorClassByApp.get(app);
 	if (cachedEditorClass) return cachedEditorClass;
 
 	// Create a temporary editor to resolve the prototype of ScrollableMarkdownEditor
-	const widgetEditorView = (app as any).embedRegistry.embedByExtension.md(
+	const widgetEditorView = (app as App & AppWithEmbedRegistry).embedRegistry.embedByExtension.md(
 		{ app, containerEl: createDiv() },
 		null,
 		""
-	) as any;
+	);
 
 	// Mark as editable to instantiate the editor
 	widgetEditorView.editable = true;
 	widgetEditorView.showEditor();
 	const MarkdownEditor = Object.getPrototypeOf(
 		Object.getPrototypeOf(widgetEditorView.editMode)
-	);
+	) as object;
 
 	// Unload to remove the temporary editor
 	widgetEditorView.unload();
 
 	// Return the constructor, using 'any' type to bypass the abstract class check
-	const EditorClass = MarkdownEditor.constructor;
+	const EditorClass = MarkdownEditor.constructor as InternalMarkdownEditorClass;
 	editorClassByApp.set(app, EditorClass);
 	return EditorClass;
 }
@@ -103,13 +162,137 @@ const defaultProperties: MarkdownEditorProps = {
 };
 
 /**
+ * Adds this plugin's CodeMirror extensions to Obsidian's editor.
+ *
+ * The wrapper arrives as a parameter rather than being aliased off `this`:
+ * the patched method needs its own `this` (the editor instance Obsidian is
+ * building extensions for) to tell our editor from any other.
+ */
+function patchLocalExtensions(
+	EditorClass: InternalMarkdownEditorClass,
+	self: EmbeddableMarkdownEditor
+): () => void {
+	return around(EditorClass.prototype as { buildLocalExtensions: LocalExtensionBuilder }, {
+		buildLocalExtensions:
+			(originalMethod: LocalExtensionBuilder): LocalExtensionBuilder =>
+				function (this: InternalMarkdownEditor) {
+					const extensions = originalMethod.call(this);
+
+					if (this === self.editor) {
+				const extensions = originalMethod.call(this);
+
+				// Only add our custom extensions if this is our editor instance
+				if (this === self.editor) {
+					// Add placeholder if configured
+					if (self.options.placeholder) {
+						extensions.push(
+							placeholder(self.options.placeholder)
+						);
+					}
+
+					// Add paste, blur, and focus event handlers
+					extensions.push(
+						EditorView.domEventHandlers({
+							paste: (event) => {
+								self.options.onPaste(event, self);
+							},
+							blur: () => {
+								self.deactivate();
+								if (self.options.onBlur) {
+									self.options.onBlur(self);
+								}
+							},
+							focusin: () => {
+								self.activate();
+							},
+						})
+					);
+
+					// Add keyboard handlers
+					const keyBindings = [
+						{
+							key: "Enter",
+							run: () => {
+								return self.options.onEnter(
+									self,
+									false,
+									false
+								);
+							},
+							shift: () =>
+								self.options.onEnter(
+									self,
+									false,
+									true
+								),
+						},
+						{
+							key: "Mod-Enter",
+							run: () =>
+								self.options.onEnter(
+									self,
+									true,
+									false
+								),
+							shift: () =>
+								self.options.onEnter(
+									self,
+									true,
+									true
+								),
+						},
+						{
+							key: "Escape",
+							run: () => {
+								self.options.onEscape(self);
+								return true;
+							},
+							preventDefault: true,
+						},
+					];
+
+					// For single line mode, prevent Enter key from creating new lines
+					if (self.options.singleLine) {
+						keyBindings[0] = {
+							key: "Enter",
+							run: () => {
+								// In single line mode, Enter should trigger onEnter
+								return self.options.onEnter(
+									self,
+									false,
+									false
+								);
+							},
+							shift: () => {
+								// Even with shift, still call onEnter in single line mode
+								return self.options.onEnter(
+									self,
+									false,
+									true
+								);
+							},
+						};
+					}
+
+					extensions.push(
+						Prec.highest(keymap.of(keyBindings))
+					);
+				}
+					}
+
+					return extensions;
+				},
+	});
+}
+
+/**
  * A markdown editor that can be embedded in any container
  */
 export class EmbeddableMarkdownEditor {
 	options: MarkdownEditorProps;
 	initial_value: string;
 	scope: Scope;
-	editor: any;
+	editor!: InternalMarkdownEditor;
 	private activeEditorInfo: MarkdownFileInfo | null = null;
 	private isActivated = false;
 
@@ -126,7 +309,7 @@ export class EmbeddableMarkdownEditor {
 	get app(): App {
 		return this.editor.app;
 	}
-	get owner(): any {
+	get owner(): MarkdownFileInfo | undefined {
 		return this.editor.owner;
 	}
 	get _loaded(): boolean {
@@ -158,7 +341,7 @@ export class EmbeddableMarkdownEditor {
 	 */
 	constructor(
 		app: App,
-		EditorClass: any,
+		EditorClass: InternalMarkdownEditorClass,
 		container: HTMLElement,
 		options: Partial<MarkdownEditorProps>
 	) {
@@ -170,116 +353,7 @@ export class EmbeddableMarkdownEditor {
 		// Prevent Mod+Enter default behavior
 		this.scope.register(["Mod"], "Enter", () => true);
 
-		// Store reference to self for the patched method BEFORE using it
-		const self = this;
-
-		// Use monkey-around to safely patch the method
-		const uninstaller = around(EditorClass.prototype, {
-			buildLocalExtensions: (originalMethod: any) =>
-				function (this: any) {
-					const extensions = originalMethod.call(this);
-
-					// Only add our custom extensions if this is our editor instance
-					if (this === self.editor) {
-						// Add placeholder if configured
-						if (self.options.placeholder) {
-							extensions.push(
-								placeholder(self.options.placeholder)
-							);
-						}
-
-						// Add paste, blur, and focus event handlers
-						extensions.push(
-							EditorView.domEventHandlers({
-								paste: (event) => {
-									self.options.onPaste(event, self);
-								},
-								blur: () => {
-									self.deactivate();
-									if (self.options.onBlur) {
-										self.options.onBlur(self);
-									}
-								},
-								focusin: () => {
-									self.activate();
-								},
-							})
-						);
-
-						// Add keyboard handlers
-						const keyBindings = [
-							{
-								key: "Enter",
-								run: () => {
-									return self.options.onEnter(
-										self,
-										false,
-										false
-									);
-								},
-								shift: () =>
-									self.options.onEnter(
-										self,
-										false,
-										true
-									),
-							},
-							{
-								key: "Mod-Enter",
-								run: () =>
-									self.options.onEnter(
-										self,
-										true,
-										false
-									),
-								shift: () =>
-									self.options.onEnter(
-										self,
-										true,
-										true
-									),
-							},
-							{
-								key: "Escape",
-								run: () => {
-									self.options.onEscape(self);
-									return true;
-								},
-								preventDefault: true,
-							},
-						];
-
-						// For single line mode, prevent Enter key from creating new lines
-						if (self.options.singleLine) {
-							keyBindings[0] = {
-								key: "Enter",
-								run: () => {
-									// In single line mode, Enter should trigger onEnter
-									return self.options.onEnter(
-										self,
-										false,
-										false
-									);
-								},
-								shift: () => {
-									// Even with shift, still call onEnter in single line mode
-									return self.options.onEnter(
-										self,
-										false,
-										true
-									);
-								},
-							};
-						}
-
-						extensions.push(
-							Prec.highest(keymap.of(keyBindings))
-						);
-					}
-
-					return extensions;
-				},
-		});
+		const uninstaller = patchLocalExtensions(EditorClass, this);
 
 		// Create the editor with the app instance
 		this.editor = new EditorClass(app, container, {
@@ -296,13 +370,17 @@ export class EmbeddableMarkdownEditor {
 			app,
 			file: options.file ?? null,
 			editor: this.editor.editor,
-		} as MarkdownFileInfo;
+		} as unknown as MarkdownFileInfo;
 		this.activeEditorInfo = options.owner ?? this.owner ?? fallbackEditorInfo;
 
 		// Set up the editor relationship for commands to work
 		if (this.activeEditorInfo) {
-			(this.activeEditorInfo as any).editMode = this;
-			this.activeEditorInfo.editor = this.editor.editor;
+			const editorInfo = this.activeEditorInfo as unknown as {
+				editMode?: unknown;
+				editor?: unknown;
+			};
+			editorInfo.editMode = this;
+			editorInfo.editor = this.editor.editor;
 		}
 
 		// Set initial content
@@ -311,11 +389,13 @@ export class EmbeddableMarkdownEditor {
 		// Prevent active leaf changes while focused
 		this.register(
 			around(app.workspace, {
+				// Keeps focus in this editor: while it has the caret, Obsidian
+				// must not move the active leaf out from under it.
 				setActiveLeaf:
-					(oldMethod: any) =>
-					(leaf: WorkspaceLeaf, ...args: any[]) => {
+					(oldMethod: SetActiveLeaf): SetActiveLeaf =>
+					(...args: never[]) => {
 						if (!this.activeCM?.hasFocus) {
-							oldMethod.call(app.workspace, leaf, ...args);
+							oldMethod.apply(app.workspace, args);
 						}
 					},
 			})
@@ -357,7 +437,7 @@ export class EmbeddableMarkdownEditor {
 	}
 
 	// Register cleanup callback
-	register(cb: any): void {
+	register(cb: () => void): void {
 		this.editor.register(cb);
 	}
 

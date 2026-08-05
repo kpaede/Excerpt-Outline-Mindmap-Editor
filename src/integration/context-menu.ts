@@ -25,7 +25,7 @@ export function addToggleMindmapMenuItem(
   } else {
     menu.addItem((item) => {
       item
-        .setTitle('Open as Mindmap')
+        .setTitle('Mindmap view of this file')
         .setIcon('flow-chart')
         .onClick(async () => {
           await plugin.openMindmapReplacingLeaf(file);

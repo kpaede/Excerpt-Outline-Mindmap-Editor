@@ -121,9 +121,7 @@ export async function measureNodesForLayout(
 ): Promise<Map<number, { w: number; h: number }>> {
   const sizeMap = new Map<number, { w: number; h: number }>();
   const doc = view.wrapper?.ownerDocument ?? document;
-  const measureContainer = doc.createElement('div');
-  measureContainer.className = 'mindmap-measurement-container';
-  doc.body.appendChild(measureContainer);
+  const measureContainer = doc.body.createDiv({ cls: 'mindmap-measurement-container' });
 
   try {
     for (const node of flat) {
@@ -140,8 +138,7 @@ export async function measureNodesForLayout(
         continue;
       }
 
-      const tmpBox = doc.createElement('div');
-      tmpBox.className = 'mindmap-measure-box';
+      const tmpBox = measureContainer.createDiv({ cls: 'mindmap-measure-box' });
       tmpBox.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
       // Attached before rendering, not after. Obsidian's Markdown
       // post-processors are free to skip work for disconnected nodes, and
