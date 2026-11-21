@@ -1,0 +1,1668 @@
+{
+  "folder": "EOME content sizing 2026-11-21T21-52-59-594Z",
+  "characters": 64666,
+  "nodeCount": 14,
+  "checkCount": 375,
+  "passed": true,
+  "performanceResults": {
+    "nodes": 130,
+    "characters": 214310,
+    "coldRenderMs": 355.2000000476837,
+    "warmRenderMs": 99.09999990463257,
+    "frames": {
+      "n": 98,
+      "mean": 22.81020408260579,
+      "p95": 73.5,
+      "max": 242
+    },
+    "geometry": {
+      "n": 99,
+      "mean": 0.9555555594087851,
+      "p95": 2.5,
+      "max": 13.199999809265137
+    },
+    "measurements": 0,
+    "rebuilds": 0
+  },
+  "sampleCount": 182,
+  "samples": [
+    {
+      "name": "reported lazy continuation",
+      "width": 300,
+      "zoom": 1,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 300,
+      "zoom": 1,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 300,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 300,
+      "zoom": 1,
+      "measured": 595,
+      "client": 565,
+      "scroll": 565,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 300,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 300,
+      "zoom": 1,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 300,
+      "zoom": 1,
+      "measured": 43623,
+      "client": 43593,
+      "scroll": 43594,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 300,
+      "zoom": 1,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 595,
+      "client": 565,
+      "scroll": 565,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 43623,
+      "client": 43593,
+      "scroll": 43594,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 300,
+      "zoom": 0.65,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 595,
+      "client": 565,
+      "scroll": 565,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 43623,
+      "client": 43593,
+      "scroll": 43594,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 300,
+      "zoom": 1.5,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 300,
+      "zoom": 2,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 300,
+      "zoom": 2,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 300,
+      "zoom": 2,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 300,
+      "zoom": 2,
+      "measured": 595,
+      "client": 565,
+      "scroll": 565,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 300,
+      "zoom": 2,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 300,
+      "zoom": 2,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 300,
+      "zoom": 2,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 300,
+      "zoom": 2,
+      "measured": 43623,
+      "client": 43593,
+      "scroll": 43594,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 300,
+      "zoom": 2,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 220,
+      "zoom": 1,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 220,
+      "zoom": 1,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 220,
+      "zoom": 1,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 220,
+      "zoom": 1,
+      "measured": 864,
+      "client": 834,
+      "scroll": 834,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 220,
+      "zoom": 1,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 220,
+      "zoom": 1,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 220,
+      "zoom": 1,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 220,
+      "zoom": 1,
+      "measured": 63573,
+      "client": 63543,
+      "scroll": 63544,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 220,
+      "zoom": 1,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 864,
+      "client": 834,
+      "scroll": 834,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 63573,
+      "client": 63543,
+      "scroll": 63544,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 220,
+      "zoom": 0.65,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 864,
+      "client": 834,
+      "scroll": 834,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 63573,
+      "client": 63543,
+      "scroll": 63544,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 220,
+      "zoom": 1.5,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 220,
+      "zoom": 2,
+      "measured": 249,
+      "client": 219,
+      "scroll": 219,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 220,
+      "zoom": 2,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 220,
+      "zoom": 2,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 220,
+      "zoom": 2,
+      "measured": 864,
+      "client": 834,
+      "scroll": 834,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 220,
+      "zoom": 2,
+      "measured": 141,
+      "client": 111,
+      "scroll": 111,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 220,
+      "zoom": 2,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 220,
+      "zoom": 2,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 220,
+      "zoom": 2,
+      "measured": 63573,
+      "client": 63543,
+      "scroll": 63544,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 220,
+      "zoom": 2,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 420,
+      "zoom": 1,
+      "measured": 226,
+      "client": 196,
+      "scroll": 196,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 420,
+      "zoom": 1,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 420,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 420,
+      "zoom": 1,
+      "measured": 438,
+      "client": 408,
+      "scroll": 408,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 420,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 420,
+      "zoom": 1,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 420,
+      "zoom": 1,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 420,
+      "zoom": 1,
+      "measured": 30570,
+      "client": 30540,
+      "scroll": 30540,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 420,
+      "zoom": 1,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 226,
+      "client": 196,
+      "scroll": 196,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 438,
+      "client": 408,
+      "scroll": 408,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 30570,
+      "client": 30540,
+      "scroll": 30540,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 420,
+      "zoom": 0.65,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 226,
+      "client": 196,
+      "scroll": 196,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 438,
+      "client": 408,
+      "scroll": 408,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 30570,
+      "client": 30540,
+      "scroll": 30540,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 420,
+      "zoom": 1.5,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 420,
+      "zoom": 2,
+      "measured": 226,
+      "client": 196,
+      "scroll": 196,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 143,
+      "client": 113,
+      "scroll": 113,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 420,
+      "zoom": 2,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 420,
+      "zoom": 2,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 420,
+      "zoom": 2,
+      "measured": 438,
+      "client": 408,
+      "scroll": 408,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 420,
+      "zoom": 2,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 420,
+      "zoom": 2,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 420,
+      "zoom": 2,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 420,
+      "zoom": 2,
+      "measured": 30570,
+      "client": 30540,
+      "scroll": 30540,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 420,
+      "zoom": 2,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported lazy continuation",
+      "width": 300,
+      "zoom": 1,
+      "measured": 309,
+      "client": 279,
+      "scroll": 280,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "reported nested list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 193,
+      "client": 163,
+      "scroll": 163,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "paragraph after bullet list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "numbered list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 166,
+      "client": 136,
+      "scroll": 136,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "nested numbered and bullet lists",
+      "width": 300,
+      "zoom": 1,
+      "measured": 206,
+      "client": 176,
+      "scroll": 176,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "loose list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 157,
+      "client": 127,
+      "scroll": 127,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "tasks",
+      "width": 300,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "wrapped continuation",
+      "width": 300,
+      "zoom": 1,
+      "measured": 595,
+      "client": 565,
+      "scroll": 565,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "inline code and emphasis",
+      "width": 300,
+      "zoom": 1,
+      "measured": 118,
+      "client": 88,
+      "scroll": 89,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "fenced code after list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 186,
+      "client": 156,
+      "scroll": 156,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "quote after list",
+      "width": 300,
+      "zoom": 1,
+      "measured": 179,
+      "client": 149,
+      "scroll": 149,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "headings and table",
+      "width": 300,
+      "zoom": 1,
+      "measured": 236,
+      "client": 206,
+      "scroll": 206,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "long single node",
+      "width": 300,
+      "zoom": 1,
+      "measured": 43623,
+      "client": 43593,
+      "scroll": 43594,
+      "lineHeight": "22.4px"
+    },
+    {
+      "name": "empty",
+      "width": 300,
+      "zoom": 1,
+      "measured": 60,
+      "client": 30,
+      "scroll": 30,
+      "lineHeight": "22.4px"
+    }
+  ]
+}

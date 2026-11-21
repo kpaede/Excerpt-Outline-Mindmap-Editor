@@ -32,12 +32,13 @@ export async function draw(view: MindmapView, request: DrawRequest): Promise<voi
   // Measurements belong exclusively to this document snapshot. They become
   // visible to Cytoscape and overlays together only after the whole pass has
   // completed and this generation is still the newest one.
+  // setViewData may run before onOpen; typography needs the real wrapper now.
+  view.ensureMindmapWrapper();
   const nextSizeMap = await measureNodesForLayout(view, flat, () => request.isCurrent());
   if (!request.isCurrent()) return;
 
   const isInitialDraw = !view.cy;
   if (isInitialDraw) {
-    view.ensureMindmapWrapper();
     view.wrapper.empty();
     view.toolbar = new VerticalToolbar(view);
     view.refreshMobileToolbarPlacement();

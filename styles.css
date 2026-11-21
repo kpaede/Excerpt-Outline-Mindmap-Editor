@@ -1077,6 +1077,22 @@ body div.layout-options-modal {
   max-width: var(--mindmap-target-width, 240px);
 }
 
+/* Match the preview's nested formatting context, while measuring natural size. */
+.mindmap-measurement-container > .mindmap-measure-box {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: var(--mindmap-target-width, 240px);
+  height: auto;
+  transform: none;
+}
+
+.mindmap-measurement-container > .mindmap-measure-box > .mindmap-node-content {
+  height: auto;
+  transform: none;
+  content-visibility: visible;
+}
+
 /* Code block styling in measurement boxes */
 .mindmap-measure-box pre {
   white-space: pre;

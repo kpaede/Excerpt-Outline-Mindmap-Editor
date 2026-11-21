@@ -111,7 +111,9 @@ export async function measureNodesForLayout(
   const sizeMap = new Map<number, { w: number; h: number }>();
   const doc = view.wrapper?.ownerDocument ?? document;
   const renderScope = view.addChild(new Component());
-  const measureContainer = doc.body.createDiv({ cls: 'mindmap-measurement-container' });
+  // Typography is inherited from the actual mindmap, not document.body.
+  const measureContainer = view.wrapper.createDiv({ cls: 'mindmap-measurement-container' });
+  const font = doc.defaultView!.getComputedStyle(doc.documentElement).getPropertyValue('--font-family').trim();
 
   let nodesSinceYield = 0;
   try {
@@ -124,14 +126,15 @@ export async function measureNodesForLayout(
 
       if (cachedMeasurement) {
         sizeMap.set(node.line, { w: cachedMeasurement.w, h: cachedMeasurement.h });
-        if (cachedMeasurement.scaleFactor) {
-          node.scaleFactor = cachedMeasurement.scaleFactor;
-        }
+        node.scaleFactor = cachedMeasurement.scaleFactor;
         continue;
       }
 
-      const tmpBox = measureContainer.createDiv({ cls: 'mindmap-measure-box markdown-rendered' });
+      const tmpBox = measureContainer.createDiv({ cls: 'mindmap-overlay mindmap-measure-box' });
       tmpBox.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
+      if (font) tmpBox.setCssStyles({ fontFamily: font });
+      const content = tmpBox.createDiv({ cls: 'markdown-rendered mindmap-node-content' });
+      node.scaleFactor = undefined;
       // Attached before rendering, not after. Obsidian's Markdown
       // post-processors are free to skip work for disconnected nodes, and
       // Excalidraw does exactly that - it drops any embed whose placeholder is
@@ -145,13 +148,13 @@ export async function measureNodesForLayout(
       if (!isCurrent()) break;
 
       if (node.text.trim() === '') {
-        tmpBox.textContent = '\u00a0';
+        content.textContent = '\u00a0';
       } else {
         try {
           await MarkdownRenderer.render(
             view.app,
             nodeMarkdown(node),
-            tmpBox,
+            content,
             view.file?.path || '',
             renderScope
           );
@@ -188,7 +191,7 @@ export async function measureNodesForLayout(
           });
         } catch (error) {
           console.warn('MarkdownRenderer failed during measurement, using plain text:', error);
-          tmpBox.textContent = node.text;
+          content.textContent = node.text;
         }
       }
 
@@ -199,6 +202,7 @@ export async function measureNodesForLayout(
         nodesSinceYield = 0;
       }
 
+      if (!isCurrent()) break;
       const rect = tmpBox.getBoundingClientRect();
       let measuredW = rect.width;
       let measuredH = rect.height;
@@ -223,7 +227,7 @@ export async function measureNodesForLayout(
         measuredW = 80;
       }
 
-      measuredH = Math.max(60, measuredH);
+      measuredH = Math.max(60, Math.ceil(measuredH));
       const measuredSize = { w: measuredW, h: measuredH };
       sizeMap.set(node.line, measuredSize);
       if (stylesReady) view.measurementCache.set(measurementKey, {
