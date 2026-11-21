@@ -10,13 +10,24 @@ export interface CheckboxOverlayControl {
   toggleCheckbox: () => Promise<void>;
 }
 
+export function updateCheckboxPresentation(box: HTMLElement, node: OutlineNode, view: MindmapView): void {
+  const hasCheckbox = node.checkbox !== 'none';
+  box.classList.toggle('has-checkbox', hasCheckbox);
+  box.classList.toggle('checkbox-hoverable', !hasCheckbox && !!view.generalSettings.showCheckboxesOnHover);
+  box.classList.toggle('checkbox-checked', node.checkbox === 'checked');
+}
+
+export function refreshCheckboxPresentation(view: MindmapView): void {
+  const nodes = new Map(view.getFlatNodes().map(node => [node.line, node]));
+  view.wrapper?.querySelectorAll<HTMLElement>('[data-overlay][data-node-line]').forEach(box => {
+    const node = nodes.get(Number(box.dataset.nodeLine));
+    if (node) updateCheckboxPresentation(box, node, view);
+  });
+}
+
 export function appendCheckboxToggle(box: HTMLElement, node: OutlineNode, view: MindmapView): CheckboxOverlayControl {
   const hasCheckbox = node.checkbox !== 'none';
-  const isCheckboxHoverable = !hasCheckbox && view.generalSettings.showCheckboxesOnHover;
-
-  box.classList.toggle('has-checkbox', hasCheckbox);
-  box.classList.toggle('checkbox-hoverable', isCheckboxHoverable);
-  box.classList.toggle('checkbox-checked', node.checkbox === 'checked');
+  updateCheckboxPresentation(box, node, view);
 
   const checkboxToggle = box.createEl('button');
   checkboxToggle.type = 'button';

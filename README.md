@@ -14,9 +14,9 @@ It is especially useful for literature excerpting, research notes, and other sit
 
 ## Core idea
 
-A node in the mindmap is just a Markdown list item. Moving a node changes its position and indentation in the file. There is no custom database, no proprietary mindmap file, and no hidden document format.
+A thought contains Markdown content, a separate task state, and ordered child thoughts. Moving a thought moves its complete content and subtree. Everything is stored in a documented Markdown outline; there is no separate database.
 
-This keeps your notes readable in Obsidian's normal editor and compatible with other outline-based tools such as [Lineage](https://github.com/ycnmhd/obsidian-lineage).
+Notes remain readable in Obsidian’s Markdown editor. Compatibility with [Lineage](https://github.com/ycnmhd/obsidian-lineage) is limited to the verified common subset described in [the test report](docs/multiline-test-report.md).
 
 ---
 
@@ -59,7 +59,11 @@ All changes are written back to the Markdown file. You can switch between the mi
 
 ## Markdown data
 
-Mindmap files are regular Markdown files made from indented list items:
+Existing, unversioned mindmaps retain their legacy list interpretation. Opening a file never migrates it. For multiline thoughts, run **Preview migration to multiline outline**, review the full result, and select **Back up and migrate**. The complete original is saved beside the note as a unique `.eome-backup` file. **Restore multiline migration backup** previews and restores a chosen backup, with another safety backup first. Unsupported legacy continuation text stops migration for manual review.
+
+New multiline files use `eome-outline-format: 2` in frontmatter. Structural indentation uses tabs; continuation lines use the thought’s structural tabs plus two spaces. Internal Markdown lists and headings remain content. See the [complete grammar and migration rules](docs/multiline-format.md).
+
+Legacy example:
 
 ```markdown
 - Parent node
@@ -105,12 +109,27 @@ If the file contains non-outline content outside list items, the mindmap view ma
 
 ### Editing
 
-- Double-click a node, press **Enter**, or choose **Edit** in the context menu. **Edit** opens whatever the node holds: a drawing opens in its editor, anything else as text.
+- Double-click a node, press **Enter**, or choose **Edit** in the context menu. **Edit** opens pure drawing nodes in their drawing editor. Nodes combining text and drawings open as complete Markdown.
 - Double-click a heading to edit its raw Markdown heading text, including the leading `#` characters.
 - The editor is actually the full Obsidian editor.
 - Newly created child and sibling nodes enter edit mode automatically.
 - Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.
-- A node is a single outline line, so hard line breaks inside one are not supported. Shift+Enter is refused, and multi-line text pasted into a node is joined with spaces.
+- In multiline format, **Enter** continues or exits a Markdown list; outside lists it saves. **Shift+Enter** inserts a line break; **Ctrl/Cmd+Enter** also saves; **Escape** cancels. Normal paste in the text editor keeps multiline text as content. The structural paste action outside the editor remains separate.
+- At the bottom of **General settings → Node editing**, choose **Classic single line** for compact editing with Enter to save. The choice applies to this mindmap. A counted safety notice explains that existing multiline thoughts keep their full editor; switching modes never flattens text. Multiline paste expands the editor without discarding text.
+- Node previews grow to display their entire content without internal scrollbars. The embedded text editor scrolls while editing long content. Documents exceeding 50,000 characters retain complete contents and undo states.
+- The toolbar shows the total thought count; its tooltip includes the maximum child depth. Large maps open focused on the first thought at a readable zoom. **Fit to view** still shows the whole outline.
+- Writes check the complete source snapshot and open Markdown editors. A conflict retains the draft in the open node editor and stops the write. Undo stores complete snapshots and drops whole old entries when its memory budget is reached; snapshots are never truncated.
+
+Keyboard shortcuts:
+
+| Key | Multiline Markdown | Classic single line |
+| --- | --- | --- |
+| Enter | Continue or exit a list; otherwise save | Save |
+| Shift+Enter | Insert a line break | Save |
+| Ctrl/Cmd+Enter | Save | Save |
+| Escape | Cancel; cancel a new empty node by removing it | Same |
+
+Existing or pasted multiline content always uses the full multiline editor, including when classic editing is selected. The editor starts at the node's existing height, grows with its text, and scrolls for long excerpts.
 
 ### Tasks and sources
 

@@ -1,0 +1,499 @@
+{
+  "folder": "EOME regression audit 2026-11-21T17-35-35-742Z",
+  "backup": "EOME multiline tests 2026-11-21T15-54-20-891Z/02-sixty-levels.md.before-regression-audit-1795282522599.eome-backup",
+  "originalUnchanged": true,
+  "uniqueChecks": 73,
+  "recordedSuccessfulChecks": 165,
+  "results": [
+    {
+      "name": "Small fixture renders every structural node",
+      "passed": true
+    },
+    {
+      "name": "Checkbox option initially off",
+      "passed": true
+    },
+    {
+      "name": "Actual setting toggle updates existing node immediately",
+      "passed": true
+    },
+    {
+      "name": "Hover checkbox can be shown",
+      "passed": true
+    },
+    {
+      "name": "Checked task has muted text, border and background",
+      "passed": true,
+      "details": {
+        "text": "color(srgb 0.48 0.48 0.48)",
+        "border": "color(srgb 0.48 0.48 0.48)",
+        "background": "rgba(128, 128, 128, 0.12)"
+      }
+    },
+    {
+      "name": "Undo task restores complete content",
+      "passed": true
+    },
+    {
+      "name": "Immediate consecutive settings saves preserve both values",
+      "passed": true
+    },
+    {
+      "name": "Unrelated frontmatter and content retained",
+      "passed": true
+    },
+    {
+      "name": "Settings survive switching away and back",
+      "passed": true
+    },
+    {
+      "name": "Native Enter continues bullet list",
+      "passed": true,
+      "details": {
+        "actual": "- first\n- "
+      }
+    },
+    {
+      "name": "Native Enter exits empty list item without saving",
+      "passed": true,
+      "details": {
+        "actual": "- first\n"
+      }
+    },
+    {
+      "name": "Enter after leaving list saves node",
+      "passed": true
+    },
+    {
+      "name": "Native Enter increments ordered list",
+      "passed": true,
+      "details": {
+        "actual": "1. first\n2. "
+      }
+    },
+    {
+      "name": "Native Enter continues task list with unchecked item",
+      "passed": true,
+      "details": {
+        "actual": "- [x] task\n- [ ] "
+      }
+    },
+    {
+      "name": "Native Enter continues nested list",
+      "passed": true,
+      "details": {
+        "actual": "- outer\n\t- inner\n\t- "
+      }
+    },
+    {
+      "name": "Enter outside lists saves blockquote",
+      "passed": true
+    },
+    {
+      "name": "Enter outside lists saves code block",
+      "passed": true
+    },
+    {
+      "name": "Shift Enter inserts literal newline",
+      "passed": true,
+      "details": {
+        "actual": "Paragraph\n"
+      }
+    },
+    {
+      "name": "Enter outside lists saves paragraph",
+      "passed": true
+    },
+    {
+      "name": "DOM drag/drop retains complete subtree",
+      "passed": true
+    },
+    {
+      "name": "Undo drag/drop restores exact bytes",
+      "passed": true
+    },
+    {
+      "name": "Copy/paste retains complete subtree",
+      "passed": true
+    },
+    {
+      "name": "Cut/paste uses newer source content",
+      "passed": true
+    },
+    {
+      "name": "Duplicate retains subtree",
+      "passed": true
+    },
+    {
+      "name": "Multi-selection task conversion retains all text",
+      "passed": true
+    },
+    {
+      "name": "Delete keeping children preserves full descendants",
+      "passed": true
+    },
+    {
+      "name": "Multi-delete removes only selected trees",
+      "passed": true
+    },
+    {
+      "name": "All structural operations restore original semantic tree and bytes",
+      "passed": true
+    },
+    {
+      "name": "Keyboard navigation works outside editor",
+      "passed": true
+    },
+    {
+      "name": "Normal paste preserves multiline content",
+      "passed": true
+    },
+    {
+      "name": "Pasted list creates no structural nodes",
+      "passed": true
+    },
+    {
+      "name": "Undo paste restores bytes",
+      "passed": true
+    },
+    {
+      "name": "True external conflict retains editable draft",
+      "passed": true
+    },
+    {
+      "name": "True external change retained on disk",
+      "passed": true
+    },
+    {
+      "name": "Immediate save/undo/redo synchronizes parallel Markdown editor",
+      "passed": true
+    },
+    {
+      "name": "Heading edit updates visible title after save",
+      "passed": true
+    },
+    {
+      "name": "Empty heading creates a complete editor",
+      "passed": true
+    },
+    {
+      "name": "Empty heading receives new node",
+      "passed": true
+    },
+    {
+      "name": "Legacy opens without migration",
+      "passed": true
+    },
+    {
+      "name": "Legacy task, duplicate, move, Undo preserve exact bytes",
+      "passed": true
+    },
+    {
+      "name": "File switch clears unrelated history and selection",
+      "passed": true
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "characters": 120595,
+        "nodes": 62,
+        "openMs": 576,
+        "edges": 60,
+        "zoom": 1.361600833147363
+      }
+    },
+    {
+      "name": "Full-height preview without internal scrollbar EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "height": 1417.34375,
+        "client": 1387,
+        "scroll": 1387
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          6,
+          5,
+          9,
+          4,
+          9,
+          4
+        ]
+      }
+    },
+    {
+      "name": "Large full subtree move/Undo restores exact bytes EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true
+    },
+    {
+      "name": "No measurement containers leaked",
+      "passed": true
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "characters": 101805,
+        "nodes": 3,
+        "openMs": 383,
+        "edges": 1,
+        "zoom": 0.65
+      }
+    },
+    {
+      "name": "Full-height preview without internal scrollbar EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "height": 155548.53125,
+        "client": 155519,
+        "scroll": 155519
+      }
+    },
+    {
+      "name": "Complete long excerpt including tail preserved",
+      "passed": true
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          11,
+          5,
+          80,
+          100,
+          97,
+          86
+        ]
+      }
+    },
+    {
+      "name": "Large full subtree move/Undo restores exact bytes EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true
+    },
+    {
+      "name": "Heading operations restore exact bytes",
+      "passed": true
+    },
+    {
+      "name": "Cmd Enter saves even inside list",
+      "passed": true
+    },
+    {
+      "name": "Migration preview leaves original untouched",
+      "passed": true
+    },
+    {
+      "name": "Confirmed migration preserves full tree and tasks",
+      "passed": true
+    },
+    {
+      "name": "Migration creates a complete backup first",
+      "passed": true
+    },
+    {
+      "name": "Backup restoration preserves exact legacy bytes and backs up migrated state",
+      "passed": true
+    },
+    {
+      "name": "Enter at end of a 100k editor continues list",
+      "passed": true,
+      "details": {
+        "draft": "e ä 日本語 🧠.  \n\n- internal list\n  - nested\n> quote\n\nTAIL SENTINEL\n\n- tail list\n- ",
+        "saved": "paces and Unicode ä 日本語 🧠.  \n\n- internal list\n  - nested\n> quote\n\nTAIL SENTINEL"
+      }
+    },
+    {
+      "name": "Long editor save retains full content and real child",
+      "passed": true
+    },
+    {
+      "name": "Undo long editor save restores exact complete document",
+      "passed": true
+    },
+    {
+      "name": "Checked task muted in light theme",
+      "passed": true
+    },
+    {
+      "name": "Checked task muted in dark theme",
+      "passed": true
+    },
+    {
+      "name": "Internal task click cannot alter structural tasks or file",
+      "passed": true
+    },
+    {
+      "name": "Actual Canvas export retains all multiline text",
+      "passed": true
+    },
+    {
+      "name": "Actual SVG export contains all node previews",
+      "passed": true
+    },
+    {
+      "name": "Actual PDF export writes a valid PDF",
+      "passed": true
+    },
+    {
+      "name": "Exports preserve source document",
+      "passed": true
+    },
+    {
+      "name": "Read-only mindmap embed renders all multiline nodes",
+      "passed": true
+    },
+    {
+      "name": "Embed measurement container is cleaned up",
+      "passed": true
+    },
+    {
+      "name": "Mixed drawing context Edit opens full Markdown",
+      "passed": true
+    },
+    {
+      "name": "Pure drawing context Edit keeps drawing editor",
+      "passed": true
+    },
+    {
+      "name": "Cancelling both edit routes leaves source intact",
+      "passed": true
+    },
+    {
+      "name": "Real mouse wheel pans full-height preview without internal scroll or source change",
+      "passed": true
+    }
+  ],
+  "measurementRuns": [
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "characters": 120595,
+        "nodes": 62,
+        "openMs": 444,
+        "edges": 60,
+        "zoom": 1.4019607843137254
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          7,
+          12,
+          11,
+          11,
+          4,
+          12
+        ]
+      }
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "characters": 120595,
+        "nodes": 62,
+        "openMs": 439,
+        "edges": 60,
+        "zoom": 0.65
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          6,
+          12,
+          11,
+          15,
+          5,
+          9
+        ]
+      }
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "characters": 101805,
+        "nodes": 3,
+        "openMs": 316,
+        "edges": 1,
+        "zoom": 0.65
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          6,
+          5,
+          6,
+          76,
+          6,
+          66
+        ]
+      }
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "characters": 120595,
+        "nodes": 62,
+        "openMs": 576,
+        "edges": 60,
+        "zoom": 1.361600833147363
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/03-sixty-levels.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          6,
+          5,
+          9,
+          4,
+          9,
+          4
+        ]
+      }
+    },
+    {
+      "name": "Large document DOM and graph counts EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "characters": 101805,
+        "nodes": 3,
+        "openMs": 383,
+        "edges": 1,
+        "zoom": 0.65
+      }
+    },
+    {
+      "name": "Repeated task and Undo preserve whole large file EOME regression audit 2026-11-21T17-35-35-742Z/04-long-excerpt.md",
+      "passed": true,
+      "details": {
+        "timingsMs": [
+          11,
+          5,
+          80,
+          100,
+          97,
+          86
+        ]
+      }
+    }
+  ]
+}

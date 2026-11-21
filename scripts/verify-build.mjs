@@ -41,6 +41,7 @@ const allowedRuntimeImports = new Set([
   'obsidian',
   '@codemirror/state',
   '@codemirror/view',
+  '@codemirror/language',
 ]);
 const runtimeImports = new Set(
   Array.from(bundle.matchAll(/(?<![\w$.])require\(\s*['"]([^'"]+)['"]\s*\)/gu), (match) => match[1])
@@ -103,7 +104,7 @@ async function verifyTopLevelLoadAndOnload() {
   try {
     Module._load = function loadWithObsidianStubs(request, parent, isMain) {
       if (request === 'obsidian') return obsidianStub;
-      if (request === '@codemirror/state' || request === '@codemirror/view') return codeMirrorStub;
+      if (request === '@codemirror/state' || request === '@codemirror/view' || request === '@codemirror/language') return codeMirrorStub;
       return originalLoad.call(this, request, parent, isMain);
     };
 

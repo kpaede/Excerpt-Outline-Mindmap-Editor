@@ -1,0 +1,14 @@
+import { execFileSync } from 'node:child_process';
+const cli=process.env.OBSIDIAN_CLI||'/Applications/Obsidian.app/Contents/MacOS/Obsidian';
+const vault=process.env.EOME_TEST_VAULT||'Testprogramm 2';
+const run=(command,args)=>{const output=execFileSync(cli,[`vault=${vault}`,command,...args],{encoding:'utf8',timeout:15000});if(/^Error:/m.test(output))throw new Error(output);return output;};
+const cdp=(method,params)=>run('dev:cdp',[`method=${method}`,'params='+JSON.stringify(params)]);
+const enter=shift=>{cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:36,modifiers:shift?8:0});cdp('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,modifiers:0});};
+run('eval',['code=(()=>{const cm=document.querySelector(".node-editor .cm-content")?.cmTile?.view;if(!cm)throw new Error("Open regression editor first");cm.dispatch({selection:{anchor:0,head:cm.state.doc.length}});cm.focus();return "Ready";})()']);
+cdp('Input.insertText',{text:'Keyboard first paragraph'});
+enter(true);
+cdp('Input.insertText',{text:'- internal item'});
+enter(true);enter(true);
+cdp('Input.insertText',{text:'Second paragraph 🧠'});
+enter(false);
+console.log(run('eval',['code='+String.raw`(async()=>{const s=window.__eomeEditorFix;const v=app.workspace.getLeavesOfType('mindmap-view').find(l=>l.view.file?.path===s.path).view;const expected='Keyboard first paragraph\n- internal item\n\nSecond paragraph 🧠';for(let i=0;i<200&&(v.wrapper.querySelector('.editing')||v.wrapper.querySelector('[data-node-line="'+s.line+'"] [data-text]')?.dataset.text!==expected);i++)await new Promise(r=>setTimeout(r,20));if(v.wrapper.querySelector('.editing')||v.getNodeByLine(s.line).text!==expected||v.wrapper.querySelector('[data-node-line="'+s.line+'"] [data-text]').dataset.text!==expected)throw new Error('Real keyboard save did not synchronize');if(v.data!==await app.vault.read(v.file))throw new Error('Disk differs');s.results.push({name:'Real browser Shift+Enter and Enter preserve paragraphs and synchronize preview',result:'passed'});return JSON.stringify(s.results.at(-1));})()`]).trim());

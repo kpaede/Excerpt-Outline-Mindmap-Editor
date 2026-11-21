@@ -1,6 +1,6 @@
 {
 	"name": "Excerpt-Outline-Mindmap-Editor",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "A visual drag-n-drop mindmap editor (with markdown outline under the hood).",
 	"main": "main.js",
 	"scripts": {
@@ -14,6 +14,8 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
+		"@codemirror/lang-markdown": "^6.5.2",
+		"@codemirror/language": "^6.13.1",
 		"@types/node": "^20.19.41",
 		"esbuild": "0.28.0",
 		"eslint": "^9.39.5",

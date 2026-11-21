@@ -1,0 +1,190 @@
+{
+  "modeTests": {
+    "folder": "EOME viewport tests 2026-11-21T20-49-01-098Z",
+    "results": [
+      {
+        "name": "Classic is an explicit stored choice",
+        "passed": true
+      },
+      {
+        "name": "Classic opens a compact editor",
+        "passed": true
+      },
+      {
+        "name": "Classic Enter saves rather than continuing list",
+        "passed": true
+      },
+      {
+        "name": "Existing multiline thought keeps full editor in classic mode",
+        "passed": true
+      },
+      {
+        "name": "Existing multiline thought and child retained exactly",
+        "passed": true
+      },
+      {
+        "name": "Multiline paste expands the classic editor without flattening",
+        "passed": true
+      },
+      {
+        "name": "Multiline paste saves full content in classic mode",
+        "passed": true
+      },
+      {
+        "name": "Unconfigured file uses multiline default",
+        "passed": true
+      },
+      {
+        "name": "Classic choice survives file switch",
+        "passed": true
+      },
+      {
+        "name": "Switching back restores native list Enter",
+        "passed": true
+      },
+      {
+        "name": "Multiline mode still preserves real child",
+        "passed": true
+      },
+      {
+        "name": "Mode choice never changes content or structure",
+        "passed": true
+      },
+      {
+        "name": "Editing mode is the last option above Close",
+        "passed": true
+      },
+      {
+        "name": "Persistent safety hint counts multiline thoughts",
+        "passed": true
+      },
+      {
+        "name": "SVG includes complete multiline preview and real child",
+        "passed": true
+      },
+      {
+        "name": "PDF export remains valid",
+        "passed": true
+      },
+      {
+        "name": "Exports disable offscreen suppression",
+        "passed": true
+      },
+      {
+        "name": "Export does not rewrite contents",
+        "passed": true
+      },
+      {
+        "name": "Switching to classic shows the counted safety notice",
+        "passed": true
+      },
+      {
+        "name": "Closing a menu cancels its delayed outside-click listener",
+        "passed": true
+      },
+      {
+        "name": "Plugin reload closes its options menu",
+        "passed": true
+      }
+    ]
+  },
+  "controlledBefore": {
+    "nodes": 130,
+    "characters": 190450,
+    "frames": {
+      "n": 98,
+      "mean": 32.17,
+      "p50": 29.90000009536743,
+      "p95": 42.700000047683716,
+      "max": 145.59999990463257,
+      "over33ms": 25
+    },
+    "panFrames": {
+      "n": 48,
+      "mean": 35.34,
+      "p50": 32.299999952316284,
+      "p95": 43.799999952316284,
+      "max": 145.59999990463257,
+      "over33ms": 19
+    },
+    "zoomFrames": {
+      "n": 50,
+      "mean": 29.13,
+      "p50": 25.899999856948853,
+      "p95": 33.799999952316284,
+      "max": 114.20000004768372,
+      "over33ms": 6
+    },
+    "geometry": {
+      "n": 99,
+      "mean": 0.72,
+      "p50": 0.7000000476837158,
+      "p95": 1.0999999046325684,
+      "max": 1.7000000476837158,
+      "over33ms": 0
+    },
+    "rebuilds": 0,
+    "sourceUnchanged": true
+  },
+  "controlledAfter": {
+    "nodes": 130,
+    "characters": 190450,
+    "frames": {
+      "n": 98,
+      "mean": 17.88,
+      "p50": 17.799999952316284,
+      "p95": 20.700000047683716,
+      "max": 24.200000047683716,
+      "over33ms": 0
+    },
+    "panFrames": {
+      "n": 48,
+      "mean": 18.72,
+      "p50": 18.5,
+      "p95": 23.200000047683716,
+      "max": 24.200000047683716,
+      "over33ms": 0
+    },
+    "zoomFrames": {
+      "n": 50,
+      "mean": 17.08,
+      "p50": 17.09999990463257,
+      "p95": 18.5,
+      "max": 20.799999952316284,
+      "over33ms": 0
+    },
+    "geometry": {
+      "n": 99,
+      "mean": 0.65,
+      "p50": 0.6000001430511475,
+      "p95": 0.8999998569488525,
+      "max": 1,
+      "over33ms": 0
+    },
+    "rebuilds": 0,
+    "sourceUnchanged": true
+  },
+  "fullWheelHandler": {
+    "undoAfterZoom": true,
+    "redoAfterZoom": true,
+    "nodes": 130,
+    "during": {
+      "mean": 13.33409091017463,
+      "p95": 13.700000047683716,
+      "max": 15.200000047683716,
+      "over33ms": 0
+    },
+    "settling": {
+      "p95": 15.699999809265137,
+      "max": 18
+    },
+    "duringRebuilds": 0,
+    "totalRebuilds": 0,
+    "historyActionRebuilds": 3,
+    "sameDOMDuringGesture": true,
+    "fullContentRetained": true,
+    "zoomPersisted": true,
+    "onlySettingsChanged": true
+  },
+  "automatedTests": 307
+}

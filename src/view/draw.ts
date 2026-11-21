@@ -1,12 +1,13 @@
 import cytoscape, { Core, ElementDefinition, type LayoutOptions } from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 
-import { parseOutline, OutlineNode } from '../utils/outline';
+import { OutlineNode } from '../utils/outline';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { MindmapView } from './mindmap-view';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { arrangeTopLevelTrees } from './tree-layout';
 import { measureNodesForLayout } from './node-measurement';
+import { initializeViewport } from './initial-viewport';
 
 cytoscape.use(dagre);
 
@@ -19,7 +20,7 @@ export interface DrawRequest {
 export async function draw(view: MindmapView, request: DrawRequest): Promise<void> {
   if (!view.file || !request.isCurrent()) return;
 
-  const roots = parseOutline(request.data);
+  const roots = view.getOutlineNodes(request.data);
   const flat: OutlineNode[] = [];
   (function walk(arr: OutlineNode[]) {
     arr.forEach((node) => {
@@ -31,7 +32,7 @@ export async function draw(view: MindmapView, request: DrawRequest): Promise<voi
   // Measurements belong exclusively to this document snapshot. They become
   // visible to Cytoscape and overlays together only after the whole pass has
   // completed and this generation is still the newest one.
-  const nextSizeMap = await measureNodesForLayout(view, flat);
+  const nextSizeMap = await measureNodesForLayout(view, flat, () => request.isCurrent());
   if (!request.isCurrent()) return;
 
   const isInitialDraw = !view.cy;
@@ -175,18 +176,8 @@ function applyCompletedLayout(view: MindmapView, cy: Core): void {
     view.layoutOptions.headingTreeLayout ?? 'vertical',
     Math.max(160, (view.layoutOptions.rankSep ?? 50) * 3)
   );
-  if (!view.firstFitDone) {
-    cy.center(cy.elements());
-    if (typeof view.layoutOptions.zoomFactor === 'number') {
-      view.setZoomFactor(view.layoutOptions.zoomFactor, false);
-    } else {
-      cy.fit(cy.elements(), 50);
-      cy.center(cy.elements());
-      view.rememberCurrentZoom(false);
-    }
-    view.firstFitDone = true;
-  }
-  view.rememberCurrentZoom(false);
+  initializeViewport(view);
+  view.toolbar?.setOutlineStats(view.getFlatNodes().length, Math.max(0, ...view.getFlatNodes().map(node => node.indent.length)));
   view.updateOverlays();
 }
 

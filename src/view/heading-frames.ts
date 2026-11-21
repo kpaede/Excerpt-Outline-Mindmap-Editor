@@ -3,6 +3,7 @@ import { Notice } from 'obsidian';
 import type { HeadingSection } from '../utils/heading-sections';
 import type { MindmapView } from './mindmap-view';
 import { createEmbeddableMarkdownEditor } from '../editor/embeddable-markdown-editor';
+import { NodeEditSession } from '../editor/node-edit-session';
 
 interface RenderHeadingFrameOptions {
   attributeName?: 'overlay' | 'mindmapEomeOverlay';
@@ -216,30 +217,39 @@ export function startHeadingEditing(
   const editorHost = frame.createDiv();
   editorHost.className = 'mindmap-heading-editor node-editor-host';
 
-  let finished = false;
+  const sourceDoc = view.data;
+  const sourceFile = view.file?.path;
+  let unregisterCloser = () => {};
   const closeEditor = () => {
+    unregisterCloser();
     markdownEditor.destroy();
     editorHost.remove();
     title?.classList.remove('mm-hidden');
     frame.classList.remove('editing');
   };
 
-  const finish = async (save: boolean) => {
-    if (finished) return;
-    finished = true;
-
-    const newText = markdownEditor.value.trim();
-    closeEditor();
-
-    if (!save || newText === section.rawText) return;
-
-    if (newText !== '' && !isValidHeadingText(newText)) {
-      new Notice('Headings must start with 1-6 # characters followed by text.');
-      return;
-    }
-
-    await view.executeEditHeadingCommand(section, newText);
-  };
+  const session = new NodeEditSession(section.rawText, {
+    save: async newText => {
+      if (view.file?.path !== sourceFile) throw new Error('The active file changed. Reopen the original note before saving this draft.');
+      if (newText !== '' && !isValidHeadingText(newText)) {
+        throw new Error('Headings must start with 1-6 # characters followed by text.');
+      }
+      await view.executeEditHeadingCommand(section, newText, sourceDoc);
+    },
+    close: closeEditor,
+    refresh: async () => {
+      if (view.file?.path !== sourceFile) return;
+      await view.reloadDataIncremental();
+      if (view.data !== sourceDoc) view.updateOverlays();
+    },
+    select: () => {},
+    saving: value => markdownEditor.setReadOnly(value),
+    error: error => {
+      new Notice(error instanceof Error ? error.message : 'Could not finish editing the heading.');
+      if (session.isEditing) markdownEditor.activeCM?.focus();
+    },
+  });
+  const finish = (save: boolean) => session.finish(save, markdownEditor.value.trim());
 
   const headingTextStart = options.selectHeadingTextOnly
     ? section.rawText.match(/^#{1,6}\s+/)?.[0].length ?? 0
@@ -262,6 +272,8 @@ export function startHeadingEditing(
     onEscape: () => void finish(false),
     onBlur: () => void finish(true),
   });
+
+  unregisterCloser = view.registerTransientCloser(() => session.dispose());
 
   ['click', 'dblclick', 'dragstart', 'pointerdown'].forEach((eventName) => {
     editorHost.addEventListener(eventName, (event) => {

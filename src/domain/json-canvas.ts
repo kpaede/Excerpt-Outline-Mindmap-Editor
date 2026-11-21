@@ -64,7 +64,7 @@ function createUniqueId(usedIds: Set<string>, idFactory: () => string): string {
 }
 
 function canvasTextForNode(node: OutlineNode): string {
-  const text = node.text.trim() || 'Untitled';
+  const text = node.format === 2 ? node.text : node.text.trim() || 'Untitled';
   if (node.checkbox === 'checked') return `- [x] ${text}`;
   if (node.checkbox === 'unchecked') return `- [ ] ${text}`;
   return text;

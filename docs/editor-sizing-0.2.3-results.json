@@ -1,0 +1,48 @@
+{
+  "folder": "EOME editor sizing 2026-11-21T21-24-35-731Z",
+  "results": [
+    {
+      "name": "No inline instructions or shortcut tooltip remain",
+      "passed": true
+    },
+    {
+      "name": "Short editor no longer has an artificial tall minimum",
+      "passed": true,
+      "details": {
+        "height": 46
+      }
+    },
+    {
+      "name": "Typing a character does not shrink the editor",
+      "passed": true,
+      "details": {
+        "before": 46,
+        "after": 46
+      }
+    },
+    {
+      "name": "Short content saves completely",
+      "passed": true
+    },
+    {
+      "name": "Long editor remains stable while typing",
+      "passed": true,
+      "details": {
+        "before": 638,
+        "after": 638
+      }
+    },
+    {
+      "name": "Long content including tail remains complete",
+      "passed": true
+    },
+    {
+      "name": "Classic editor is compact and stable without inline help",
+      "passed": true,
+      "details": {
+        "before": 88,
+        "after": 88
+      }
+    }
+  ]
+}

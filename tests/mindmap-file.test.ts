@@ -46,6 +46,7 @@ function mockApp(initialText: string) {
         modify: async (_file: unknown, newText: string) => {
           text = newText;
         },
+        process: async (_file: unknown, transform: (text: string) => string) => { text = transform(text); },
       },
       workspace: {
         getLeavesOfType: () => [],

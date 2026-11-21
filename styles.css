@@ -1995,3 +1995,80 @@ body.is-mobile .eome-drawing-footer button,
   background-color: var(--mindmap-export-checked-bg);
   background-image: none;
 }
+
+/* Multiline node editing keeps the existing overlay and Markdown editor. */
+.mindmap-wrapper [data-overlay].editing {
+  z-index: 50;
+  overflow: visible;
+}
+.mindmap-wrapper [data-overlay] .node-editor-host {
+  max-height: 640px;
+  overflow: hidden;
+  min-width: 280px;
+}
+.node-editor-host .cm-scroller {
+  overflow: auto;
+  max-height: 600px;
+}
+.eome-migration-preview {
+  width: 100%;
+  height: 55vh;
+  white-space: pre;
+  font-family: var(--font-monospace);
+}
+
+.mindmap-outline-stats {
+  text-align: center;
+  font-size: var(--font-smallest);
+  color: var(--text-muted);
+}
+.mindmap-wrapper [data-overlay] .node-editor-host {
+  background: var(--background-primary);
+}
+
+/* The editing surface owns its border and height; empty nodes stay small in
+   the graph while their editor remains a complete, scrollable rectangle. */
+.mindmap-wrapper [data-overlay].editing {
+  border-color: transparent;
+  box-shadow: none;
+}
+.mindmap-wrapper [data-overlay] .node-editor-host {
+  display: flex;
+  flex-direction: column;
+  min-height: 48px;
+  padding: 6px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+}
+.mindmap-wrapper [data-overlay] .node-editor-host .markdown-source-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.mindmap-wrapper [data-overlay] .node-editor-host .cm-editor {
+  height: 100%;
+  min-height: 0;
+}
+.mindmap-wrapper [data-overlay] .node-editor-host .cm-scroller {
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+/* Checked thoughts retain their existing muted presentation, including against
+   the more specific overlay geometry rule and Markdown's own text color. */
+.mindmap-wrapper > .mindmap-overlay[data-overlay].checkbox-checked {
+  background: rgba(128, 128, 128, 0.12);
+  color: var(--mindmap-checked-color);
+  border-color: var(--mindmap-checked-color);
+}
+.mindmap-wrapper > .mindmap-overlay[data-overlay].checkbox-checked > .markdown-rendered {
+  color: var(--mindmap-checked-color);
+}
+
+/* Keep every thought and its measured height; skip offscreen preview work.
+   Editors, controls, measuring surfaces and full-document exports remain live. */
+body:not(.mindmap-vector-printing) .mindmap-wrapper > .mindmap-overlay[data-overlay] > .mindmap-node-content {
+  content-visibility: auto;
+}

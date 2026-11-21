@@ -1,0 +1,11 @@
+// Requires the isolated audit fixture from vault-regression-audit.mjs setup.
+// Full-height previews must pan the map with the wheel, without internal scroll.
+import { execFileSync } from 'node:child_process';
+const cli=process.env.OBSIDIAN_CLI||'/Applications/Obsidian.app/Contents/MacOS/Obsidian';
+const vault=process.env.EOME_TEST_VAULT||'Testprogramm 2';
+const run=(command,args)=>{const out=execFileSync(cli,[`vault=${vault}`,command,...args],{encoding:'utf8',timeout:30000});if(/^Error:/m.test(out))throw Error(out);return out;};
+const evaluate=code=>{const out=run('eval',['code='+code]);return JSON.parse(out.slice(out.indexOf('=> ')+3));};
+const geometry=evaluate(String.raw`(()=>{const s=window.__eomeAudit;if(!s)throw Error('Run the regression audit first');const v=app.workspace.getLeavesOfType('mindmap-view').find(l=>l.view.file?.path===s.current)?.view;if(!v?.cy)throw Error('Open an audit mindmap');v.cy.center(v.cy.nodes().first());v.updateOverlayGeometry();const md=v.wrapper.querySelector('[data-text]');const r=v.wrapper.getBoundingClientRect();s.wheelBefore={pan:{...v.cy.pan()},text:v.data};return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2});})()`);
+run('dev:cdp',['method=Input.dispatchMouseEvent','params='+JSON.stringify({type:'mouseMoved',x:geometry.x,y:geometry.y})]);
+run('dev:cdp',['method=Input.dispatchMouseEvent','params='+JSON.stringify({type:'mouseWheel',x:geometry.x,y:geometry.y,deltaX:0,deltaY:500})]);
+console.log(run('eval',['code='+String.raw`(async()=>{await new Promise(r=>setTimeout(r,100));const s=window.__eomeAudit;const v=app.workspace.getLeavesOfType('mindmap-view').find(l=>l.view.file?.path===s.current).view;const md=v.wrapper.querySelector('[data-text]');if(md.scrollTop!==0||JSON.stringify(v.cy.pan())===JSON.stringify(s.wheelBefore.pan)||await app.vault.read(v.file)!==s.wheelBefore.text)throw Error('Wheel must pan without scrolling or rewriting the node '+JSON.stringify({pan:v.cy.pan(),before:s.wheelBefore.pan,scroll:md.scrollTop,source:await app.vault.read(v.file)===s.wheelBefore.text}));const result={name:'Real mouse wheel pans full-height preview without internal scroll or source change',passed:true};s.results.push(result);delete s.wheelBefore;return JSON.stringify(result);})()`]).trim());

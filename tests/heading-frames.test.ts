@@ -35,9 +35,10 @@ class FakeElement {
 
   // Obsidian's createEl creates in this element's document and appends in one
   // step; the stub mirrors that so the assertions still see the same tree.
-  createEl(tagName: string, options?: { cls?: string; prepend?: boolean }): FakeElement {
+  createEl(tagName: string, options?: { cls?: string; prepend?: boolean; text?: string }): FakeElement {
     const child = this.ownerDocument.createElement(tagName);
     if (options?.cls) child.className = options.cls;
+    child.textContent = options?.text ?? '';
     if (options?.prepend) this.children.unshift(child);
     else this.appendChild(child);
     return child;
@@ -63,12 +64,7 @@ class FakeElement {
 
   addClass(name: string): void { this.classList.add(name); }
 
-  createEl(tagName: string, options?: { text?: string }): FakeElement {
-    const child = this.ownerDocument.createElement(tagName);
-    child.textContent = options?.text ?? '';
-    this.appendChild(child);
-    return child;
-  }
+
 
   appendChild(child: FakeElement): FakeElement {
     child.parent = this;

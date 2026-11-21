@@ -1,6 +1,7 @@
-import { TFile, Setting, ToggleComponent } from 'obsidian';
+import { TFile, Setting, ToggleComponent, Notice } from 'obsidian';
 import { FrontmatterStorage } from '../../storage/frontmatter-storage';
 import { applyMobileMenuPosition } from './menu-positioning';
+import { countMultilineThoughts, type NodeEditingMode } from '../../editor/editing-mode';
 
 type ClickHandlerElement = HTMLElement & {
   _clickHandler?: (event: MouseEvent) => void;
@@ -9,12 +10,14 @@ type ClickHandlerElement = HTMLElement & {
 interface GeneralSettingsView {
   file?: TFile | null;
   frontmatterStorage?: FrontmatterStorage;
+  getFlatNodes?(): { text: string }[];
 }
 
 export interface GeneralSettings {
   keyboardNavigation: 'hierarchical' | 'spatial';
   showCheckboxesOnHover?: boolean;
   inheritParentListTypeForChildren?: boolean;
+  nodeEditingMode?: NodeEditingMode;
 }
 
 /**
@@ -27,6 +30,7 @@ export class GeneralSettingsMenu {
   private onSave: (settings: GeneralSettings) => void;
   private anchorEl: HTMLElement;
   private view?: GeneralSettingsView;
+  private outsideClickTimeout: number | null = null;
 
   constructor(anchorEl: HTMLElement, settings: GeneralSettings, onSave: (settings: GeneralSettings) => void, view?: GeneralSettingsView) {
     this.anchorEl = anchorEl;
@@ -146,6 +150,24 @@ export class GeneralSettingsMenu {
           })
       );
 
+    const modeDescription = () => {
+      const count = countMultilineThoughts(this.view?.getFlatNodes?.() ?? []);
+      return `Classic closes on Enter. ${count} multiline ${count === 1 ? 'thought keeps its' : 'thoughts keep their'} full editor. No text is converted.`;
+    };
+    const modeDescriptionEl = this.addSelectSetting(
+      'Node editing',
+      modeDescription(),
+      ['multiline', 'single-line'],
+      ['Multiline Markdown', 'Classic single line'],
+      () => this.settings.nodeEditingMode ?? 'multiline',
+      value => {
+        this.settings.nodeEditingMode = value as NodeEditingMode;
+        modeDescriptionEl.textContent = modeDescription();
+        this.onSave(this.settings);
+        if (value === 'single-line') new Notice(modeDescription(), 7000);
+      }
+    );
+
     const closeBtn = this.container.createEl('button', { text: 'Close' });
     closeBtn.classList.add('fullwidth-button');
     closeBtn.addEventListener('click', () => this.close());
@@ -158,12 +180,12 @@ export class GeneralSettingsMenu {
     optionLabels: string[],
     getValue: () => string,
     setValue: (v: string) => void
-  ) {
+  ): HTMLDivElement {
     const settingDiv = this.container.createDiv({ cls: 'setting-item' });
     
     const labelDiv = settingDiv.createDiv({ cls: 'setting-item-info' });
     labelDiv.createDiv({ text: label, cls: 'setting-item-name' });
-    labelDiv.createDiv({ text: desc, cls: 'setting-item-description' });
+    const descriptionEl = labelDiv.createDiv({ text: desc, cls: 'setting-item-description' });
     
     const controlDiv = settingDiv.createDiv({ cls: 'setting-item-control' });
     const select = controlDiv.createEl('select');
@@ -188,6 +210,7 @@ export class GeneralSettingsMenu {
     
       })();
     });
+    return descriptionEl;
   }
 
   private addClickOutsideHandler() {
@@ -197,12 +220,19 @@ export class GeneralSettingsMenu {
         this.close();
       }
     };
-    window.setTimeout(() => { document.addEventListener('click', handler); }, 100);
+    this.outsideClickTimeout = window.setTimeout(() => {
+      this.outsideClickTimeout = null;
+      document.addEventListener('click', handler);
+    }, 100);
     const container = this.container as ClickHandlerElement;
     container._clickHandler = handler;
   }
 
   public close() {
+    if (this.outsideClickTimeout !== null) {
+      window.clearTimeout(this.outsideClickTimeout);
+      this.outsideClickTimeout = null;
+    }
     if (this.container) {
       const container = this.container as ClickHandlerElement;
       const handler = container._clickHandler;

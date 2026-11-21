@@ -1,4 +1,6 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, parseYaml } from 'obsidian';
+import { commitDocument, readDocument } from './document-writer';
+import { frontmatterEnd } from '../domain/outline-format';
 import { NodeOptions } from '../ui/menus/node-options-menu';
 import { LayoutOptions } from '../domain/layout-options';
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
@@ -9,6 +11,7 @@ export interface ExcerptOutlineMindmapData {
   keyboardNavigation?: 'hierarchical' | 'spatial';
   showCheckboxesOnHover?: boolean;
   inheritParentListTypeForChildren?: boolean;
+  nodeEditingMode?: GeneralSettings['nodeEditingMode'];
 
   // Node options
   nodeWidth?: number;
@@ -96,62 +99,33 @@ export class FrontmatterStorage {
     data: ExcerptOutlineMindmapData,
     preserveEmptyMarker: boolean = false
   ): Promise<void> {
-    const fileManager = this.app.fileManager as {
-      processFrontMatter?: (file: TFile, processor: (frontmatter: Record<string, unknown>) => void) => Promise<void>;
-    } | null;
-
-    const hasData = Object.values(data).some((value) => value !== undefined);
-
-    try {
-      if (fileManager?.processFrontMatter) {
-        await fileManager.processFrontMatter(file, (frontmatter) => {
-          if (hasData) {
-            frontmatter['excerpt-outline-mindmap'] = this.encodeToString(data);
-          } else if (preserveEmptyMarker) {
-            frontmatter['excerpt-outline-mindmap'] = '';
-          } else {
-            delete frontmatter['excerpt-outline-mindmap'];
-          }
-        });
-      } else {
-        const contents = await this.app.vault.read(file);
-        const fmMatch = contents.match(/^---\n([\s\S]*?)\n---\n?/);
-
-        if (fmMatch) {
-          let fmText = fmMatch[1];
-
-          if (hasData) {
-            if (/^excerpt-outline-mindmap:/m.test(fmText)) {
-              fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, `excerpt-outline-mindmap: ${this.encodeToString(data)}\n`);
-            } else {
-              fmText = `${fmText}\nexcerpt-outline-mindmap: ${this.encodeToString(data)}\n`;
-            }
-          } else if (preserveEmptyMarker) {
-            if (/^excerpt-outline-mindmap:/m.test(fmText)) {
-              fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, 'excerpt-outline-mindmap:\n');
-            } else {
-              fmText = `${fmText}\nexcerpt-outline-mindmap:\n`;
-            }
-          } else {
-            fmText = fmText.replace(/^excerpt-outline-mindmap:.*(?:\n|$)/m, '');
-          }
-
-          const newContents = contents.replace(fmMatch[0], `---\n${fmText}---\n`);
-          await this.app.vault.modify(file, newContents);
-        } else if (hasData || preserveEmptyMarker) {
-          const value = hasData ? ` ${this.encodeToString(data)}` : '';
-          const fm = `---\nexcerpt-outline-mindmap:${value}\n---\n\n`;
-          await this.app.vault.modify(file, fm + contents);
-        }
+    const before = await readDocument(this.app, file);
+    const newline = before.includes('\r\n') ? '\r\n' : '\n';
+    const lines = before.split(/\r?\n/);
+    const end = frontmatterEnd(lines);
+    const hasData = Object.values(data).some(value => value !== undefined);
+    const property = hasData ? `excerpt-outline-mindmap: ${this.encodeToString(data)}` : 'excerpt-outline-mindmap:';
+    if (end) {
+      const matches = lines.map((line, i) => i > 0 && i < end - 1 && /^(?:excerpt-outline-mindmap|"excerpt-outline-mindmap"|'excerpt-outline-mindmap')\s*:/.test(line) ? i : -1).filter(i => i >= 0);
+      if (matches.length > 1) throw new Error('Duplicate mindmap settings property. Review frontmatter in Markdown first.');
+      const index = matches[0] ?? -1;
+      if (index >= 0) {
+        let propertyEnd = index + 1;
+        while (propertyEnd < end - 1 && /^[ \t]+\S/.test(lines[propertyEnd])) propertyEnd++;
+        lines.splice(index, propertyEnd - index, ...(hasData || preserveEmptyMarker ? [property] : []));
       }
-    } catch (error) {
-      console.error('Failed to save mindmap data to frontmatter:', error);
-    }
+      else if (hasData || preserveEmptyMarker) lines.splice(end - 1, 0, property);
+    } else if (hasData || preserveEmptyMarker) lines.unshift('---', property, '---');
+    const after = lines.join(newline);
+    if (after !== before) await commitDocument(this.app, file, before, after);
   }
 
   async loadMindmapData(file: TFile): Promise<ExcerptOutlineMindmapData> {
-    const cache = this.app.metadataCache.getFileCache(file);
-    const frontmatter = cache?.frontmatter;
+    // The metadata cache may still describe the preceding write. Read the
+    // committed settings so consecutive changes cannot erase one another.
+    const lines = (await this.app.vault.read(file)).split(/\r?\n/);
+    const end = frontmatterEnd(lines);
+    const frontmatter = end ? parseYaml(lines.slice(1, end - 1).join('\n')) as Record<string, unknown> | null : null;
 
     if (!frontmatter || !frontmatter['excerpt-outline-mindmap']) return {};
 
@@ -202,6 +176,10 @@ export class FrontmatterStorage {
 
   async updateGeneralSettings(file: TFile, generalSettings: GeneralSettings): Promise<void> {
     const currentData = await this.loadMindmapData(file);
+
+    if (generalSettings.nodeEditingMode === 'single-line' || generalSettings.nodeEditingMode === 'multiline') {
+      currentData.nodeEditingMode = generalSettings.nodeEditingMode;
+    }
 
     if (generalSettings.keyboardNavigation) {
       currentData.keyboardNavigation = generalSettings.keyboardNavigation;

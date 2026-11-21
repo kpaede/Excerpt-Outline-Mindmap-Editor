@@ -1,6 +1,10 @@
-import { Component, MarkdownRenderer, Notice } from 'obsidian';
+import { MarkdownRenderer, Notice } from 'obsidian';
 import { openInternalLink, OutlineNode } from '../utils/outline';
 import type { MindmapView } from '../view/mindmap-view';
+import { NodeEditSession } from './node-edit-session';
+import { cursorIsInMarkdownList, waitForListContext } from './list-context';
+import { nodeMarkdown } from './node-markdown';
+import { useSingleLineEditor } from './editing-mode';
 import {
   createEmbeddableMarkdownEditor,
   EmbeddableMarkdownEditor,
@@ -11,6 +15,7 @@ export function renderNodeMarkdown(
   node: OutlineNode,
   view: MindmapView
 ): void {
+  container.classList.add('markdown-rendered', 'mindmap-node-content');
   container.dataset.text = node.text;
 
   if (node.scaleFactor && node.scaleFactor !== 1) {
@@ -22,17 +27,17 @@ export function renderNodeMarkdown(
     return;
   }
 
-  let sanitizedText = node.text;
-  sanitizedText = sanitizedText.replace(/\|([^|]*)\|/g, '`$1`');
-  sanitizedText = sanitizedText.replace(/%%[^%]*%%/g, '');
+  const sanitizedText = nodeMarkdown(node);
 
+  const renderScope = view.nodeRenderResources.current();
   MarkdownRenderer.render(
     view.app,
     sanitizedText,
     container,
     view.file?.path || '',
-    view as Component
+    renderScope
   ).then(() => {
+    if (!view.nodeRenderResources.isCurrent(renderScope) || !container.isConnected) return;
     // Reapplied on every render, not once after a redraw: the overlay rebuild
     // replaces these elements wholesale, so a version stamped outside the
     // render is discarded by the very next pass.
@@ -77,6 +82,7 @@ export function renderNodeMarkdown(
       });
     });
   }).catch((error) => {
+    if (!view.nodeRenderResources.isCurrent(renderScope)) return;
     console.warn('MarkdownRenderer failed, using plain text:', error);
     container.textContent = node.text;
   });
@@ -89,6 +95,15 @@ export function startNodeEditing(
   options: { isNewNode?: boolean } = {}
 ): EmbeddableMarkdownEditor | null {
   if (box.classList.contains('editing')) return null;
+  const current = view.getFlatNodes().find(node => nodeToUse.id ? node.id === nodeToUse.id : node.line === nodeToUse.line);
+  if (!current) { view.updateOverlays(); return null; }
+  // DOM callbacks can outlive a source edit. Use the current node and freeze
+  // this edit's source snapshot; never silently advance it during a save.
+  nodeToUse = { ...current };
+  const openingDoc = view.data;
+  const openingFile = view.file?.path;
+  const editingMode = view.generalSettings.nodeEditingMode;
+  const isSingleLine = (text: string) => useSingleLineEditor(editingMode, text);
 
   box.classList.add('editing');
   box.draggable = false;
@@ -98,21 +113,29 @@ export function startNodeEditing(
 
   const editorHost = box.createDiv();
   editorHost.className = 'node-editor node-editor-host';
+  const minimumEditorHeight = Math.min(640, Math.max(48, box.clientHeight - 22));
+  editorHost.setCssStyles({ minHeight: `${minimumEditorHeight}px` });
+  const updateMode = (classic: boolean) => {
+    editorHost.classList.toggle('is-single-line', classic);
+  };
+  updateMode(isSingleLine(nodeToUse.text));
 
   const resizeEditor = () => {
-    const scroller = editorHost.querySelector('.cm-scroller');
-    if (!scroller) return;
-
-    // Two steps on purpose: releasing the height lets the scroller take its
-    // natural size, which is what the second assignment then measures.
-    editorHost.setCssStyles({ height: 'auto' });
+    const cm = markdownEditor.activeCM;
+    if (!cm) return;
     editorHost.setCssStyles({
-      height: `${Math.max(box.clientHeight - 22, scroller.scrollHeight)}px`,
+      height: `${Math.min(640, Math.max(minimumEditorHeight, cm.contentHeight + 12))}px`,
     });
   };
 
-  let finished = false;
+  let unregisterCloser = () => {};
+  let layoutFrame: number | null = null;
   const closeEditor = () => {
+    unregisterCloser();
+    if (layoutFrame !== null) {
+      window.cancelAnimationFrame(layoutFrame);
+      layoutFrame = null;
+    }
     markdownEditor.destroy();
     if (box.contains(editorHost)) box.removeChild(editorHost);
     if (md) md.classList.remove('mm-hidden');
@@ -122,52 +145,78 @@ export function startNodeEditing(
     box.draggable = true;
   };
 
+  const session = new NodeEditSession(nodeToUse.text, {
+    save: async text => {
+      if (view.file?.path !== openingFile) throw new Error('The active file changed. Reopen the original note before saving this draft.');
+      if (view.file) await view.executeEditNodeCommand(nodeToUse, view.normalizeNodeText(text));
+    },
+    close: closeEditor,
+    refresh: async () => {
+      if (view.file?.path !== openingFile) return;
+      await view.reloadDataIncremental();
+      if (view.data !== openingDoc) view.updateOverlays();
+    },
+    select: () => {
+      if (view.file?.path !== openingFile) return;
+      if (view.wrapper.querySelector('.node-editor, .mindmap-heading-editor')) return;
+      const current = view.getFlatNodes().find(node => node.id === nodeToUse.id);
+      if (current) view.selectNode(current.line);
+    },
+    saving: value => markdownEditor.setReadOnly(value),
+    error: error => {
+      new Notice(error instanceof Error ? error.message : 'Save failed. Your draft is still in the editor.');
+      if (session.isEditing) markdownEditor.activeCM?.focus();
+    },
+  });
+  const finish = (save: boolean) => session.finish(save, markdownEditor.value);
   const deleteCurrentNode = async () => {
-    if (finished) return;
-    finished = true;
-    closeEditor();
+    if (!session.isEditing) return;
+    session.dispose();
     await view.deleteNodesWithConfirmation([nodeToUse]);
   };
 
-  const finish = async (save: boolean) => {
-    if (finished) return;
-    finished = true;
-
-    const rawText = markdownEditor.value;
-    closeEditor();
-
-    // Opening and closing a node without typing must leave it untouched. This
-    // used to normalise unconditionally, so merely double-clicking a node
-    // whose source spans several lines stripped those line breaks, announced
-    // it, and wrote the collapsed text back - on Escape as well as on save.
-    if (!save || rawText === nodeToUse.text) {
-      if (save) view.selectNode(nodeToUse.line);
-      return;
-    }
-
-    const newText = view.normalizeNodeText(rawText);
-    if (newText !== nodeToUse.text && view.file) {
-      await view.executeEditNodeCommand(nodeToUse, newText);
-    }
-    view.selectNode(nodeToUse.line);
-  };
-
+  let parsingEnter = false;
   const markdownEditor = createEmbeddableMarkdownEditor(view.app, editorHost, {
     value: nodeToUse.text,
     placeholder: 'Edit node',
     cls: 'node-editor-cm',
     file: view.file,
-    singleLine: true,
+    singleLine: isSingleLine(nodeToUse.text),
     cursorLocation: {
       anchor: 0,
       head: nodeToUse.text.length,
     },
-    onEnter: (_editor, _mod, shift) => {
-      if (shift) {
-        new Notice('Line breaks inside a node are not supported.');
+    onEnter: (editor, mod, shift) => {
+      if (!session.isEditing) return true;
+      if (editingMode === 'single-line' && editor.activeCM.state.doc.lines === 1) {
+        void finish(true);
         return true;
       }
-
+      if (shift && !mod) {
+        editor.activeCM.dispatch(editor.activeCM.state.replaceSelection('\n'));
+        return true;
+      }
+      if (!mod) {
+        const context = cursorIsInMarkdownList(editor.activeCM.state);
+        if (context === true) return false;
+        if (context === null) {
+          if (!parsingEnter) {
+            parsingEnter = true;
+            void waitForListContext(() => editor.activeCM.state, () => session.isEditing && editorHost.isConnected).then(inList => {
+              parsingEnter = false;
+              if (inList === undefined || !session.isEditing) return;
+              if (inList) editor.activeCM.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true,
+              }));
+              else void finish(true);
+            }).catch((error: unknown) => {
+              parsingEnter = false;
+              new Notice(error instanceof Error ? error.message : 'Could not determine the list context. Your draft is retained.');
+            });
+          }
+          return true;
+        }
+      }
       void finish(true);
       return true;
     },
@@ -179,8 +228,16 @@ export function startNodeEditing(
       }
     },
     onBlur: () => void finish(true),
-    onChange: () => resizeEditor(),
+    onChange: update => {
+      updateMode(editingMode === 'single-line' && update.state.doc.lines === 1);
+      // Changes can arrive while the editor constructor is still setting up.
+      if (update.view.dom.isConnected) {
+        editorHost.setCssStyles({ height: `${Math.min(640, Math.max(minimumEditorHeight, update.view.contentHeight + 12))}px` });
+      }
+    },
   });
+
+  unregisterCloser = view.registerTransientCloser(() => session.dispose());
 
   // Pen/touch user activation is tied to the trusted pointerup. Focus the
   // already-created CodeMirror synchronously; the next frame is layout only.
@@ -200,11 +257,12 @@ export function startNodeEditing(
     });
   });
   editorHost.addEventListener('wheel', (event) => {
-    event.preventDefault();
     event.stopPropagation();
-  }, { capture: true, passive: false });
+  }, { capture: true, passive: true });
 
-  window.requestAnimationFrame(() => {
+  layoutFrame = window.requestAnimationFrame(() => {
+    layoutFrame = null;
+    if (!editorHost.isConnected || !session.isEditing) return;
     resizeEditor();
 
     const scrollContainers: Array<{ element: HTMLElement; left: number; top: number }> = [];

@@ -1,9 +1,15 @@
 import { Modal, App, Setting } from 'obsidian';
 import { TFile } from 'obsidian';
+import { frontmatterEnd, newNodeId, outlineVersion, parseMultilineOutline } from '../domain/outline-format';
 
 export type CheckboxState = 'checked' | 'unchecked' | 'none';
 
 export interface OutlineNode {
+  id?: string;
+  ownEnd?: number;
+  subtreeEnd?: number;
+  sourceDoc?: string;
+  format?: 1 | 2;
   text: string;
   indent: string;
   marker: string;
@@ -31,12 +37,13 @@ export function parseCheckboxState(text: string): { checkbox: CheckboxState; tex
 }
 
 export function parseOutline(markdown: string): OutlineNode[] {
+  if (outlineVersion(markdown) === 2) return parseMultilineOutline(markdown);
   const lines = markdown.split(/\r?\n/);
   const rootNodes: OutlineNode[] = [];
   const levelStack: OutlineNode[] = [];
   const indentLevels: number[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = frontmatterEnd(lines); i < lines.length; i++) {
     const line = lines[i];
     const match = line.match(/^(\s*)([-*+]|\d+\.)(?:\s+(.*))?$/);
     
@@ -64,6 +71,7 @@ export function parseOutline(markdown: string): OutlineNode[] {
     text = parsedCheckbox.text;
 
     const node: OutlineNode = {
+      id: newNodeId(), sourceDoc: markdown, format: 1, ownEnd: i + 1,
       text: text,
       indent: indentSpaces,
       marker: marker,
@@ -103,6 +111,7 @@ export function parseOutline(markdown: string): OutlineNode[] {
         // This node's endLine is the last child's endLine
         node.endLine = node.children[node.children.length - 1].endLine;
       }
+      node.subtreeEnd = node.endLine + 1;
       // If no children, endLine remains the same as line
     });
   }
@@ -163,6 +172,9 @@ export class TextInputModal extends Modal {
 }
 
 export function isOutlineCompatible(markdown: string): boolean {
+  try {
+    if (outlineVersion(markdown) === 2) { parseMultilineOutline(markdown); return true; }
+  } catch { return false; }
   const lines = markdown.split(/\r?\n/);
   
   // Remove frontmatter if present
@@ -188,6 +200,11 @@ export function isOutlineCompatible(markdown: string): boolean {
       return false;
     }
   }
+
+  // A legacy subtree must not span an outside heading. Otherwise deleting
+  // the parsed range could also delete that heading and unrelated content.
+  const headings = lines.map((line, index) => isMarkdownHeading(line) ? index : -1).filter(index => index >= startIndex);
+  if (flattenOutline(parseOutline(markdown)).some(node => headings.some(line => line > node.line && line <= node.endLine))) return false;
   
   return true;
 }
@@ -259,28 +276,7 @@ export function findSafeInsertionPoint(_lines: string[], insertAfterLine: number
 }
 
 export function findCompleteSubtreeRange(lines: string[], node: OutlineNode): { start: number; end: number } {
-  const start = node.line;
-  let end = node.line;
-  
-  const baseIndent = node.indent;
-  
-  for (let i = node.line + 1; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(/^(\s*)/);
-    const lineIndent = match ? match[1] : '';
-    
-    // If we find a line with same or less indentation, we've reached the end
-    if (lineIndent.length <= baseIndent.length && line.trim() !== '') {
-      break;
-    }
-    
-    // If this line belongs to our subtree, extend the end
-    if (lineIndent.startsWith(baseIndent + '\t') || line.trim() === '') {
-      end = i;
-    }
-  }
-  
-  return { start, end };
+  return { start: node.line, end: node.endLine };
 }
 
 export function validateMoveOperation(

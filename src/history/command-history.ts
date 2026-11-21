@@ -1,5 +1,7 @@
 import { App, TFile } from 'obsidian';
 import { OutlineNode } from '../utils/outline';
+import { commitDocument } from '../storage/document-writer';
+import { carrySavedZoom } from '../storage/zoom-settings-change';
 
 export interface MindmapCommand {
   type: 'add-child' | 'add-sibling' | 'edit-node' | 'delete-node' | 'delete-node-keep-children' | 'move-subtree' | 'add-child-text' | 'toggle-checkbox' | 'add-heading' | 'edit-heading' | 'delete-heading';
@@ -25,34 +27,28 @@ export class CommandHistory {
   private history: MindmapCommand[] = [];
   private currentIndex: number = -1;
   private maxHistorySize: number = 20; // Limit to 20 commands
-  private maxContentLength: number = 50000; // Limit content size per command
+  private maxHistoryCharacters = 8_000_000;
   
+  private restoreTail: Promise<void> = Promise.resolve();
+  private restoring = false;
+  private generation = 0;
+  private deferredCommands: { command: MindmapCommand; generation: number }[] = [];
+
   constructor(private app: App) {}
 
   public executeCommand(command: MindmapCommand): void {
-    // Limit content length to prevent huge frontmatter
-    const truncatedCommand = {
-      ...command,
-      beforeState: command.beforeState.length > this.maxContentLength 
-        ? command.beforeState.substring(0, this.maxContentLength) + '...[truncated]'
-        : command.beforeState,
-      afterState: command.afterState.length > this.maxContentLength
-        ? command.afterState.substring(0, this.maxContentLength) + '...[truncated]'
-        : command.afterState
-    };
-    
+    if (this.restoring) { this.deferredCommands.push({ command, generation: this.generation }); return; }
     // Remove any commands after current index
     this.history.splice(this.currentIndex + 1);
     
     // Add new command
-    this.history.push(truncatedCommand);
+    this.history.push(command);
     this.currentIndex = this.history.length - 1;
     
-    // Limit history size
-    if (this.history.length > this.maxHistorySize) {
-      const removeCount = this.history.length - this.maxHistorySize;
-      this.history.splice(0, removeCount);
-      this.currentIndex -= removeCount;
+    while (this.history.length > 1 && (this.history.length > this.maxHistorySize ||
+      this.history.reduce((size, item) => size + item.beforeState.length + item.afterState.length, 0) > this.maxHistoryCharacters)) {
+      this.history.shift();
+      this.currentIndex--;
     }
   }
 
@@ -60,48 +56,45 @@ export class CommandHistory {
     return this.currentIndex >= 0;
   }
 
+  public retainSavedZoom(zoom: number): void {
+    for (const command of this.history) {
+      command.beforeState = carrySavedZoom(command.beforeState, zoom);
+      command.afterState = carrySavedZoom(command.afterState, zoom);
+    }
+  }
+
   public canRedo(): boolean {
     return this.currentIndex < this.history.length - 1;
   }
 
-  public async undo(file: TFile): Promise<string | null> {
-    if (!this.canUndo()) return null;
+  public undo(file: TFile): Promise<string | null> { return this.restore(file, false); }
+  public redo(file: TFile): Promise<string | null> { return this.restore(file, true); }
 
-    const command = this.history[this.currentIndex];
-    
-    // Move to redo stack
-    this.currentIndex--;
-    
-    // Restore previous state
-    try {
-      await this.app.vault.modify(file, command.beforeState);
-      return command.beforeState;
-    } catch (error) {
-      console.error('Undo failed:', error);
-      // Move command back to current index if restore failed
-      this.currentIndex++;
-      return null;
-    }
-  }
-
-  public async redo(file: TFile): Promise<string | null> {
-    if (!this.canRedo()) return null;
-
-    const command = this.history[this.currentIndex + 1];
-    
-    // Move back to undo stack
-    this.currentIndex++;
-    
-    // Restore next state
-    try {
-      await this.app.vault.modify(file, command.afterState);
-      return command.afterState;
-    } catch (error) {
-      console.error('Redo failed:', error);
-      // Move command back to current index if restore failed
-      this.currentIndex--;
-      return null;
-    }
+  private restore(file: TFile, redo: boolean): Promise<string | null> {
+    const generation = this.generation;
+    const operation = this.restoreTail.then(async () => {
+      if (generation !== this.generation) return null;
+      const index = redo ? this.currentIndex + 1 : this.currentIndex;
+      const command = this.history[index];
+      if (!command) return null;
+      this.restoring = true;
+      try {
+        const result = await commitDocument(this.app, file,
+          redo ? command.beforeState : command.afterState,
+          redo ? command.afterState : command.beforeState);
+        if (generation === this.generation) this.currentIndex = redo ? index : index - 1;
+        return result;
+      } catch (error) {
+        console.error(redo ? 'Redo failed:' : 'Undo failed:', error);
+        return null;
+      } finally {
+        this.restoring = false;
+        const commands = this.deferredCommands.splice(0);
+        for (const entry of commands) if (entry.generation === this.generation) this.executeCommand(entry.command);
+      }
+    });
+    this.restoreTail = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   public getUndoDescription(): string | null {
@@ -165,6 +158,7 @@ export class CommandHistory {
   }
 
   public clear(): void {
+    this.generation++;
     this.history = [];
     this.currentIndex = -1;
   }
@@ -187,7 +181,14 @@ export class CommandHistory {
     const undoStack = Array.isArray(state.undoStack) ? state.undoStack : [];
     const redoStack = Array.isArray(state.redoStack) ? state.redoStack : [];
     
-    this.history = [...undoStack, ...redoStack];
+    // Older releases persisted truncated snapshots. Never restore them.
+    const entries = [...undoStack, ...redoStack];
+    if (entries.some(entry => !entry || typeof entry !== 'object' || typeof entry.beforeState !== 'string' || typeof entry.afterState !== 'string' ||
+      entry.beforeState.endsWith('...[truncated]') || entry.afterState.endsWith('...[truncated]'))) {
+      this.clear(); return;
+    }
+    this.generation++;
+    this.history = entries;
     this.currentIndex = undoStack.length - 1;
   }
 

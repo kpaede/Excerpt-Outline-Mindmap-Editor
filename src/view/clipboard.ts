@@ -1,6 +1,9 @@
-import { Notice } from 'obsidian';
+import { Notice, type App } from 'obsidian';
+import { outlineVersion, serializeOutline } from '../domain/outline-format';
 import type { OutlineNode } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
+
+const clipboardFormats = new WeakMap<App, { text: string; format: 1 | 2 }>();
 
 export function getTopLevelNodes(nodes: OutlineNode[]): OutlineNode[] {
   return nodes.filter((node) => {
@@ -13,6 +16,9 @@ export function getTopLevelNodes(nodes: OutlineNode[]): OutlineNode[] {
 }
 
 export function getNodesAsMarkdown(data: string, nodes: OutlineNode[]): string {
+  if (outlineVersion(data) === 2) {
+    return serializeOutline(getTopLevelNodes(nodes).sort((a, b) => a.line - b.line));
+  }
   const lines = data.split(/\r?\n/);
   return getTopLevelNodes(nodes)
     .sort((a, b) => a.line - b.line)
@@ -25,6 +31,7 @@ export async function copyNodesToClipboard(view: MindmapView, nodes: OutlineNode
   if (!text) return false;
 
   view.mindmapClipboardText = text;
+  clipboardFormats.set(view.app, { text, format: outlineVersion(view.data) });
   view.pendingCutNodeLines.clear();
   view.updateSelectionStyling();
 
@@ -44,6 +51,7 @@ export async function cutNodesToClipboard(view: MindmapView, nodes: OutlineNode[
   if (!text || topLevelNodes.length === 0) return;
 
   view.mindmapClipboardText = text;
+  clipboardFormats.set(view.app, { text, format: outlineVersion(view.data) });
   view.pendingCutNodeLines = new Set(topLevelNodes.map((node) => node.line));
   view.updateSelectionStyling();
 
@@ -79,7 +87,8 @@ export async function pasteClipboardAsChildren(view: MindmapView, targetNode: Ou
       return;
     }
 
-    await view.executePasteNodesCommand(targetNode, text);
+    const record = clipboardFormats.get(view.app);
+    await view.executePasteNodesCommand(targetNode, text, record?.text === text ? record.format : undefined);
   } catch (error) {
     console.error('Paste failed:', error);
     new Notice('Paste failed.');

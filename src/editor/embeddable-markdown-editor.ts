@@ -5,7 +5,7 @@ import {
 	TFile,
 } from "obsidian";
 
-import { EditorSelection, Prec, type Extension } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
 
 import { around } from "monkey-around";
@@ -180,6 +180,7 @@ function patchLocalExtensions(
 
 					// Only add our extensions to our own editor instance
 					if (this === self.editor) {
+						extensions.push(self.editability.of([]));
 					// Add placeholder if configured
 					if (self.options.placeholder) {
 						extensions.push(
@@ -285,6 +286,7 @@ function patchLocalExtensions(
  * A markdown editor that can be embedded in any container
  */
 export class EmbeddableMarkdownEditor {
+	readonly editability = new Compartment();
 	options: MarkdownEditorProps;
 	initial_value: string;
 	scope: Scope;
@@ -420,6 +422,11 @@ export class EmbeddableMarkdownEditor {
 			originalOnUpdate(update, changed);
 			if (changed) this.options.onChange(update);
 		};
+	}
+
+	setReadOnly(readOnly: boolean): void {
+		this.activeCM.dispatch({ effects: this.editability.reconfigure(readOnly
+			? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : []) });
 	}
 
 	// Get the current editor value

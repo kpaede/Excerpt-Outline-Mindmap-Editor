@@ -69,3 +69,13 @@ export class Menu {
   onHide(_callback: () => void): void {}
   hide(): void {}
 }
+
+export class Component {
+  children: Component[] = [];
+  callbacks: (() => void)[] = [];
+  load(): void {}
+  unload(): void { this.children.forEach(child => child.unload()); this.callbacks.forEach(callback => callback()); this.children = []; this.callbacks = []; }
+  register(callback: () => void): void { this.callbacks.push(callback); }
+  addChild<T extends Component>(child: T): T { this.children.push(child); return child; }
+  removeChild<T extends Component>(child: T): T { this.children = this.children.filter(item => item !== child); child.unload(); return child; }
+}

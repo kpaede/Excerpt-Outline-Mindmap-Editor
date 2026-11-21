@@ -4,6 +4,7 @@ import { setIcon } from 'obsidian';
 import type { MindmapView } from '../../view/mindmap-view';
 import { LayoutOptionsMenu } from '../menus/layout-options-menu';
 import { NodeOptionsMenu, NodeOptions } from '../menus/node-options-menu';
+import { refreshCheckboxPresentation } from '../../view/node-overlay-controls';
 import { GeneralSettingsMenu } from '../menus/general-settings-menu';
 import { ZoomOptionsMenu } from '../menus/zoom-options-menu';
 
@@ -15,6 +16,7 @@ export class VerticalToolbar {
   private currentLayoutMenu: LayoutOptionsMenu | null = null;
   private currentGeneralMenu: GeneralSettingsMenu | null = null;
   private currentZoomMenu: ZoomOptionsMenu | null = null;
+  private outlineStats?: HTMLDivElement;
   private zoomIndicator?: HTMLButtonElement;
   private showControls = false;
 
@@ -82,6 +84,8 @@ export class VerticalToolbar {
     this.zoomIndicator.addEventListener('click', () => this.openZoomOptions(this.zoomIndicator!));
     this.setZoomFactor(this.view.layoutOptions.zoomFactor ?? 1);
 
+    this.outlineStats = this.container.createDiv({ cls: 'mindmap-outline-stats' });
+
     // Separator
     this.buttonsGroup.createDiv({ cls: 'toolbar-separator' });
     
@@ -126,7 +130,7 @@ export class VerticalToolbar {
       this.view.generalSettings,
       (newSettings) => {
         this.view.generalSettings = { ...newSettings };
-        // Apply setting changes immediately if necessary
+        refreshCheckboxPresentation(this.view);
       },
       this.view
     );
@@ -226,6 +230,14 @@ export class VerticalToolbar {
 
     this.zoomIndicator.textContent = `${Math.round(zoomFactor * 100)}%`;
     this.zoomIndicator.setAttribute('aria-label', `Zoom ${Math.round(zoomFactor * 100)}%`);
+  }
+
+  public setOutlineStats(nodes: number, depth: number): void {
+    if (!this.outlineStats) return;
+    this.outlineStats.textContent = String(nodes);
+    const description = `${nodes} ${nodes === 1 ? 'thought' : 'thoughts'} · ${depth} ${depth === 1 ? 'child level' : 'child levels'}`;
+    this.outlineStats.setAttribute('aria-label', description);
+    this.outlineStats.title = description;
   }
 
   public updateUndoRedoButtons(): void {

@@ -250,8 +250,9 @@ export function addExcalidrawAsSibling(view: MindmapView, node: OutlineNode): Pr
  * one menu entry per possible content type.
  */
 export function editNodeContent(view: MindmapView, node: OutlineNode): Promise<void> {
-  if (extractDrawingLink(node.text)) return editDrawing(view, node);
-  if (view.file && resolveExcalidrawEmbed(view.app, node.text, view.file.path)) {
+  const drawingOnly = /^\s*!\[\[[^\]]+\]\]\s*$/.test(node.text);
+  if (drawingOnly && extractDrawingLink(node.text)) return editDrawing(view, node);
+  if (drawingOnly && view.file && resolveExcalidrawEmbed(view.app, node.text, view.file.path)) {
     return editExcalidrawDrawing(view, node);
   }
   return view.enterEditModeForNodeByLine(node.line);

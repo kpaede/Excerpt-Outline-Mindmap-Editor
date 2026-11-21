@@ -23,7 +23,7 @@ import {
   addSibling,
   addEmptyNodeToHeading,
   writeNode,
-  writeMultipleNodes,
+  setNodesCheckbox,
   deleteNode,
   deleteMultipleNodes,
   deleteMultipleNodesKeepChildren,
@@ -45,6 +45,11 @@ import {
 } from '../domain/mindmap-file';
 import { VerticalToolbar } from '../ui/toolbar/vertical-toolbar';
 import { draw as drawMindmap } from './draw';
+import { initializeViewport } from './initial-viewport';
+import { updateTaskOverlays } from './task-overlay-update';
+import { NodeRenderResources } from './node-render-resources';
+import { MeasurementCache } from './measurement-cache';
+import { commandNodeIdentities, type CommandContext } from './command-identities';
 import {
   updateOverlayGeometry as updateOverlayGeometryFn,
   updateOverlays as updateOverlaysFn,
@@ -53,6 +58,9 @@ import {
 import { NodeOptions } from '../ui/menus/node-options-menu';
 import { DeleteNodeModal } from '../ui/modals/delete-node-modal';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
+import { commitDocument } from '../storage/document-writer';
+import { OutlineSession } from '../domain/outline-session';
+import { FORMAT_KEY, outlineVersion } from '../domain/outline-format';
 import { CommandHistory, MindmapCommand } from '../history/command-history';
 import { PenPreferenceStore } from '../drawing/pen-preferences';
 import { extractEmbedLinks } from '../drawing/drawing-link';
@@ -100,6 +108,7 @@ export class MindmapView extends TextFileView {
   private gestureCoordinator: MindmapGestureCoordinator | null = null;
   private transientClosers = new Set<() => void>();
   private readonly renderLifecycle = new RenderLifecycle();
+  public readonly nodeRenderResources = new NodeRenderResources(this);
   private isViewClosed = false;
   private attachmentRefreshTimeout: number | null = null;
   private activationRecheckTimeout: number | null = null;
@@ -176,7 +185,7 @@ export class MindmapView extends TextFileView {
    * Wird von draw() gefüllt und später in updateOverlays() verwendet.
    */
   public sizeMap: Map<number, { w: number; h: number }> = new Map();
-  public measurementCache: Map<string, { w: number; h: number; scaleFactor?: number }> = new Map();
+  public measurementCache = new MeasurementCache<{ w: number; h: number; scaleFactor?: number }>();
 
   /**
    * Layout-Optionen, die sich über das Modal ändern lassen.
@@ -508,6 +517,9 @@ export class MindmapView extends TextFileView {
       if (!this.cy) return;
       this.dismissNodeContextMenu();
 
+      const scrollTarget = event.target as HTMLElement | null;
+      if (scrollTarget?.closest('.node-editor, .cm-editor') && scrollTarget.closest('.cm-scroller')) return;
+
       if (this.wrapper.querySelector('.node-editor, .mindmap-heading-editor')) {
         event.preventDefault();
         event.stopPropagation();
@@ -598,6 +610,7 @@ export class MindmapView extends TextFileView {
 
     const restoreSelection = this.getSelectionRestoreCandidate(new Set(nodes.map((node) => node.line)));
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await deleteMultipleNodesKeepChildren(this.app, this.file, nodes);
 
     if (newDoc === beforeState) return;
@@ -608,10 +621,10 @@ export class MindmapView extends TextFileView {
       beforeState,
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
-      metadata: { count: nodes.length }
+      metadata: { count: nodes.length, sourceLines: nodes.map(node => node.line) }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.selectedNodeLines.clear();
     this.restoreSelectionAfterDeletion(restoreSelection);
   }
@@ -655,19 +668,11 @@ export class MindmapView extends TextFileView {
       .sort((a, b) => a.line - b.line);
   }
 
-  public normalizeNodeText(text: string, notice: boolean = true): string {
-    if (!/[\r\n]/.test(text)) return text.trim();
+  private outlineSession = new OutlineSession();
+  public getOutlineNodes(source = this.data): OutlineNode[] { return this.outlineSession.parse(source ?? ''); }
 
-    const normalized = text
-      .replace(/\r?\n+/g, ' ')
-      .replace(/[ \t]+/g, ' ')
-      .trim();
-
-    if (notice) {
-      new Notice('Line breaks inside a node were removed.');
-    }
-
-    return normalized;
+  public normalizeNodeText(text: string, _notice: boolean = true): string {
+    return text.replace(/\r\n/g, '\n');
   }
 
   private handleWrapperKeydown = (event: KeyboardEvent): void => {
@@ -787,8 +792,10 @@ export class MindmapView extends TextFileView {
   public isLocalUpdate: boolean = false;
 
   setViewData(d: string): void {
-    this.data = d || '';
-    if (this.isLocalUpdate) {
+    const next = d || '';
+    const unchanged = next === this.data;
+    this.data = next;
+    if (this.isLocalUpdate && unchanged) {
       return;
     }
     void this.draw();
@@ -803,11 +810,14 @@ export class MindmapView extends TextFileView {
   private async createFirstNode(): Promise<void> {
     if (!this.file) return;
     
-    const newContent = this.data + (this.data.trim() === '' ? '' : '\n') + '- ';
+    const before = this.data;
+    const versioned = outlineVersion(before) === 2 ? before : before.startsWith('---\n')
+      ? before.replace('---\n', `---\n${FORMAT_KEY}: 2\n`)
+      : before.startsWith('---\r\n') ? before.replace('---\r\n', `---\r\n${FORMAT_KEY}: 2\r\n`)
+      : `---\n${FORMAT_KEY}: 2\n---\n${before}`;
+    const newContent = versioned + (versioned.endsWith('\n') ? '' : '\n') + '- ';
+    await commitDocument(this.app, this.file, before, newContent);
     this.data = newContent;
-    
-    // Persist the change
-    await this.app.vault.modify(this.file, newContent);
     
     // Redraw to show the new node
     await this.draw();
@@ -825,6 +835,7 @@ export class MindmapView extends TextFileView {
 
   private resetRenderedMindmap(): void {
     this.cancelScheduledRenderFrames();
+    this.nodeRenderResources.clear();
     this.dismissNodeContextMenu();
     this.gestureCoordinator?.reset();
     const cy = this.cy;
@@ -877,7 +888,10 @@ export class MindmapView extends TextFileView {
     description
       .createEl('ul', { cls: 'mindmap-warning-list' })
       .createEl('li', { text: 'Like this' });
-    description.createEl('p', { text: 'Please start with an empty file or the mentioned format.' });
+    try { parseOutline(this.data); } catch (error) {
+      description.createEl('p', { text: error instanceof Error ? error.message : 'Unsupported format.' });
+    }
+    description.createEl('p', { text: 'The original text has been retained. Review it in Markdown. Legacy files can use the preview migration to multiline outline command.' });
 
   }
 
@@ -908,12 +922,27 @@ export class MindmapView extends TextFileView {
   }
 
   // Enhanced applyDocIncremental with command tracking - now the primary method
-  public async applyDocIncrementalWithCommand(d: DocString, command?: MindmapCommand): Promise<void> {
+  private captureCommandContext(): CommandContext {
+    const nodes = this.getFlatNodes().map(node => ({ ...node }));
+    return {
+      nodes,
+      filePath: this.file?.path,
+      selectedIds: new Set(nodes.filter(node => this.selectedNodeLines.has(node.line)).map(node => node.id)),
+      cutIds: new Set(nodes.filter(node => this.pendingCutNodeLines.has(node.line)).map(node => node.id)),
+    };
+  }
+
+  public async applyDocIncrementalWithCommand(d: DocString, command?: MindmapCommand, context = this.captureCommandContext()): Promise<void> {
+    if (context.filePath && context.filePath !== this.file?.path) return;
     this.isLocalUpdate = true;
     this.data = d;
-    
+    if (command && command.beforeState !== command.afterState) this.outlineSession.parse(d, commandNodeIdentities(command, context.nodes));
+    const current = this.getFlatNodes();
+    this.selectedNodeLines = new Set(current.filter(node => context.selectedIds.has(node.id)).map(node => node.line));
+    this.pendingCutNodeLines = new Set(current.filter(node => context.cutIds.has(node.id)).map(node => node.line));
+
     // Record command in history
-    if (command) {
+    if (command && command.beforeState !== command.afterState) {
       this.commandHistory.executeCommand(command);
     }
     
@@ -936,6 +965,12 @@ export class MindmapView extends TextFileView {
 
   /** Incremental update that reuses existing measurements where possible */
   public async incrementalUpdate(): Promise<void> {
+    if (updateTaskOverlays(this)) {
+      this.renderLifecycle.invalidate();
+      this.cy?.scratch('_mindmapRenderGeneration', this.renderLifecycle.currentGeneration());
+      this.cy?.scratch('_mindmapRoots', this.getOutlineNodes());
+      return;
+    }
     // Document edits can shift line numbers, and nodes may contain rendered Markdown
     // whose dimensions are much larger than the source text. Reuse the full
     // measurement path so layout always uses current rendered node sizes.
@@ -1046,6 +1081,8 @@ export class MindmapView extends TextFileView {
    */
   private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
     if (this.isViewClosed || leaf !== this.leaf) return;
+    this.cy?.resize();
+    initializeViewport(this);
     this.refreshStaleAttachments();
 
     // Excalidraw saves the drawing you are leaving from inside its own handler
@@ -1150,7 +1187,13 @@ export class MindmapView extends TextFileView {
   async onClose(): Promise<void> {
     this.isViewClosed = true;
     this.renderLifecycle.invalidate();
+    this.nodeRenderResources.clear();
     this.isUpdatingOverlays = false;
+    this.toolbar?.closeMenus();
+    if (this.zoomSaveTimeout !== null) {
+      window.clearTimeout(this.zoomSaveTimeout);
+      this.zoomSaveTimeout = null;
+    }
     for (const close of Array.from(this.transientClosers)) close();
     this.transientClosers.clear();
     this.activeNodeContextMenu?.hide();
@@ -1218,7 +1261,7 @@ export class MindmapView extends TextFileView {
     await this.renderLifecycle.enqueueLatest(async (render) => {
       if (!render.isCurrent() || this.isViewClosed) return;
 
-      if (isEmptyContent(data)) {
+      if (isEmptyContent(data) && isOutlineCompatible(data)) {
         this.showEmptyState();
         return;
       }
@@ -1271,16 +1314,36 @@ export class MindmapView extends TextFileView {
     this.rememberCurrentZoom(true);
   }
 
+  private historyFilePath: string | null = null;
   async onLoadFile(file: TFile): Promise<void> {
-    void super.onLoadFile(file);
     this.ensureViewListeners();
-
+    if (this.historyFilePath !== file.path) {
+      this.isLocalUpdate = false;
+      this.commandHistory.clear();
+      this.outlineSession = new OutlineSession();
+      this.flatNodesCache = null;
+      this.measurementCache.clear();
+      this.selectedNodeLines.clear();
+      this.pendingCutNodeLines.clear();
+      this.pendingEditNodeLine = null;
+      this.selectionHistory = [];
+      this.generalSettings = { keyboardNavigation: 'hierarchical', showCheckboxesOnHover: false, inheritParentListTypeForChildren: false };
+      this.nodeOptions = { nodeWidth: 300 };
+      this.layoutOptions = createDefaultLayoutOptions();
+      this.firstFitDone = false;
+      this.historyFilePath = file.path;
+    }
     if (this.frontmatterStorage && file) {
       const mindmapData = await this.frontmatterStorage.loadMindmapData(file);
+      if (this.file?.path !== file.path) return;
       
       // Load general settings
       if (mindmapData.keyboardNavigation) {
         this.generalSettings.keyboardNavigation = mindmapData.keyboardNavigation;
+      }
+
+      if (mindmapData.nodeEditingMode === 'single-line' || mindmapData.nodeEditingMode === 'multiline') {
+        this.generalSettings.nodeEditingMode = mindmapData.nodeEditingMode;
       }
 
       if (typeof mindmapData.showCheckboxesOnHover === 'boolean') {
@@ -1316,15 +1379,16 @@ export class MindmapView extends TextFileView {
         this.layoutOptions = { ...this.layoutOptions, ...layoutUpdates };
       }
     }
+    if (this.file?.path === file.path) await super.onLoadFile(file);
   }
 
   public async executeUndo(): Promise<void> {
     if (!this.file || !this.commandHistory.canUndo()) return;
     
+    const context = this.captureCommandContext();
     const newData = await this.commandHistory.undo(this.file);
     if (newData !== null) {
-      this.data = newData;
-      await this.draw();
+      await this.applyDocIncrementalWithCommand(newData, undefined, context);
       
       // Force toolbar update
       this.forceToolbarUpdate();
@@ -1334,10 +1398,10 @@ export class MindmapView extends TextFileView {
   public async executeRedo(): Promise<void> {
     if (!this.file || !this.commandHistory.canRedo()) return;
     
+    const context = this.captureCommandContext();
     const newData = await this.commandHistory.redo(this.file);
     if (newData !== null) {
-      this.data = newData;
-      await this.draw();
+      await this.applyDocIncrementalWithCommand(newData, undefined, context);
       
       // Force toolbar update
       this.forceToolbarUpdate();
@@ -1352,7 +1416,8 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
     
     const beforeState = this.data;
-    const newChildLine = childInsertPosition === 'first' ? parentNode.line + 1 : parentNode.endLine + 1;
+    const context = this.captureCommandContext();
+    const newChildLine = childInsertPosition === 'first' ? (parentNode.ownEnd ?? parentNode.line + 1) : parentNode.endLine + 1;
     const newDoc = await addChild(this.app, this.file, parentNode, childInsertPosition, {
       inheritParentListType: this.generalSettings.inheritParentListTypeForChildren ?? false,
     });
@@ -1366,7 +1431,7 @@ export class MindmapView extends TextFileView {
       metadata: { childInsertPosition }
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.scheduleEditModeForNodeByLine(newChildLine);
   }
 
@@ -1377,6 +1442,7 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
     
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newSiblingLine = siblingInsertPosition === 'before' ? node.line : node.endLine + 1;
     const newDoc = await addSibling(this.app, this.file, node, siblingInsertPosition);
     
@@ -1389,12 +1455,12 @@ export class MindmapView extends TextFileView {
       metadata: { siblingInsertPosition }
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.scheduleEditModeForNodeByLine(newSiblingLine);
   }
 
   private getHeadingInsertionNodeForNode(node: OutlineNode): OutlineNode {
-    const roots = parseOutline(this.data);
+    const roots = this.getOutlineNodes();
     const root = roots.find((candidate) => node.line >= candidate.line && node.line <= candidate.endLine);
     return root ?? node;
   }
@@ -1404,6 +1470,7 @@ export class MindmapView extends TextFileView {
 
     const rootNode = this.getHeadingInsertionNodeForNode(node);
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await addHeadingBeforeNode(this.app, this.file, rootNode, '# Heading');
 
     const command: MindmapCommand = {
@@ -1418,18 +1485,19 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.scheduleEditModeForHeadingByLine(rootNode.line);
   }
 
-  public async executeEditHeadingCommand(section: HeadingSection, newText: string): Promise<void> {
+  public async executeEditHeadingCommand(section: HeadingSection, newText: string, expectedDoc = this.data): Promise<void> {
     if (!this.file) return;
 
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const isDeletingHeading = newText.trim() === '';
     const newDoc = isDeletingHeading
-      ? await deleteHeading(this.app, this.file, section.line)
-      : await writeHeading(this.app, this.file, section.line, newText);
+      ? await deleteHeading(this.app, this.file, section.line, expectedDoc)
+      : await writeHeading(this.app, this.file, section.line, newText, expectedDoc);
 
     const command: MindmapCommand = {
       type: isDeletingHeading ? 'delete-heading' : 'edit-heading',
@@ -1448,7 +1516,7 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async toggleNodeCheckbox(node: OutlineNode): Promise<void> {
@@ -1465,7 +1533,8 @@ export class MindmapView extends TextFileView {
 
     desiredText = this.normalizeNodeText(desiredText, false);
     const beforeState = this.data;
-    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, [node], node.checkbox === 'checked' ? 'unchecked' : 'checked');
 
     const command: MindmapCommand = {
       type: 'toggle-checkbox',
@@ -1474,12 +1543,13 @@ export class MindmapView extends TextFileView {
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(node),
       metadata: {
+        text: desiredText,
         checkboxBefore: node.checkbox,
         checkboxAfter: node.checkbox === 'checked' ? 'unchecked' : 'checked',
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async convertNodeToTask(node: OutlineNode): Promise<void> {
@@ -1487,7 +1557,8 @@ export class MindmapView extends TextFileView {
 
     const desiredText = this.normalizeNodeText(`[ ] ${node.text}`, false);
     const beforeState = this.data;
-    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, [node], 'unchecked');
 
     const command: MindmapCommand = {
       type: 'edit-node',
@@ -1501,7 +1572,7 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async convertNodeToCheckedTask(node: OutlineNode): Promise<void> {
@@ -1509,7 +1580,8 @@ export class MindmapView extends TextFileView {
 
     const desiredText = this.normalizeNodeText(`[x] ${node.text}`, false);
     const beforeState = this.data;
-    const newDoc = await writeNode(this.app, this.file, node, desiredText);
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, [node], 'checked');
 
     const command: MindmapCommand = {
       type: 'edit-node',
@@ -1523,14 +1595,15 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async convertNodesToTask(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
     const beforeState = this.data;
-    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[ ] ${node.text}`, false));
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, nodes, 'unchecked');
 
     const command: MindmapCommand = {
       type: 'edit-node',
@@ -1544,14 +1617,15 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async convertNodesToCheckedTask(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
     const beforeState = this.data;
-    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(`[x] ${node.text}`, false));
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, nodes, 'checked');
 
     const command: MindmapCommand = {
       type: 'edit-node',
@@ -1565,14 +1639,15 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async convertNodesToBulletPoint(nodes: OutlineNode[]): Promise<void> {
     if (!this.file || nodes.length === 0) return;
 
     const beforeState = this.data;
-    const newDoc = await writeMultipleNodes(this.app, this.file, nodes, (node) => this.normalizeNodeText(node.text, false));
+    const context = this.captureCommandContext();
+    const newDoc = await setNodesCheckbox(this.app, this.file, nodes, 'none');
 
     const command: MindmapCommand = {
       type: 'edit-node',
@@ -1589,7 +1664,7 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeEditNodeCommand(node: OutlineNode, newText: string): Promise<void> {
@@ -1597,6 +1672,7 @@ export class MindmapView extends TextFileView {
     
     newText = this.normalizeNodeText(newText);
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await writeNode(this.app, this.file, node, newText);
     
     const command: MindmapCommand = {
@@ -1611,7 +1687,7 @@ export class MindmapView extends TextFileView {
       }
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeDeleteNodeCommand(node: OutlineNode): Promise<void> {
@@ -1619,6 +1695,7 @@ export class MindmapView extends TextFileView {
 
     const restoreSelection = this.getSelectionRestoreCandidate(new Set([node.line]));
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await deleteNode(this.app, this.file, node);
 
     const command: MindmapCommand = {
@@ -1629,7 +1706,7 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.selectedNodeLines.clear();
     this.restoreSelectionAfterDeletion(restoreSelection);
   }
@@ -1639,6 +1716,7 @@ export class MindmapView extends TextFileView {
 
     const restoreSelection = this.getSelectionRestoreCandidate(new Set(nodes.map((node) => node.line)));
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await deleteMultipleNodes(this.app, this.file, nodes);
 
     const command: MindmapCommand = {
@@ -1646,10 +1724,11 @@ export class MindmapView extends TextFileView {
       timestamp: Date.now(),
       beforeState,
       afterState: newDoc,
-      nodeInfo: CommandHistory.createNodeInfo(nodes[0]) // just store info of first node
+      nodeInfo: CommandHistory.createNodeInfo(nodes[0]),
+      metadata: { sourceLines: nodes.map(node => node.line) }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.selectedNodeLines.clear();
     this.restoreSelectionAfterDeletion(restoreSelection);
   }
@@ -1658,6 +1737,7 @@ export class MindmapView extends TextFileView {
     
     const restoreSelection = this.getSelectionRestoreCandidate(new Set([node.line]));
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await deleteNodeKeepChildren(this.app, this.file, node);
     
     const command: MindmapCommand = {
@@ -1668,7 +1748,7 @@ export class MindmapView extends TextFileView {
       nodeInfo: CommandHistory.createNodeInfo(node)
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.selectedNodeLines.clear();
     this.restoreSelectionAfterDeletion(restoreSelection);
   }
@@ -1688,6 +1768,7 @@ export class MindmapView extends TextFileView {
     }
     
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await moveSubtree(
       this.app,
       this.file,
@@ -1712,7 +1793,7 @@ export class MindmapView extends TextFileView {
       metadata: { insertAsChild, childInsertPosition, siblingInsertPosition }
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeMoveSubtreeToEmptyHeadingCommand(
@@ -1722,7 +1803,8 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
 
     const beforeState = this.data;
-    const newDoc = await moveSubtreeToEmptyHeading(this.app, this.file, sourceNode, headingLine);
+    const context = this.captureCommandContext();
+    const newDoc = await moveSubtreeToEmptyHeading(this.app, this.file, sourceNode, headingLine, this.data);
 
     if (newDoc === beforeState) return;
 
@@ -1738,14 +1820,15 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeCreateNodeInEmptyHeadingCommand(headingLine: number): Promise<void> {
     if (!this.file) return;
 
     const beforeState = this.data;
-    const newDoc = await addEmptyNodeToHeading(this.app, this.file, headingLine);
+    const context = this.captureCommandContext();
+    const newDoc = await addEmptyNodeToHeading(this.app, this.file, headingLine, this.data);
 
     if (newDoc === beforeState) return;
 
@@ -1766,7 +1849,7 @@ export class MindmapView extends TextFileView {
       }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.scheduleEditModeForNodeByLine(headingLine + 1);
   }
 
@@ -1781,6 +1864,7 @@ export class MindmapView extends TextFileView {
     if (!text) return;
 
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await addChildText(this.app, this.file, parentNode, text, childInsertPosition, {
       inheritParentListType: this.generalSettings.inheritParentListTypeForChildren ?? false,
     });
@@ -1794,7 +1878,7 @@ export class MindmapView extends TextFileView {
       metadata: { addedText: text.substring(0, 100), childInsertPosition }
     };
     
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeAddSiblingTextCommand(
@@ -1808,6 +1892,7 @@ export class MindmapView extends TextFileView {
     if (!text) return;
 
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await addSiblingText(this.app, this.file, targetNode, text, siblingInsertPosition);
 
     if (newDoc === beforeState) return;
@@ -1821,14 +1906,15 @@ export class MindmapView extends TextFileView {
       metadata: { addedText: text.substring(0, 100), dropIntent: 'sibling', siblingInsertPosition }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
-  public async executePasteNodesCommand(parentNode: OutlineNode, text: string): Promise<void> {
+  public async executePasteNodesCommand(parentNode: OutlineNode, text: string, sourceFormat?: 1 | 2): Promise<void> {
     if (!this.file) return;
 
     const beforeState = this.data;
-    const newDoc = await addMarkdownAsChildren(this.app, this.file, parentNode, text);
+    const context = this.captureCommandContext();
+    const newDoc = await addMarkdownAsChildren(this.app, this.file, parentNode, text, sourceFormat);
 
     if (newDoc === beforeState) return;
 
@@ -1841,13 +1927,14 @@ export class MindmapView extends TextFileView {
       metadata: { pastedText: text.substring(0, 100) }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public async executeCutPasteNodesCommand(sourceNodes: OutlineNode[], parentNode: OutlineNode, text: string): Promise<void> {
     if (!this.file || sourceNodes.length === 0) return;
 
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await cutPasteMarkdownAsChildren(this.app, this.file, sourceNodes, parentNode, text);
 
     if (newDoc === beforeState) {
@@ -1862,10 +1949,10 @@ export class MindmapView extends TextFileView {
       afterState: newDoc,
       nodeInfo: CommandHistory.createNodeInfo(sourceNodes[0]),
       targetInfo: CommandHistory.createNodeInfo(parentNode),
-      metadata: { count: sourceNodes.length, cutPaste: true }
+      metadata: { count: sourceNodes.length, cutPaste: true, sourceLines: sourceNodes.map(node => node.line) }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
     this.pendingCutNodeLines.clear();
     this.selectedNodeLines.clear();
     this.updateSelectionStyling();
@@ -1875,6 +1962,7 @@ export class MindmapView extends TextFileView {
     if (!this.file) return;
 
     const beforeState = this.data;
+    const context = this.captureCommandContext();
     const newDoc = await duplicateSubtree(this.app, this.file, node);
 
     if (newDoc === beforeState) return;
@@ -1888,7 +1976,7 @@ export class MindmapView extends TextFileView {
       metadata: { duplicated: true }
     };
 
-    await this.applyDocIncrementalWithCommand(newDoc, command);
+    await this.applyDocIncrementalWithCommand(newDoc, command, context);
   }
 
   public getNodeOptions(): NodeOptions {
@@ -2077,12 +2165,18 @@ export class MindmapView extends TextFileView {
       window.clearTimeout(this.zoomSaveTimeout);
     }
 
+    const file = this.file;
+    if (!file) return;
     this.zoomSaveTimeout = window.setTimeout(async () => {
       this.zoomSaveTimeout = null;
-      if (!this.file || !this.frontmatterStorage) return;
+      if (this.isViewClosed || !this.frontmatterStorage) return;
 
       try {
-        await this.frontmatterStorage.updateLayoutOptions(this.file, { zoomFactor });
+        await this.frontmatterStorage.updateLayoutOptions(file, { zoomFactor });
+        if (this.file?.path !== file.path) return;
+        this.commandHistory.retainSavedZoom(zoomFactor);
+        this.outlineSession.retainSavedZoom(zoomFactor);
+        await this.reloadDataIncremental();
       } catch (error) {
         console.error('Failed to save zoom factor to frontmatter:', error);
       }
@@ -2176,14 +2270,18 @@ export class MindmapView extends TextFileView {
     });
   }
 
+  private flatNodesCache: { roots: OutlineNode[]; flat: OutlineNode[] } | null = null;
   public getFlatNodes(): OutlineNode[] {
+    const roots = this.getOutlineNodes();
+    if (this.flatNodesCache?.roots === roots) return this.flatNodesCache.flat;
     const flat: OutlineNode[] = [];
     (function walk(arr: OutlineNode[]) {
       arr.forEach((node) => {
         flat.push(node);
         walk(node.children);
       });
-    })(parseOutline(this.data));
+    })(roots);
+    this.flatNodesCache = { roots, flat };
     return flat;
   }
 

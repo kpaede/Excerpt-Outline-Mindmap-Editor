@@ -5,6 +5,7 @@ import {
   MarkdownView,
   Menu,
 } from 'obsidian';
+import { registerMigrationCommands } from './ui/modals/outline-migration-modal';
 import { VIEW_TYPE_MINDMAP } from './constants';
 import { addToggleMindmapMenuItem } from './integration/context-menu';
 import { MindmapView } from './view/mindmap-view';
@@ -20,6 +21,7 @@ export default class MindmapPlugin extends Plugin {
   private autoOpenQueued = false;
 
   async onload() {
+    registerMigrationCommands(this);
     this.registerView(
       VIEW_TYPE_MINDMAP,
       (leaf: WorkspaceLeaf) => new MindmapView(leaf, this)
@@ -287,7 +289,7 @@ export default class MindmapPlugin extends Plugin {
       const view = leaf.view as MindmapView;
       if (view.file?.path === file.path) {
         // Enhanced check for active editing or drag operations
-        const hasActiveTextarea = view.wrapper?.querySelector('textarea');
+        const hasActiveTextarea = view.wrapper?.querySelector('.editing, textarea, .node-editor');
         const hasActiveDrag = view.wrapper?.querySelector('.mm-src, .mm-tgt');
         
         if (hasActiveTextarea || hasActiveDrag) {

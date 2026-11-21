@@ -1,8 +1,19 @@
-import { MarkdownRenderer } from 'obsidian';
+import { Component, MarkdownRenderer } from 'obsidian';
 import type { OutlineNode } from '../utils/outline';
 import { openInternalLink } from '../utils/outline';
 import type { MindmapView } from './mindmap-view';
+import { waitForMeasurementStyles } from './measurement-styles';
 import { hasUnrenderedExcalidrawEmbed } from '../drawing/excalidraw-integration';
+import { nodeMarkdown } from '../editor/node-markdown';
+
+// Background Obsidian tabs throttle animation frames. A measurement must still
+// finish so writes, undo and switching to another file cannot wait indefinitely.
+function measurementFrame(): Promise<void> {
+  return new Promise(resolve => {
+    const timeout = window.setTimeout(() => { window.cancelAnimationFrame(frame); resolve(); }, 50);
+    const frame = window.requestAnimationFrame(() => { window.clearTimeout(timeout); resolve(); });
+  });
+}
 
 function waitForImages(container: HTMLElement): Promise<unknown> {
   return Promise.all(Array.from(container.querySelectorAll('img')).map((img) => {
@@ -67,30 +78,7 @@ async function waitForAsyncContent(view: MindmapView, container: HTMLElement): P
   // freshly created image, so an image list taken before the loop would miss
   // exactly the element the node has to be sized around.
   await waitForImages(container);
-  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
-function preprocessNodeMarkdown(text: string): string {
-  let processedText = text;
-  const codeBlockRegex = /(```[\s\S]*?```|~~~[\s\S]*?~~~)/g;
-  const codeBlocks: string[] = [];
-  let codeBlockIndex = 0;
-
-  processedText = processedText.replace(codeBlockRegex, (match) => {
-    const placeholder = `__CODEBLOCK_${codeBlockIndex}__`;
-    codeBlocks[codeBlockIndex] = match;
-    codeBlockIndex++;
-    return placeholder;
-  });
-
-  processedText = processedText.replace(/\|([^|]*)\|/g, '`$1`');
-  processedText = processedText.replace(/%%[^%]*%%/g, '');
-
-  codeBlocks.forEach((codeBlock, index) => {
-    processedText = processedText.replace(`__CODEBLOCK_${index}__`, codeBlock);
-  });
-
-  return processedText;
+  await measurementFrame();
 }
 
 function fallbackMeasuredSize(box: HTMLElement, node: OutlineNode, targetWidth: number): { w: number; h: number } {
@@ -117,14 +105,18 @@ function fallbackMeasuredSize(box: HTMLElement, node: OutlineNode, targetWidth: 
 
 export async function measureNodesForLayout(
   view: MindmapView,
-  flat: OutlineNode[]
+  flat: OutlineNode[],
+  isCurrent: () => boolean = () => true
 ): Promise<Map<number, { w: number; h: number }>> {
   const sizeMap = new Map<number, { w: number; h: number }>();
   const doc = view.wrapper?.ownerDocument ?? document;
+  const renderScope = view.addChild(new Component());
   const measureContainer = doc.body.createDiv({ cls: 'mindmap-measurement-container' });
 
+  let nodesSinceYield = 0;
   try {
     for (const node of flat) {
+      if (!isCurrent()) break;
       const nodeOptions = view.getNodeOptions();
       const targetWidth = nodeOptions.nodeWidth;
       const measurementKey = `${targetWidth}\u0000${node.text}`;
@@ -138,7 +130,7 @@ export async function measureNodesForLayout(
         continue;
       }
 
-      const tmpBox = measureContainer.createDiv({ cls: 'mindmap-measure-box' });
+      const tmpBox = measureContainer.createDiv({ cls: 'mindmap-measure-box markdown-rendered' });
       tmpBox.setCssProps({ '--mindmap-target-width': `${targetWidth}px` });
       // Attached before rendering, not after. Obsidian's Markdown
       // post-processors are free to skip work for disconnected nodes, and
@@ -146,6 +138,11 @@ export async function measureNodesForLayout(
       // not in the document, which left drawing nodes measured at the height
       // of the embed's one-line fallback text.
       measureContainer.appendChild(tmpBox);
+      const stylesReady = await waitForMeasurementStyles(
+        targetWidth, () => doc.defaultView!.getComputedStyle(tmpBox).maxWidth,
+        measurementFrame, isCurrent
+      );
+      if (!isCurrent()) break;
 
       if (node.text.trim() === '') {
         tmpBox.textContent = '\u00a0';
@@ -153,17 +150,20 @@ export async function measureNodesForLayout(
         try {
           await MarkdownRenderer.render(
             view.app,
-            preprocessNodeMarkdown(node.text),
+            nodeMarkdown(node),
             tmpBox,
             view.file?.path || '',
-            view
+            renderScope
           );
 
           // Before waiting: the node has to be measured around the image it
           // will actually display, so the measurement pass must load the same
           // version the overlay will render.
           view.attachmentVersions.applyTo(tmpBox, view.app);
-          await waitForAsyncContent(view, tmpBox);
+          if (tmpBox.querySelector('img, svg, iframe, .internal-embed, .verovio-container, pre code')) {
+            await waitForAsyncContent(view, tmpBox);
+            nodesSinceYield = 0;
+          }
 
           tmpBox.querySelectorAll('pre code').forEach((codeEl) => {
             const preEl = codeEl.parentElement as HTMLPreElement;
@@ -192,10 +192,11 @@ export async function measureNodesForLayout(
         }
       }
 
-      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-
-      if (tmpBox.querySelector('svg, .verovio-container, pre code')) {
-        await new Promise<void>((resolve) => window.setTimeout(() => resolve(), 200));
+      // Plain Markdown measures synchronously. Yield in small batches instead
+      // of waiting for two frames (and 200ms for code) for every single node.
+      if (++nodesSinceYield >= 8) {
+        await measurementFrame();
+        nodesSinceYield = 0;
       }
 
       const rect = tmpBox.getBoundingClientRect();
@@ -209,7 +210,7 @@ export async function measureNodesForLayout(
         measuredH = fallbackSize.h;
       }
 
-      if (measuredW > targetWidth) {
+      if (stylesReady && measuredW > targetWidth) {
         const scale = targetWidth / measuredW;
         node.scaleFactor = scale;
         measuredW = targetWidth;
@@ -222,22 +223,20 @@ export async function measureNodesForLayout(
         measuredW = 80;
       }
 
+      measuredH = Math.max(60, measuredH);
       const measuredSize = { w: measuredW, h: measuredH };
       sizeMap.set(node.line, measuredSize);
-      view.measurementCache.set(measurementKey, {
+      if (stylesReady) view.measurementCache.set(measurementKey, {
         ...measuredSize,
         scaleFactor: node.scaleFactor,
       });
 
-      if (view.measurementCache.size > 1000) {
-        const oldestKey = view.measurementCache.keys().next().value;
-        if (oldestKey) view.measurementCache.delete(oldestKey);
-      }
 
       measureContainer.removeChild(tmpBox);
     }
   } finally {
     measureContainer.remove();
+    view.removeChild(renderScope);
   }
 
   return sizeMap;

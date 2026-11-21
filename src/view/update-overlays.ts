@@ -1,4 +1,4 @@
-import { parseOutline, OutlineNode } from '../utils/outline';
+import { OutlineNode } from '../utils/outline';
 import { parseHeadingSections } from '../utils/heading-sections';
 import { MindmapView } from './mindmap-view';
 import { renderNodeMarkdown, startNodeEditing } from '../editor/node-editing';
@@ -27,6 +27,8 @@ export function updateOverlays(view: MindmapView): void {
   // The view owns this frame so a newer render, reset, or close can cancel it.
   const scheduled = view.requestOverlayUpdateFrame(() => {
     try {
+      // An editor may have opened after this paint was queued.
+      if (view.wrapper.querySelector('.node-editor, .mindmap-heading-editor')) return;
       const isTouchViewportGesture = view.isDirectViewportGestureActive() || view.isDirectNodeDragActive();
 
       if (isTouchViewportGesture && updateOverlayGeometry(view)) {
@@ -89,6 +91,7 @@ function performOverlayUpdate(view: MindmapView): void {
   // Any full rebuild invalidates overlay elements retained by an in-flight
   // direct gesture. End that gesture before replacing the DOM.
   view.resetDirectGestures();
+  view.nodeRenderResources.clear();
   // Remove all existing overlays before redrawing
   view.wrapper.querySelectorAll('[data-overlay]').forEach((e) => e.remove());
 
@@ -102,7 +105,7 @@ function performOverlayUpdate(view: MindmapView): void {
   const zoom = view.cy!.zoom();
 
   // Parse current document to get valid line mappings
-  const currentOutline = parseOutline(view.data);
+  const currentOutline = view.getOutlineNodes();
   const flatCurrent: OutlineNode[] = [];
   (function walk(arr: OutlineNode[]) {
     arr.forEach((n) => {
@@ -199,6 +202,7 @@ function performOverlayUpdate(view: MindmapView): void {
 
     // Update position and styling using CSS variables where possible
     box.classList.add('mindmap-overlay');
+    if (nodeToUse.format === 2) box.classList.add('mindmap-multiline-node');
     box.createDiv({ cls: 'mindmap-node-selection-ring', attr: { 'aria-hidden': 'true' } });
     // Dynamic position variables for CSS positioning
     box.setCssProps({
@@ -264,7 +268,6 @@ function performOverlayUpdate(view: MindmapView): void {
     box.addEventListener('wheel', (e) => {
       const target = e.target as HTMLElement;
       if (box.classList.contains('editing')) {
-        e.preventDefault();
         e.stopPropagation();
         return;
       }
