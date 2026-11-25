@@ -92,7 +92,15 @@ Markdown headings can be used to group separate trees in the same file. A headin
 
 Headings stay as normal Markdown headings in the file and are rendered with your current Obsidian theme in the mindmap view.
 
+Mindmap nodes, connection lines, heading frames, and source icons follow the active light or dark theme. Open mindmaps and code-block embeds update their colors when the theme changes.
+
+Under **Layout options → Connection lines**, select **Direct** (default) or **Right angles (90°)**. The choice is saved per mindmap and also applies to code-block embeds and SVG/PDF exports. Right-angle lines follow the selected tree direction.
+
 If the file contains non-outline content outside list items, the mindmap view may reject it as incompatible. Display settings such as layout, zoom, node width, and keyboard navigation mode are stored per file in the `excerpt-outline-mindmap` frontmatter key.
+
+### Embedded host capability
+
+Hosts embedding a `MindmapView` can set `view.supportsStructuralHeadings = false` to omit **Add heading for this tree** and make direct calls to `executeAddHeadingCommand` a no-op. This public instance option defaults to `true`, affects only that view, and is never saved to Markdown or plugin settings. Markdown headings inside multiline entries remain editable.
 
 ---
 

@@ -15,6 +15,9 @@ import { parseHeadingSections } from '../utils/heading-sections';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { renderHeadingFrames } from '../view/heading-frames';
 import { arrangeTopLevelTrees } from '../view/tree-layout';
+import { mindmapLineColor, refreshMindmapTheme } from '../view/theme';
+import { edgeRoutingStyle } from '../view/edge-routing';
+import { FrontmatterStorage } from '../storage/frontmatter-storage';
 
 cytoscape.use(dagre);
 
@@ -157,10 +160,6 @@ async function renderOverlays(
 ): Promise<void> {
   wrapper.querySelectorAll('[data-mindmap-eome-overlay]').forEach((overlay) => overlay.remove());
 
-  const css = getComputedStyle(document.documentElement);
-  const txt = css.getPropertyValue('--text-normal').trim() || '#000';
-  const font = css.getPropertyValue('--font-family').trim() || 'inherit';
-  const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
   const zoom = cy.zoom();
 
   renderHeadingFrames(wrapper, cy, parseHeadingSections(await plugin.app.vault.read(file)), sizeMap, {
@@ -182,10 +181,6 @@ async function renderOverlays(
       '--mindmap-box-width': `${dims.w}px`,
       '--mindmap-box-height': `${dims.h}px`,
       '--mindmap-zoom': String(zoom),
-      '--mindmap-border': '#000000',
-      '--mindmap-bg': bg,
-      '--mindmap-color': txt,
-      '--mindmap-font': font,
     });
 
     const content = createDiv();
@@ -234,6 +229,7 @@ export async function renderMindmapEomeEmbed(
   }
 
   const markdown = await plugin.app.vault.read(file);
+  const savedLayout = await new FrontmatterStorage(plugin.app).loadMindmapData(file, markdown);
   if (!isOutlineCompatible(markdown)) {
     renderError(el, `mindmap-eome: ${file.name} is not a compatible mindmap outline.`);
     return;
@@ -272,6 +268,7 @@ export async function renderMindmapEomeEmbed(
   const elements = buildElements(flat, sizeMap);
   const layoutOptions = {
     name: 'dagre',
+    rankDir: savedLayout.rankDir ?? 'TB',
     fit: false,
     padding: 24,
     nodeDimensionsIncludeLabels: false,
@@ -293,8 +290,7 @@ export async function renderMindmapEomeEmbed(
         selector: 'node',
         style: {
           'shape': 'rectangle',
-          'background-opacity': 0.01,
-          'background-color': '#ffffff',
+          'background-opacity': 0,
           width: 'data(width)',
           height: 'data(height)',
         },
@@ -303,8 +299,8 @@ export async function renderMindmapEomeEmbed(
         selector: 'edge',
         style: {
           width: 1,
-          'line-color': '#000000',
-          'curve-style': 'straight',
+          'line-color': mindmapLineColor(wrapper),
+          ...edgeRoutingStyle(savedLayout),
         },
       },
     ],
@@ -319,5 +315,6 @@ export async function renderMindmapEomeEmbed(
 
   cy.layout(layoutOptions).run();
 
-  child.onunload = () => cy.destroy();
+  child.registerEvent(plugin.app.workspace.on('css-change', () => refreshMindmapTheme(wrapper, cy)));
+  child.register(() => cy.destroy());
 }

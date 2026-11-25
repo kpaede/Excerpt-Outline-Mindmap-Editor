@@ -95,13 +95,6 @@ function performOverlayUpdate(view: MindmapView): void {
   // Remove all existing overlays before redrawing
   view.wrapper.querySelectorAll('[data-overlay]').forEach((e) => e.remove());
 
-  const doc = view.wrapper.ownerDocument;
-  const css = doc.defaultView?.getComputedStyle(doc.documentElement) ?? getComputedStyle(doc.documentElement);
-  const txt = css.getPropertyValue('--text-normal').trim() || '#000';
-  const font = css.getPropertyValue('--font-family').trim() || 'inherit';
-  const bg = css.getPropertyValue('--background-primary').trim() || '#fff';
-  const border = css.getPropertyValue('--background-modifier-border').trim() || txt;
-
   const zoom = view.cy!.zoom();
 
   // Parse current document to get valid line mappings
@@ -211,13 +204,7 @@ function performOverlayUpdate(view: MindmapView): void {
       '--mindmap-box-width': `${dims.w}px`,
       '--mindmap-box-height': `${dims.h}px`,
       '--mindmap-zoom': String(zoom),
-      '--mindmap-border': border,
-      '--mindmap-bg': bg,
-      '--mindmap-color': txt,
     });
-    if (font) {
-      box.setCssProps({ '--mindmap-font': font });
-    }
     box.setCssProps({
       '--mindmap-font-size': '16px',
       '--mindmap-box-shadow': '0 1px 3px rgba(0,0,0,.08)',

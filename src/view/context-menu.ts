@@ -123,12 +123,14 @@ export function showNodeContextMenu(
       });
     }
 
-    menu.addItem((item) => {
-      item
-        .setTitle('Add heading for this tree')
-        .setIcon('heading')
-        .onClick(() => void view.executeAddHeadingCommand(targetNode));
-    });
+    if (view.supportsStructuralHeadings) {
+      menu.addItem((item) => {
+        item
+          .setTitle('Add heading for this tree')
+          .setIcon('heading')
+          .onClick(() => void view.executeAddHeadingCommand(targetNode));
+      });
+    }
 
     if (selectionIsBullets) {
       menu.addItem((item) => {

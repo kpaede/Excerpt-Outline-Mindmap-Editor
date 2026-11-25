@@ -1,4 +1,9 @@
 export type HeadingTreeLayout = 'vertical' | 'horizontal';
+export type EdgeStyle = 'straight' | 'orthogonal';
+
+export function normalizeEdgeStyle(value: unknown): EdgeStyle {
+  return value === 'orthogonal' ? 'orthogonal' : 'straight';
+}
 
 export interface LayoutOptions {
   rankDir?: 'TB' | 'BT' | 'LR' | 'RL';
@@ -13,6 +18,7 @@ export interface LayoutOptions {
   spacingFactor?: number;
   zoomFactor?: number;
   headingTreeLayout?: HeadingTreeLayout;
+  edgeStyle?: EdgeStyle;
 }
 
 export function createDefaultLayoutOptions() {
@@ -37,5 +43,6 @@ export function createDefaultLayoutOptions() {
     spacingFactor: 1.0,
     zoomFactor: undefined as number | undefined,
     headingTreeLayout: 'vertical' as HeadingTreeLayout,
+    edgeStyle: 'straight' as EdgeStyle,
   };
 }

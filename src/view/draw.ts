@@ -8,6 +8,8 @@ import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { arrangeTopLevelTrees } from './tree-layout';
 import { measureNodesForLayout } from './node-measurement';
 import { initializeViewport } from './initial-viewport';
+import { mindmapLineColor } from './theme';
+import { applyEdgeRouting, edgeRoutingStyle } from './edge-routing';
 
 cytoscape.use(dagre);
 
@@ -64,8 +66,7 @@ export async function draw(view: MindmapView, request: DrawRequest): Promise<voi
           selector: 'node',
           style: {
             'shape': 'rectangle',
-            'background-opacity': 0.01,
-            'background-color': '#ffffff',
+            'background-opacity': 0,
             width: 'data(width)',
             height: 'data(height)',
           },
@@ -74,8 +75,8 @@ export async function draw(view: MindmapView, request: DrawRequest): Promise<voi
           selector: 'edge',
           style: {
             width: 1,
-            'line-color': '#000000',
-            'curve-style': 'straight',
+            'line-color': mindmapLineColor(view.wrapper),
+            ...edgeRoutingStyle(view.layoutOptions),
           },
         },
       ],
@@ -93,6 +94,7 @@ export async function draw(view: MindmapView, request: DrawRequest): Promise<voi
     cy.on('layoutstop', () => applyCompletedLayout(view, cy!));
   } else {
     cy.json({ elements });
+    applyEdgeRouting(cy, view.layoutOptions);
   }
 
   if (!request.isCurrent() || view.cy !== cy || cy.destroyed()) return;

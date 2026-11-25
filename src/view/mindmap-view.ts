@@ -73,7 +73,7 @@ const ATTACHMENT_REFRESH_DELAY_MS = 250;
 // event is still writing the file it was asked to save.
 const ACTIVATION_RECHECK_DELAY_MS = 600;
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
-import { createDefaultLayoutOptions, LayoutOptions } from '../domain/layout-options';
+import { createDefaultLayoutOptions, LayoutOptions, normalizeEdgeStyle } from '../domain/layout-options';
 import { MindmapViewState, SelectionSnapshot } from './view-state';
 import { sortByMarkdownOrder } from '../utils/cytoscape';
 import { resetToolbarPlacement } from '../ui/toolbar/toolbar-placement';
@@ -89,10 +89,14 @@ import {
 import { eventPathContainsSelector, eventTargetsObsidianMenu } from './menu-dismissal';
 import { MindmapGestureCoordinator } from './gesture-coordinator';
 import { AnimationFrameHost, RenderLifecycle } from './render-lifecycle';
+import { refreshMindmapTheme } from './theme';
+import { applyEdgeRouting } from './edge-routing';
 
 export type { LayoutOptions, MindmapViewState };
 
 export class MindmapView extends TextFileView {
+  /** Host capability; standalone views keep structural heading commands. */
+  public supportsStructuralHeadings = true;
   public file: TFile | null = null;
   public cy?: Core;
   public wrapper!: HTMLDivElement;
@@ -114,6 +118,7 @@ export class MindmapView extends TextFileView {
   private activationRecheckTimeout: number | null = null;
   private vaultModifyRef: EventRef | null = null;
   private activeLeafChangeRef: EventRef | null = null;
+  private themeChangeRef: EventRef | null = null;
   public readonly attachmentVersions = new AttachmentVersions();
   private embeddedPathsCache: { data: string; paths: Set<string> } | null = null;
 
@@ -1027,6 +1032,10 @@ export class MindmapView extends TextFileView {
    * instance property rather than a fresh closure.
    */
   private ensureViewListeners(): void {
+    if (!this.themeChangeRef) {
+      this.themeChangeRef = this.app.workspace.on('css-change', this.handleThemeChange);
+      this.registerEvent(this.themeChangeRef);
+    }
     if (!this.vaultModifyRef) {
       this.vaultModifyRef = this.app.vault.on('modify', this.handleEmbeddedDrawingModified);
     }
@@ -1053,6 +1062,12 @@ export class MindmapView extends TextFileView {
     this.interactionDocument = this.contentEl.ownerDocument;
     this.interactionDocument.addEventListener('pointerdown', this.handleMenuDismissPointerDown, true);
   }
+
+  private readonly handleThemeChange = (): void => {
+    if (!this.isViewClosed && this.wrapper && this.cy) {
+      refreshMindmapTheme(this.wrapper, this.cy);
+    }
+  };
 
   /**
    * Drawings are written by whoever edits them - Excalidraw in its own tab,
@@ -1222,6 +1237,10 @@ export class MindmapView extends TextFileView {
       this.app.workspace.offref(this.activeLeafChangeRef);
       this.activeLeafChangeRef = null;
     }
+    if (this.themeChangeRef) {
+      this.app.workspace.offref(this.themeChangeRef);
+      this.themeChangeRef = null;
+    }
     this.attachmentVersions.clear();
     window.removeEventListener('resize', this.updateOverlays);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
@@ -1284,6 +1303,7 @@ export class MindmapView extends TextFileView {
     if (!this.cy) return;
 
     const L = this.layoutOptions;
+    applyEdgeRouting(this.cy, L);
     const layoutObj = {
       name: 'dagre',
       rankDir: L.rankDir,
@@ -1362,6 +1382,7 @@ export class MindmapView extends TextFileView {
       
       // Load layout options from frontmatter (flat structure)
       const layoutUpdates: Partial<LayoutOptions> = {};
+      layoutUpdates.edgeStyle = normalizeEdgeStyle(mindmapData.edgeStyle);
       if (mindmapData.rankDir) layoutUpdates.rankDir = mindmapData.rankDir;
       if (mindmapData.align) layoutUpdates.align = mindmapData.align;
       if (typeof mindmapData.nodeSep === 'number') layoutUpdates.nodeSep = mindmapData.nodeSep;
@@ -1466,7 +1487,7 @@ export class MindmapView extends TextFileView {
   }
 
   public async executeAddHeadingCommand(node: OutlineNode): Promise<void> {
-    if (!this.file) return;
+    if (!this.file || !this.supportsStructuralHeadings) return;
 
     const rootNode = this.getHeadingInsertionNodeForNode(node);
     const beforeState = this.data;
@@ -2064,7 +2085,8 @@ export class MindmapView extends TextFileView {
   }
 
   public async updateLayoutOptions(newOptions: Partial<LayoutOptions>): Promise<void> {
-    this.layoutOptions = { ...this.layoutOptions, ...newOptions };
+    // Open layout menus retain this object for their sliders and dropdowns.
+    Object.assign(this.layoutOptions, newOptions);
     
     // Save to frontmatter
     if (this.file) {

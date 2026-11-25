@@ -2,7 +2,7 @@ import { App, TFile, parseYaml } from 'obsidian';
 import { commitDocument, readDocument } from './document-writer';
 import { frontmatterEnd } from '../domain/outline-format';
 import { NodeOptions } from '../ui/menus/node-options-menu';
-import { LayoutOptions } from '../domain/layout-options';
+import { LayoutOptions, normalizeEdgeStyle, type EdgeStyle } from '../domain/layout-options';
 import { GeneralSettings } from '../ui/menus/general-settings-menu';
 import type { HeadingTreeLayout } from '../domain/layout-options';
 
@@ -29,6 +29,7 @@ export interface ExcerptOutlineMindmapData {
   spacingFactor?: number;
   zoomFactor?: number;
   headingTreeLayout?: HeadingTreeLayout;
+  edgeStyle?: EdgeStyle;
 }
 
 export class FrontmatterStorage {
@@ -64,7 +65,9 @@ export class FrontmatterStorage {
       let trimmedValue = value.trim();
       const normalizedKey = trimmedKey === 'acyciler' ? 'acyclicer' : trimmedKey;
 
-      if (
+      if (normalizedKey === 'edgeStyle') {
+        result.edgeStyle = normalizeEdgeStyle(trimmedValue);
+      } else if (
         trimmedKey === 'nodeWidth' ||
         trimmedKey === 'nodeSep' ||
         trimmedKey === 'edgeSep' ||
@@ -120,10 +123,10 @@ export class FrontmatterStorage {
     if (after !== before) await commitDocument(this.app, file, before, after);
   }
 
-  async loadMindmapData(file: TFile): Promise<ExcerptOutlineMindmapData> {
+  async loadMindmapData(file: TFile, source?: string): Promise<ExcerptOutlineMindmapData> {
     // The metadata cache may still describe the preceding write. Read the
     // committed settings so consecutive changes cannot erase one another.
-    const lines = (await this.app.vault.read(file)).split(/\r?\n/);
+    const lines = (source ?? await this.app.vault.read(file)).split(/\r?\n/);
     const end = frontmatterEnd(lines);
     const frontmatter = end ? parseYaml(lines.slice(1, end - 1).join('\n')) as Record<string, unknown> | null : null;
 
@@ -170,6 +173,7 @@ export class FrontmatterStorage {
     delete currentData.ranker;
     delete currentData.spacingFactor;
     delete currentData.headingTreeLayout;
+    delete currentData.edgeStyle;
 
     await this.saveMindmapData(file, currentData, hadMindmapMarker);
   }

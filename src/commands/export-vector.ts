@@ -1,6 +1,7 @@
 import { Notice, Platform, normalizePath, requestUrl, type TFile } from 'obsidian';
 import type MindmapPlugin from '../main';
 import type { MindmapView } from '../view/mindmap-view';
+import { renderedEdgePolyline } from '../view/edge-routing';
 
 type ExportFormat = 'svg' | 'pdf';
 
@@ -566,14 +567,10 @@ function createPrintEdgeLayer(view: MindmapView, width: number, height: number):
   });
 
   view.cy?.edges().forEach((edge) => {
-    const source = edge.source().renderedPosition();
-    const target = edge.target().renderedPosition();
-    const line = document.createElementNS(namespace, 'line');
-    line.setAttribute('x1', source.x.toFixed(2));
-    line.setAttribute('y1', source.y.toFixed(2));
-    line.setAttribute('x2', target.x.toFixed(2));
-    line.setAttribute('y2', target.y.toFixed(2));
-    line.setAttribute('stroke', '#000000');
+    const line = document.createElementNS(namespace, 'polyline');
+    line.setAttribute('points', renderedEdgePolyline(edge));
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', edge.style('line-color') as string);
     line.setAttribute('stroke-width', '1');
     line.setAttribute('stroke-linecap', 'butt');
     svg.appendChild(line);

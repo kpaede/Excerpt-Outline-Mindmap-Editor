@@ -28,7 +28,7 @@ function excalidrawApp(drawingPaths: string[] = []): unknown {
   };
 }
 
-function menuTitlesFor(targetNode: OutlineNode, app?: unknown): string[] {
+function menuTitlesFor(targetNode: OutlineNode, app?: unknown, supportsStructuralHeadings = true): string[] {
   const overlay = { dataset: { nodeLine: String(targetNode.line) } };
   const ownerDocument = {} as Document;
   const event = {
@@ -40,6 +40,7 @@ function menuTitlesFor(targetNode: OutlineNode, app?: unknown): string[] {
     target: { closest: (selector: string) => selector === '.mindmap-overlay' ? overlay : null },
   } as unknown as MouseEvent;
   const view = {
+    supportsStructuralHeadings,
     app,
     file: app ? { path: 'Map.md' } : null,
     wrapper: { classList: { contains: () => false }, focus: () => undefined, ownerDocument },
@@ -53,6 +54,15 @@ function menuTitlesFor(targetNode: OutlineNode, app?: unknown): string[] {
   showNodeContextMenu(view, event);
   return lastMenu?.items.map((item) => item.title) ?? [];
 }
+
+describe('structural heading capability', () => {
+  it('keeps the standalone action and omits only that action for embedded hosts', () => {
+    const standalone = menuTitlesFor(node('Idea'));
+    const hosted = menuTitlesFor(node('Idea'), undefined, false);
+    expect(standalone).toContain('Add heading for this tree');
+    expect(hosted).toEqual(standalone.filter(title => title !== 'Add heading for this tree'));
+  });
+});
 
 describe('node drawing context menu', () => {
   it('exposes both drawing insertion actions on a regular node', () => {

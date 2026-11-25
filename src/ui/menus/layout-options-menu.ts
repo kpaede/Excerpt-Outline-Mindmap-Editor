@@ -1,5 +1,5 @@
 import type { MindmapView } from '../../view/mindmap-view';
-import type { LayoutOptions } from '../../domain/layout-options';
+import { normalizeEdgeStyle, type LayoutOptions } from '../../domain/layout-options';
 import { applyMobileMenuPosition } from './menu-positioning';
 
 export class LayoutOptionsMenu {
@@ -92,6 +92,17 @@ export class LayoutOptionsMenu {
       }
     );
 
+    this.addDropdownSetting(
+      container,
+      'Connection lines',
+      'Connect nodes directly or with right-angle bends',
+      { straight: 'Direct', orthogonal: 'Right angles (90°)' },
+      opts.edgeStyle ?? 'straight',
+      async (value) => {
+        await this.view.updateLayoutOptions({ edgeStyle: normalizeEdgeStyle(value) });
+      }
+    );
+
     // Alignment
     this.addDropdownSetting(
       container,
@@ -149,7 +160,7 @@ export class LayoutOptionsMenu {
 
     // Sliders - make all callbacks async and save to frontmatter.
     // Edge separation and graph margins are intentionally omitted here:
-    // with our straight, unlabeled edges and centered viewport they have no useful visible effect.
+    // with our unlabeled edges and centered viewport they have no useful visible effect.
     this.addSliderSetting(container, 'Node Separation', 'Pixels between adjacent nodes horizontally', 0, 300, 10, () => opts.nodeSep, async (v) => { 
       opts.nodeSep = v; 
       this.view.relayout(); 

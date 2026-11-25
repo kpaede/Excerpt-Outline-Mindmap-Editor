@@ -29,7 +29,7 @@ If your plugin does not need CSS, delete this file.
 /* Enhanced code block styling in nodes */
 .mindmap-node-content code {
   font-size: 0.9em;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--code-background);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -38,7 +38,7 @@ If your plugin does not need CSS, delete this file.
 
 .mindmap-node-content pre {
   font-size: 0.8em;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--code-background);
   padding: 8px;
   border-radius: 4px;
   overflow-x: auto;
@@ -354,6 +354,19 @@ If your plugin does not need CSS, delete this file.
   opacity: 0.6;
 }
 
+/* Keep theme values inherited and live, including inside a host or pop-out.
+   Canvas edges resolve the same line token in theme.ts on css-change. */
+.mindmap-wrapper,
+.mindmap-eome-wrapper {
+  --mindmap-bg: var(--background-primary);
+  --mindmap-color: var(--text-normal);
+  --mindmap-border: var(--background-modifier-border-hover, var(--text-muted));
+  --mindmap-line-color: var(--text-muted);
+  --mindmap-font: var(--font-family, inherit);
+  background: var(--mindmap-bg);
+  color: var(--mindmap-color);
+}
+
 /* Mindmap wrapper container */
 .mindmap-wrapper {
   position: relative;
@@ -600,8 +613,8 @@ If your plugin does not need CSS, delete this file.
   min-height: 24px;
   border: none;
   border-radius: 0;
-  background: var(--mindmap-bg, #ffffff);
-  color: #000000;
+  background: var(--mindmap-bg, var(--background-primary));
+  color: var(--mindmap-color, var(--text-normal));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -616,8 +629,8 @@ If your plugin does not need CSS, delete this file.
 .mindmap-wrapper .mindmap-zotero-badge:hover,
 .mindmap-wrapper .mindmap-zotero-badge:focus,
 .mindmap-wrapper .mindmap-zotero-badge:active {
-  color: #000000;
-  background: var(--mindmap-bg, #ffffff);
+  color: var(--mindmap-color, var(--text-normal));
+  background: var(--mindmap-bg, var(--background-primary));
   box-shadow: none;
 }
 
@@ -924,7 +937,7 @@ body div.layout-options-modal {
   transform-origin: center center;
   /* Same counter-scale as .mindmap-overlay: keeps the frame outline from
      shrinking to sub-pixel and vanishing when zoomed out. */
-  border: calc(1px / var(--heading-frame-zoom, 1)) solid #000000;
+  border: calc(1px / var(--heading-frame-zoom, 1)) solid var(--mindmap-line-color, var(--text-muted));
   border-radius: 4px;
   background: transparent;
   box-sizing: border-box;
@@ -971,7 +984,7 @@ body div.layout-options-modal {
   min-height: 30px;
   transform: translateY(-50%);
   padding: 2px 7px;
-  border: 1px solid #000000;
+  border: 1px solid var(--interactive-accent);
   border-radius: 4px;
   background: var(--background-primary);
   color: var(--text-normal);
@@ -994,7 +1007,7 @@ body div.layout-options-modal {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #000000;
+  border: 1px dashed var(--mindmap-line-color, var(--text-muted));
   border-radius: 4px;
   background: var(--background-primary);
   color: var(--text-muted);
@@ -1266,7 +1279,7 @@ body .suggestion-container {
   overflow: hidden;
   border: none;
   border-radius: 0;
-  background: transparent;
+  background: var(--mindmap-bg);
   margin: 0;
 }
 
