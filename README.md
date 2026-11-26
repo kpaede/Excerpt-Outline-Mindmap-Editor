@@ -49,11 +49,13 @@ Requires Obsidian 1.8.7 or newer. Desktop and mobile.
 
 1. Create a Markdown file, either empty or with an outline.
 2. Open the file as a mindmap:
-   - Select the three-dot menu in the editor and choose **Open as mindmap**.
-   - Or right-click the file in the file explorer and choose **Open as mindmap**.
+   - Select the three-dot menu in the editor and choose **Open as mindmap (EOME)**.
+   - Or right-click the file in the file explorer and choose **Open as mindmap (EOME)**.
 3. Build or restructure the outline visually.
 
 All changes are written back to the Markdown file. You can switch between the mindmap and the normal Markdown editor at any time.
+
+**Open in editor** keeps that file in the normal Obsidian view in the selected tab, including when switching windows or restoring the workspace. Newly opened tabs still open marked mindmap files automatically. Opening another file in the tab ends its previous view choice.
 
 ---
 
@@ -121,6 +123,7 @@ Hosts embedding a `MindmapView` can set `view.supportsStructuralHeadings = false
 - Double-click a heading to edit its raw Markdown heading text, including the leading `#` characters.
 - The editor is actually the full Obsidian editor.
 - Newly created child and sibling nodes enter edit mode automatically.
+- Editing an offscreen node pans it into view at the current zoom. Connection geometry includes offscreen nodes and refreshes after layout changes and when returning to a mindmap tab.
 - Markdown content renders inside nodes, including links, emphasis, images, SVGs, and other Obsidian-rendered content.
 - In multiline format, **Enter** continues or exits a Markdown list; outside lists it saves. **Shift+Enter** inserts a line break; **Ctrl/Cmd+Enter** also saves; **Escape** cancels. Normal paste in the text editor keeps multiline text as content. The structural paste action outside the editor remains separate.
 - At the bottom of **General settings → Node editing**, choose **Classic single line** for compact editing with Enter to save. The choice applies to this mindmap. A counted safety notice explains that existing multiline thoughts keep their full editor; switching modes never flattens text. Multiline paste expands the editor without discarding text.

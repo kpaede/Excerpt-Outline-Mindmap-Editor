@@ -91,6 +91,7 @@ import { MindmapGestureCoordinator } from './gesture-coordinator';
 import { AnimationFrameHost, RenderLifecycle } from './render-lifecycle';
 import { refreshMindmapTheme } from './theme';
 import { applyEdgeRouting } from './edge-routing';
+import { refreshGraphGeometry } from './viewport';
 
 export type { LayoutOptions, MindmapViewState };
 
@@ -1043,7 +1044,7 @@ export class MindmapView extends TextFileView {
       this.activeLeafChangeRef = this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange);
     }
 
-    window.addEventListener('resize', this.updateOverlays);
+    window.addEventListener('resize', this.refreshViewport);
     window.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.addEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
     window.visualViewport?.addEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
@@ -1096,8 +1097,9 @@ export class MindmapView extends TextFileView {
    */
   private readonly handleActiveLeafChange = (leaf: WorkspaceLeaf | null): void => {
     if (this.isViewClosed || leaf !== this.leaf) return;
-    this.cy?.resize();
-    initializeViewport(this);
+    this.refreshViewport();
+    // Obsidian can activate the leaf before its pane has its final dimensions.
+    this.requestOverlayGeometryFrame(this.refreshViewport);
     this.refreshStaleAttachments();
 
     // Excalidraw saves the drawing you are leaving from inside its own handler
@@ -1242,7 +1244,7 @@ export class MindmapView extends TextFileView {
       this.themeChangeRef = null;
     }
     this.attachmentVersions.clear();
-    window.removeEventListener('resize', this.updateOverlays);
+    window.removeEventListener('resize', this.refreshViewport);
     window.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
     window.removeEventListener('orientationchange', this.scheduleMobileToolbarPlacementUpdate);
     window.visualViewport?.removeEventListener('resize', this.scheduleMobileToolbarPlacementUpdate);
@@ -1275,6 +1277,17 @@ export class MindmapView extends TextFileView {
   }
 
   /* ── draw-Wrapper ────────────────────────── */
+  onResize(): void {
+    this.refreshViewport();
+  }
+
+  private readonly refreshViewport = (): void => {
+    if (this.isViewClosed || !this.cy || !this.wrapper?.isConnected) return;
+    refreshGraphGeometry(this.cy);
+    initializeViewport(this);
+    if (!this.updateOverlayGeometry()) this.updateOverlays();
+  };
+
   private async draw(): Promise<void> {
     const data = this.data;
     await this.renderLifecycle.enqueueLatest(async (render) => {
@@ -2353,22 +2366,10 @@ export class MindmapView extends TextFileView {
   }
 
   private scheduleEditModeForNodeByLine(nodeLine: number): void {
-    let started = false;
-    const startAfterOverlayUpdate = () => {
-      if (started) return;
-      started = true;
-
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            void this.enterEditModeForNodeByLine(nodeLine, true);
-          });
-        });
-      });
-    };
-
-    this.cy?.one('layoutstop', startAfterOverlayUpdate);
-    window.setTimeout(startAfterOverlayUpdate, 350);
+    // The overlay pass owns editor startup, after this document's layout.
+    // Triple RAFs can remain suspended indefinitely in a background window.
+    this.pendingEditNodeLine = nodeLine;
+    this.updateOverlays();
   }
 
   public async enterEditModeForHeadingByLine(
@@ -2392,21 +2393,8 @@ export class MindmapView extends TextFileView {
   }
 
   private scheduleEditModeForHeadingByLine(headingLine: number): void {
-    let started = false;
-    const startAfterOverlayUpdate = () => {
-      if (started) return;
-      started = true;
-
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            void this.enterEditModeForHeadingByLine(headingLine, true);
-          });
-        });
-      });
-    };
-
-    this.cy?.one('layoutstop', startAfterOverlayUpdate);
-    window.setTimeout(startAfterOverlayUpdate, 350);
+    this.requestPostOverlayFrame(() => {
+      void this.enterEditModeForHeadingByLine(headingLine, true);
+    });
   }
 }

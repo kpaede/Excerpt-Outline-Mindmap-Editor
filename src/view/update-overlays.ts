@@ -7,6 +7,7 @@ import { isMoveTargetInsideSourceSubtree } from '../domain/mindmap-file';
 import { renderHeadingFrames, startHeadingEditing, updateHeadingFrameGeometry } from './heading-frames';
 import { attachDesktopNodeDndHandlers } from './node-desktop-dnd';
 import { appendCheckboxToggle, appendNodeControls, appendZoteroBadge } from './node-overlay-controls';
+import { updateEdgeLayerTransform } from './edge-layer';
 
 export { startNodeEditing };
 
@@ -47,6 +48,7 @@ export function updateOverlays(view: MindmapView): void {
 
 export function updateOverlayGeometry(view: MindmapView): boolean {
   if (!view.cy || view.cy.destroyed() || !view.wrapper?.isConnected) return false;
+  updateEdgeLayerTransform(view.wrapper, view.cy);
 
   const overlays = new Map<number, HTMLElement>();
   view.wrapper.querySelectorAll<HTMLElement>('[data-overlay][data-node-line]').forEach((overlay) => {

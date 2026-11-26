@@ -66,6 +66,7 @@ async function verifyTopLevelLoadAndOnload() {
     activeLeaf: null,
     getLeavesOfType: () => [],
     on: () => ({}),
+    onLayoutReady() {},
   };
   const app = {
     workspace,

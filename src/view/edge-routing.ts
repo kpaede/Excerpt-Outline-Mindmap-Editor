@@ -22,3 +22,9 @@ export function renderedEdgePolyline(edge: EdgeSingular): string {
   return [edge.renderedSourceEndpoint(), ...bends, edge.renderedTargetEndpoint()]
     .map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
 }
+
+export function modelEdgePolyline(edge: EdgeSingular): string {
+  const bends = edge.style('curve-style') === 'taxi' ? edge.segmentPoints() ?? [] : [];
+  return [edge.sourceEndpoint(), ...bends, edge.targetEndpoint()]
+    .map(point => `${point.x},${point.y}`).join(' ');
+}

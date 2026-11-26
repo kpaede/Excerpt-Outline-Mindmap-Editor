@@ -403,7 +403,7 @@ async function createExportSnapshot(source: HTMLElement, width: number, height: 
 
 function sanitizeExportDomClone(root: HTMLElement): void {
   root.querySelectorAll(
-    '.mindmap-canvas, .vertical-toolbar, .node-controls, .mindmap-node-delete, .node-editor, .mindmap-heading-editor'
+    '.mindmap-canvas, .mindmap-edge-layer, .vertical-toolbar, .node-controls, .mindmap-node-delete, .node-editor, .mindmap-heading-editor'
   ).forEach((element) => element.remove());
 
   root.querySelectorAll<HTMLElement>('.hovering, .selected, .mm-src, .mm-tgt, .mm-tgt-child, .mm-tgt-first-child, .mm-tgt-last-child, .mm-tgt-sibling-before, .mm-tgt-sibling-after')

@@ -6,21 +6,19 @@ import {
   Menu,
 } from 'obsidian';
 import { registerMigrationCommands } from './ui/modals/outline-migration-modal';
-import { VIEW_TYPE_MINDMAP } from './constants';
+import { OPEN_MINDMAP_LABEL, VIEW_TYPE_MINDMAP } from './constants';
+import { ViewModeController } from './integration/view-mode-controller';
 import { addToggleMindmapMenuItem } from './integration/context-menu';
 import { MindmapView } from './view/mindmap-view';
-import { openInternalLink } from './utils/outline';
 import { renderMindmapEomeEmbed } from './embeds/eome-embed';
 import { exportMindmapViewToCanvas } from './commands/export-canvas';
 import { exportMindmapViewToPdf, exportMindmapViewToSvg } from './commands/export-vector';
 
 export default class MindmapPlugin extends Plugin {
-  private suppressNextAutoOpen = new Set<string>();
-  private autoOpenTimer: number | null = null;
-  private autoOpenRunning = false;
-  private autoOpenQueued = false;
+  private viewModes!: ViewModeController;
 
   async onload() {
+    this.viewModes = new ViewModeController(this);
     registerMigrationCommands(this);
     this.registerView(
       VIEW_TYPE_MINDMAP,
@@ -82,9 +80,9 @@ export default class MindmapPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on(
         'file-menu',
-        (menu: Menu, abstractFile) => {
+        (menu: Menu, abstractFile, _source, leaf) => {
           if (abstractFile instanceof TFile && abstractFile.extension === 'md') {
-            addToggleMindmapMenuItem(menu, this, abstractFile);
+            addToggleMindmapMenuItem(menu, this, abstractFile, leaf);
           }
         }
       )
@@ -97,8 +95,8 @@ export default class MindmapPlugin extends Plugin {
 
         menu.addItem((item) => {
           item
-            .setTitle('Mindmap view of this file')
-            .onClick(() => void this.openMindmapReplacingLeaf(file));
+            .setTitle(OPEN_MINDMAP_LABEL)
+            .onClick(() => void this.openMindmapReplacingLeaf(file, info instanceof MarkdownView ? info.leaf : undefined));
         });
       })
     );
@@ -111,172 +109,14 @@ export default class MindmapPlugin extends Plugin {
       })
     );
 
-    this.registerEvent(
-      this.app.workspace.on('file-open', (file) => {
-        if (file instanceof TFile) {
-          this.scheduleOpenedFileMindmapAutoOpen(file);
-        }
-      })
-    );
   }
 
-  onunload() {
-    // Do not detach leaves on unload; preserve user layout and leaf locations.
+  public async openMindmapReplacingLeaf(file: TFile, source?: WorkspaceLeaf): Promise<void> {
+    await this.viewModes.openMindmap(file, source);
   }
 
-  public async openMindmapReplacingLeaf(file: TFile): Promise<void> {
-    const existingLeaf = this.app.workspace
-      .getLeavesOfType(VIEW_TYPE_MINDMAP)
-      .find((leaf) => {
-        const v = leaf.view as MindmapView;
-        return v.file?.path === file.path;
-      });
-    if (existingLeaf) {
-      this.revealLeaf(existingLeaf);
-      return;
-    }
-
-    const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
-    const matchingLeaf = markdownLeaves.find((leaf) => {
-      const mv = leaf.view as MarkdownView;
-      return mv.file?.path === file.path;
-    });
-
-    let targetLeaf: WorkspaceLeaf;
-
-    if (matchingLeaf) {
-      targetLeaf = matchingLeaf;
-    } else {
-      targetLeaf = this.getWorkspaceLeaf(true);
-    }
-
-    await targetLeaf.setViewState({
-      type: VIEW_TYPE_MINDMAP,
-      state: {
-        file: file.path,
-      },
-      active: true,
-    });
-
-    this.revealLeaf(targetLeaf);
-  }
-
-  public async openMarkdownReplacingLeaf(file: TFile): Promise<void> {
-    this.suppressNextAutoOpen.add(file.path);
-    window.setTimeout(() => this.suppressNextAutoOpen.delete(file.path), 1500);
-
-    const existingLeaf = this.app.workspace
-      .getLeavesOfType(VIEW_TYPE_MINDMAP)
-      .find((leaf) => {
-        const v = leaf.view as MindmapView;
-        return v.file?.path === file.path;
-      });
-
-    if (existingLeaf) {
-      await existingLeaf.setViewState({
-        type: 'markdown',
-        state: {
-          file: file.path,
-        },
-        active: true,
-      });
-      this.revealLeaf(existingLeaf);
-      return;
-    }
-
-    const markdownLeaves = this.app.workspace.getLeavesOfType('markdown');
-    const matchingMdLeaf = markdownLeaves.find((leaf) => {
-      const mv = leaf.view as MarkdownView;
-      return mv.file?.path === file.path;
-    });
-    if (matchingMdLeaf) {
-      this.revealLeaf(matchingMdLeaf);
-    } else {
-      await openInternalLink(this.app, file.path, '');
-    }
-  }
-
-  private scheduleOpenedFileMindmapAutoOpen(file: TFile): void {
-    if (file.extension !== 'md') return;
-
-    if (this.autoOpenTimer !== null) {
-      window.clearTimeout(this.autoOpenTimer);
-      this.autoOpenTimer = null;
-    }
-
-    this.autoOpenTimer = window.setTimeout(() => {
-      this.autoOpenTimer = null;
-      void this.openMarkedOpenedFileAsMindmap(file);
-    }, 80);
-  }
-
-  private async openMarkedOpenedFileAsMindmap(file: TFile, attempt: number = 0): Promise<void> {
-    if (this.autoOpenRunning) {
-      this.autoOpenQueued = true;
-      return;
-    }
-
-    this.autoOpenRunning = true;
-    try {
-      const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView)?.leaf ?? null;
-      if (!activeLeaf || !this.leafHasMarkdownFileState(activeLeaf, file)) {
-        if (attempt < 5) {
-          window.setTimeout(() => {
-            void this.openMarkedOpenedFileAsMindmap(file, attempt + 1);
-          }, 80);
-        }
-        return;
-      }
-      if (this.suppressNextAutoOpen.has(file.path)) return;
-      if (!(await this.hasMindmapFrontmatterMarker(file))) return;
-
-      await activeLeaf.setViewState({
-        type: VIEW_TYPE_MINDMAP,
-        state: {
-          file: file.path,
-        },
-        active: true,
-      });
-    } finally {
-      this.autoOpenRunning = false;
-      if (this.autoOpenQueued) {
-        this.autoOpenQueued = false;
-        window.setTimeout(() => {
-          void this.openMarkedOpenedFileAsMindmap(file, attempt + 1);
-        }, 100);
-      }
-    }
-  }
-
-  private leafHasMarkdownFileState(leaf: WorkspaceLeaf, file: TFile): boolean {
-    const viewState = leaf.getViewState();
-    if (viewState.type === 'markdown' && viewState.state?.file === file.path) {
-      return true;
-    }
-
-    const view = leaf.view;
-    return view instanceof MarkdownView && view.file?.path === file.path;
-  }
-
-  private async hasMindmapFrontmatterMarker(file: TFile): Promise<boolean> {
-    const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    if (frontmatter && Object.prototype.hasOwnProperty.call(frontmatter, 'excerpt-outline-mindmap')) {
-      return true;
-    }
-
-    const contents = await this.app.vault.cachedRead(file);
-    const match = contents.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
-    if (!match) return false;
-
-    return /^excerpt-outline-mindmap(?:\s*:|$)/m.test(match[1]);
-  }
-
-  private getWorkspaceLeaf(split: boolean): WorkspaceLeaf {
-    return this.app.workspace.getLeaf(split);
-  }
-
-  private revealLeaf(leaf: WorkspaceLeaf): void {
-    void this.app.workspace.revealLeaf(leaf);
+  public async openMarkdownReplacingLeaf(file: TFile, source?: WorkspaceLeaf): Promise<void> {
+    await this.viewModes.openEditor(file, source);
   }
 
   private getActiveMindmapView(): MindmapView | null {

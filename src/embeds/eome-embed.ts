@@ -18,6 +18,8 @@ import { arrangeTopLevelTrees } from '../view/tree-layout';
 import { mindmapLineColor, refreshMindmapTheme } from '../view/theme';
 import { edgeRoutingStyle } from '../view/edge-routing';
 import { FrontmatterStorage } from '../storage/frontmatter-storage';
+import { refreshGraphGeometry } from '../view/viewport';
+import { renderEdgeLayer } from '../view/edge-layer';
 
 cytoscape.use(dagre);
 
@@ -310,6 +312,8 @@ export async function renderMindmapEomeEmbed(
     arrangeTopLevelTrees(cy, roots, sizeMap, 'vertical', 160);
     cy.fit(cy.elements(), 28);
     cy.center(cy.elements());
+    refreshGraphGeometry(cy);
+    renderEdgeLayer(wrapper, cy);
     void renderOverlays(plugin, child, file, wrapper, cy, flat, sizeMap);
   });
 

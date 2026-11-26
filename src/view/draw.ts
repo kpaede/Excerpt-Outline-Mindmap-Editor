@@ -10,6 +10,8 @@ import { measureNodesForLayout } from './node-measurement';
 import { initializeViewport } from './initial-viewport';
 import { mindmapLineColor } from './theme';
 import { applyEdgeRouting, edgeRoutingStyle } from './edge-routing';
+import { refreshGraphGeometry } from './viewport';
+import { renderEdgeLayer } from './edge-layer';
 
 cytoscape.use(dagre);
 
@@ -180,6 +182,8 @@ function applyCompletedLayout(view: MindmapView, cy: Core): void {
     Math.max(160, (view.layoutOptions.rankSep ?? 50) * 3)
   );
   initializeViewport(view);
+  refreshGraphGeometry(cy);
+  renderEdgeLayer(view.wrapper, cy);
   view.toolbar?.setOutlineStats(view.getFlatNodes().length, Math.max(0, ...view.getFlatNodes().map(node => node.indent.length)));
   view.updateOverlays();
 }

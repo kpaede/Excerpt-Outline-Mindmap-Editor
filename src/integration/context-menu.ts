@@ -1,34 +1,32 @@
-import { Menu, TFile } from 'obsidian';
-import MindmapPlugin from '../main';
-import { VIEW_TYPE_MINDMAP } from '../constants';
+import { Menu, TFile, type WorkspaceLeaf } from 'obsidian';
+import type MindmapPlugin from '../main';
+import { OPEN_MINDMAP_LABEL, VIEW_TYPE_MINDMAP } from '../constants';
+import { findFileLeaf } from './view-mode-controller';
 
 export function addToggleMindmapMenuItem(
   menu: Menu,
   plugin: MindmapPlugin,
-  file: TFile
+  file: TFile,
+  sourceLeaf?: WorkspaceLeaf
 ) {
-  const existingMindmapLeaf = plugin.app.workspace
-    .getLeavesOfType(VIEW_TYPE_MINDMAP)
-    .find((l) => {
-      return (l.view as { file?: TFile | null }).file?.path === file.path;
-    });
+  const targetLeaf = findFileLeaf(plugin.app, file, sourceLeaf);
 
-  if (existingMindmapLeaf) {
+  if (targetLeaf?.getViewState().type === VIEW_TYPE_MINDMAP) {
     menu.addItem((item) => {
       item
         .setTitle('Open in editor')
         .setIcon('edit')
         .onClick(async () => {
-          await plugin.openMarkdownReplacingLeaf(file);
+          await plugin.openMarkdownReplacingLeaf(file, targetLeaf);
         });
     });
   } else {
     menu.addItem((item) => {
       item
-        .setTitle('Mindmap view of this file')
+        .setTitle(OPEN_MINDMAP_LABEL)
         .setIcon('flow-chart')
         .onClick(async () => {
-          await plugin.openMindmapReplacingLeaf(file);
+          await plugin.openMindmapReplacingLeaf(file, targetLeaf ?? undefined);
         });
     });
   }

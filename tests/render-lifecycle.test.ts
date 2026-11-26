@@ -25,6 +25,44 @@ class FakeAnimationFrames implements AnimationFrameHost {
 }
 
 describe('RenderLifecycle', () => {
+  it('completes a paint when a hidden window suspends animation frames, without painting twice', () => {
+    const lifecycle = new RenderLifecycle();
+    const frames = new FakeAnimationFrames();
+    let fallback!: () => void;
+    const clearTimeout = vi.fn();
+    const host = {
+      requestAnimationFrame: frames.requestAnimationFrame.bind(frames),
+      cancelAnimationFrame: frames.cancelAnimationFrame.bind(frames),
+      setTimeout: (callback: () => void) => { fallback = callback; return 99; },
+      clearTimeout,
+    };
+    const paint = vi.fn();
+    lifecycle.scheduleFrame('overlay', host, lifecycle.currentGeneration(), () => true, paint);
+    fallback();
+    frames.fire(1);
+    expect(paint).toHaveBeenCalledOnce();
+    expect(clearTimeout).toHaveBeenCalledWith(99);
+  });
+
+  it('cancels a hidden-window fallback when a newer render supersedes it', () => {
+    const lifecycle = new RenderLifecycle();
+    let fallback!: () => void;
+    const host = {
+      requestAnimationFrame: () => 1,
+      cancelAnimationFrame: vi.fn(),
+      setTimeout: (callback: () => void) => { fallback = callback; return 99; },
+      clearTimeout: vi.fn(),
+    };
+    const paint = vi.fn();
+    const discard = vi.fn();
+    lifecycle.scheduleFrame('overlay', host, lifecycle.currentGeneration(), () => true, paint, discard);
+    lifecycle.invalidate();
+    fallback();
+    expect(paint).not.toHaveBeenCalled();
+    expect(discard).toHaveBeenCalledOnce();
+    expect(host.clearTimeout).toHaveBeenCalledWith(99);
+  });
+
   it('serializes overlapping renders and lets only the latest generation commit', async () => {
     const lifecycle = new RenderLifecycle();
     const events: string[] = [];

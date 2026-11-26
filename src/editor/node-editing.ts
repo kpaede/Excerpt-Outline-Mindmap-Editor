@@ -5,6 +5,7 @@ import { NodeEditSession } from './node-edit-session';
 import { cursorIsInMarkdownList, waitForListContext } from './list-context';
 import { nodeMarkdown } from './node-markdown';
 import { useSingleLineEditor } from './editing-mode';
+import { revealNodeForEditing } from '../view/viewport';
 import {
   createEmbeddableMarkdownEditor,
   EmbeddableMarkdownEditor,
@@ -104,6 +105,8 @@ export function startNodeEditing(
   const openingFile = view.file?.path;
   const editingMode = view.generalSettings.nodeEditingMode;
   const isSingleLine = (text: string) => useSingleLineEditor(editingMode, text);
+
+  revealNodeForEditing(view, nodeToUse.line);
 
   box.classList.add('editing');
   box.draggable = false;

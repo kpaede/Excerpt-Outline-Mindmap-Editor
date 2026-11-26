@@ -1064,6 +1064,28 @@ body div.layout-options-modal {
   inset: 0;
 }
 
+/* Full-graph vector connections share the HTML nodes' pan/zoom transform.
+   The canvas stays available for Cytoscape's public geometry calculations. */
+.mindmap-edge-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mindmap-edge-layer polyline {
+  fill: none;
+  stroke: var(--mindmap-line-color, var(--text-muted));
+  stroke-width: 1;
+}
+
+.mindmap-has-edge-layer > .mindmap-canvas canvas {
+  visibility: hidden;
+}
+
 /* Measurement container for calculating node dimensions */
 .mindmap-measurement-container {
   position: absolute;

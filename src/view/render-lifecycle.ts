@@ -6,11 +6,14 @@ export interface RenderTaskContext {
 export interface AnimationFrameHost {
   requestAnimationFrame(callback: FrameRequestCallback): number;
   cancelAnimationFrame(handle: number): void;
+  setTimeout?(callback: () => void, delay: number): number;
+  clearTimeout?(handle: number): void;
 }
 
 interface PendingFrame {
   host: AnimationFrameHost;
   handle: number;
+  timeout?: number;
   onDiscard?: () => void;
 }
 
@@ -62,16 +65,22 @@ export class RenderLifecycle {
     if (this.frames.has(key)) return false;
 
     const pending: PendingFrame = { host, handle: 0, onDiscard };
-    pending.handle = host.requestAnimationFrame(() => {
+    const run = () => {
       if (this.frames.get(key) !== pending) return;
       this.frames.delete(key);
+      host.cancelAnimationFrame(pending.handle);
+      if (pending.timeout !== undefined) host.clearTimeout?.(pending.timeout);
 
       if (!this.isCurrent(generation) || !isStillValid()) {
         onDiscard?.();
         return;
       }
       callback();
-    });
+    };
+    pending.handle = host.requestAnimationFrame(run);
+    // Hidden tabs/pop-outs may suspend RAF entirely. Complete DOM geometry
+    // there too, rather than leaving the map half-built until focus returns.
+    if (host.setTimeout && host.clearTimeout) pending.timeout = host.setTimeout(run, 50);
 
     this.frames.set(key, pending);
     return true;
@@ -82,6 +91,7 @@ export class RenderLifecycle {
     this.frames.clear();
     pendingFrames.forEach((pending) => {
       pending.host.cancelAnimationFrame(pending.handle);
+      if (pending.timeout !== undefined) pending.host.clearTimeout?.(pending.timeout);
       pending.onDiscard?.();
     });
   }
